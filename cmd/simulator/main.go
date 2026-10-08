@@ -54,11 +54,11 @@ const (
 	simQualyRunLaps        = 4
 	simQualyStartSec       = 360
 	simQualyPlayerPosition = 17
-	simQualyBehindStartM   = 300 // car 1 starts the player's lap this far behind...
-	simQualyBehindGainM    = 900 // ...and gains this much over it
-	simQualyTrafficAheadM  = 150 // car 2's gap ahead of the player
-	simQualySlowAheadM     = 400 // car 3's gap ahead at the start of the push lap...
-	simQualySlowCloseM     = 500 // ...and what the player gains on it over the lap
+	simQualyBehindStartM   = 600  // car 1 starts the player's lap this far behind (about 10 s at its pace)...
+	simQualyBehindGainM    = 1500 // ...and gains this much over it: well clear ahead by the final sector
+	simQualyTrafficAheadM  = 150  // car 2's gap ahead of the player
+	simQualySlowAheadM     = 400  // car 3's gap ahead at the start of the push lap...
+	simQualySlowCloseM     = 500  // ...and what the player gains on it over the lap
 	simQualyYellowFromM    = 2000
 	simQualyYellowToM      = 2600
 	simQualyInvalidFromM   = 3000
@@ -162,7 +162,7 @@ type SimulatorConfig struct {
 func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
-	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, qualy (runs Q1)")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1)")
 	targetFlag := flag.String("target", getEnv("F1T_SIM_TARGET", defaultSimTarget()), "UDP address to send packets to (defaults to the server's F1T_UDP_ADDR port on 127.0.0.1)")
 	flag.Parse()
 
@@ -337,8 +337,12 @@ func main() {
 				default:
 					lapDist = float32(150.0 + (st.sessionTime-10.0)*30.0)
 				}
-			case "pit":
-				switch simPitStatus(st.lapNum, lapDist, simPlayerPitLap) {
+			case "pit", "strategy":
+				pitStatus := simPitStatus(st.lapNum, lapDist, simPlayerPitLap)
+				if cfg.Scenario == "strategy" {
+					pitStatus = simStrategyPitStatus(st.lapNum, lapDist)
+				}
+				switch pitStatus {
 				case packets.PitStatusPitting:
 					speedKmh = 78
 					rpm = 7800
@@ -362,6 +366,7 @@ func main() {
 				}
 			}
 
+			prevLapDist := st.lapDist
 			st.lapDist = lapDist
 
 			// Common Header
@@ -382,6 +387,12 @@ func main() {
 			// 1a. Session Data Packet (ID: 1)
 			sessionPkt := buildSessionPacket(cfg, st, header)
 			sendSessionPacket(conn, &sessionPkt, cfg.PacketFormat)
+
+			if cfg.Scenario == "strategy" && simStrategyVSCEnding(st.lapNum, prevLapDist, lapDist) {
+				slog.Info("VSC ending", "scenario", "strategy", "lap", st.lapNum)
+				evtPkt := buildSafetyCarEvent(header, packets.SafetyCarVirtual, packets.SafetyCarEventReturning)
+				sendEventPacket(conn, &evtPkt)
+			}
 
 			// 1b. Periodic Event Packet (ID: 3)
 			if st.frameID%120 == 40 {
@@ -446,6 +457,12 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 	if cfg.IsQualifying {
 		totalLaps = 0
 	}
+	idealLap, latestLap, rejoinPos := uint8(16), uint8(22), uint8(7)
+	if cfg.Scenario == "strategy" {
+		totalLaps = simStrategyLaps
+		idealLap, latestLap = simStrategyPlan(st.lapNum, st.lapDist)
+		rejoinPos = simStrategyRejoin
+	}
 
 	scMode := uint8(0)
 	var startReactionTime float32 = 0.0
@@ -471,6 +488,8 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 			slog.Info("Full Safety Car deployed", "scenario", "sc")
 		}
 		scMode = packets.SafetyCarFull
+	case cfg.Scenario == "strategy" && simStrategyVSC(st.lapNum, st.lapDist):
+		scMode = packets.SafetyCarVirtual
 	case cfg.Scenario == "vsc" && st.sessionTime >= 4.0 && st.sessionTime < 60.0:
 		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
 			slog.Info("Virtual Safety Car deployed", "scenario", "vsc")
@@ -491,9 +510,9 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 		Weather:                   0, // Clear
 		SafetyCarStatus:           scMode,
 		StartReactionTime:         startReactionTime,
-		PitStopWindowIdealLap:     16,
-		PitStopWindowLatestLap:    22,
-		PitStopRejoinPosition:     7,
+		PitStopWindowIdealLap:     idealLap,
+		PitStopWindowLatestLap:    latestLap,
+		PitStopRejoinPosition:     rejoinPos,
 		NumWeatherForecastSamples: 4,
 		Sector2LapDistanceStart:   1750.0,
 		Sector3LapDistanceStart:   3500.0,
@@ -739,6 +758,25 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				}
 			}
 
+			if cfg.Scenario == "strategy" {
+				carPosition = simStrategyPosition(i)
+				if i == 0 {
+					pitStatus = simStrategyPitStatus(st.lapNum, lapDist)
+					if pitStatus != packets.PitStatusNone {
+						driverStatus = packets.DriverStatusInLap
+					}
+				} else if pitLap, ok := simStrategyAIPitLaps[i]; ok {
+					pitStatus = simPitStatus(simCarLap(st.lapNum, lapDist, carLapDist), carLapDist, pitLap)
+					if pitStatus != packets.PitStatusNone {
+						driverStatus = packets.DriverStatusInLap
+					}
+				}
+				if pitStatus != st.pitStatus[i] && (i == 0 || simStrategyAIPitLaps[i] > 0) {
+					slog.Info("Pit status changed", "scenario", "strategy", "car", i, "lap", st.lapNum, "pitStatus", pitStatus, "lapDistance", int(carLapDist))
+				}
+				st.pitStatus[i] = pitStatus
+			}
+
 			if cfg.Scenario == "pit" {
 				if i == 0 {
 					pitStatus = simPitStatus(st.lapNum, lapDist, simPlayerPitLap)
@@ -771,6 +809,9 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			numStops := uint8(0)
 			if st.lapNum > 1 {
 				numStops = uint8(i / 8)
+			}
+			if cfg.Scenario == "strategy" && i == 0 {
+				numStops = uint8(simStrategyStopsMade(st.lapNum, lapDist))
 			}
 
 			lapCars[i] = packets.LapData{
@@ -813,24 +854,29 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusData {
 	statusCars := make([]packets.CarStatusData, cfg.TotalSlots)
 	compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
-	for i := 0; i < cfg.TotalSlots; i++ {
-		if i < cfg.NumActiveCars {
-			pitLimiter := uint8(0)
-			if i == 0 && cfg.Scenario == "pit" && simPitStatus(st.lapNum, st.lapDist, simPlayerPitLap) != packets.PitStatusNone {
+	for i := 0; i < cfg.NumActiveCars; i++ {
+		pitLimiter := uint8(0)
+		if i == 0 && cfg.Scenario == "pit" && simPitStatus(st.lapNum, st.lapDist, simPlayerPitLap) != packets.PitStatusNone {
+			pitLimiter = 1
+		}
+		tyreAge := uint8(3 + i*2)
+		if i == 0 && cfg.Scenario == "strategy" {
+			tyreAge = simStrategyTyreAge(st.lapNum, st.lapDist)
+			if simStrategyPitStatus(st.lapNum, st.lapDist) != packets.PitStatusNone {
 				pitLimiter = 1
 			}
-			statusCars[i] = packets.CarStatusData{
-				FuelInTank:            float32(48.0 - float64(i)*0.8),
-				FuelCapacity:          110.0,
-				VisualTyreCompound:    compounds[i%len(compounds)],
-				TyresAgeLaps:          uint8(3 + i*2),
-				ERSStoreEnergy:        float32(4000000.0 * (1.0 - float64(i)*0.03)),
-				ERSDeployMode:         uint8(i % 4),
-				ERSHarvestLimitPerLap: 2000000.0,
-				PitLimiterStatus:      pitLimiter,
-				VehicleFIAFlags:       simFIAFlag(cfg, st, i),
-				DRSAllowed:            simDRSAllowed(cfg, st, i),
-			}
+		}
+		statusCars[i] = packets.CarStatusData{
+			FuelInTank:            float32(48.0 - float64(i)*0.8),
+			FuelCapacity:          110.0,
+			VisualTyreCompound:    compounds[i%len(compounds)],
+			TyresAgeLaps:          tyreAge,
+			ERSStoreEnergy:        float32(4000000.0 * (1.0 - float64(i)*0.03)),
+			ERSDeployMode:         uint8(i % 4),
+			ERSHarvestLimitPerLap: 2000000.0,
+			PitLimiterStatus:      pitLimiter,
+			VehicleFIAFlags:       simFIAFlag(cfg, st, i),
+			DRSAllowed:            simDRSAllowed(cfg, st, i),
 		}
 	}
 	return statusCars
@@ -850,6 +896,9 @@ func simDRSAllowed(cfg SimulatorConfig, st *simState, carIdx int) uint8 {
 func simFIAFlag(cfg SimulatorConfig, st *simState, carIdx int) int8 {
 	neutralised := cfg.Scenario == "sc" || cfg.Scenario == "safetycar" || cfg.Scenario == "vsc"
 	if neutralised && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+		return packets.VehicleFIAFlagYellow
+	}
+	if cfg.Scenario == "strategy" && simStrategyVSC(st.lapNum, st.lapDist) {
 		return packets.VehicleFIAFlagYellow
 	}
 	if cfg.Scenario == "qualy" && carIdx == 0 && simQualyStage(st.lapNum) == simQualyPushLap &&

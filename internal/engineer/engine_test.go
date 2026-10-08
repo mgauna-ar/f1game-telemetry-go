@@ -377,6 +377,7 @@ func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 	sessionPkt := &packets.PacketSessionData{
 		Header:                header,
 		SessionType:           packets.SessionRace,
+		TrackLength:           5000,
 		PitStopWindowIdealLap: 8,
 		PitStopRejoinPosition: 4,
 	}
@@ -394,16 +395,18 @@ func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 	statusPkt := &packets.PacketCarStatusData{
 		Header: header,
 		CarStatusData: [packets.MaxCars]packets.CarStatusData{
-			{FuelRemainingLaps: -1.0, ERSStoreEnergy: 2_000_000.0},
+			{FuelRemainingLaps: -1.0, ERSStoreEnergy: 2_000_000.0, TyresAgeLaps: 8},
 		},
 	}
 	engine.ProcessPacket(ctx, statusPkt)
+	// The plan's call to box is made on lap data, once the tyres' age is known.
+	engine.ProcessPacket(ctx, lapPkt)
 
 	if _, exists := engine.lastDirectives["fuel_delta"]; !exists {
 		t.Fatalf("expected fuel_delta directive")
 	}
-	if _, exists := engine.lastDirectives["pit_window"]; !exists {
-		t.Fatalf("expected pit_window directive on ideal lap 8")
+	if _, exists := engine.lastDirectives["pit_plan_box"]; !exists {
+		t.Fatalf("expected the plan's call to box on ideal lap 8")
 	}
 
 	// Undercut in new session
@@ -416,11 +419,15 @@ func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 	lapPktUndercut := &packets.PacketLapData{
 		Header: header401,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 8, CarPosition: 2, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 6000},
-			{CurrentLapNum: 8, CarPosition: 3, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 5920, PitStatus: packets.PitStatusPitting},
+			{CurrentLapNum: 8, CarPosition: 2, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 6000, ResultStatus: packets.ResultStatusActive},
+			{CurrentLapNum: 8, CarPosition: 3, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 5920, ResultStatus: packets.ResultStatusActive},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPktUndercut)
+	// The car behind enters the pit lane.
+	pitting := *lapPktUndercut
+	pitting.LapData[1].PitStatus = packets.PitStatusPitting
+	engine.ProcessPacket(ctx, &pitting)
 	if _, exists := engine.lastDirectives["undercut"]; !exists {
 		t.Fatalf("expected undercut directive")
 	}
@@ -842,11 +849,15 @@ func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
 	lapPktGreen := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 6, CarPosition: 1, TotalDistance: 12000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
-			{CurrentLapNum: 6, CarPosition: 2, TotalDistance: 11950, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting},
+			{CurrentLapNum: 6, CarPosition: 1, TotalDistance: 12000, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+			{CurrentLapNum: 6, CarPosition: 2, TotalDistance: 11950, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPktGreen)
+	// Its next stop: out of the pit lane, then in again.
+	pitting := *lapPktGreen
+	pitting.LapData[1].PitStatus = packets.PitStatusPitting
+	engine.ProcessPacket(ctx, &pitting)
 
 	if _, exists := engine.lastDirectives["undercut"]; !exists {
 		t.Fatalf("expected undercut directive to be emitted under green flag racing")
@@ -1151,12 +1162,17 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 			Header:                header,
 			SessionType:           packets.SessionRace,
 			SafetyCarStatus:       packets.SafetyCarNone,
+			TrackLength:           5000,
 			PitStopWindowIdealLap: 5,
 			PitStopRejoinPosition: 3,
 		}
 		engine.ProcessPacket(ctx, sessionPkt)
+		engine.ProcessPacket(ctx, &packets.PacketCarStatusData{
+			Header:        header,
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{{TyresAgeLaps: 5}},
+		})
 
-		// Lap packet on lap 5 -> triggers pit_window
+		// Lap packet on lap 5 -> triggers the plan's call to box
 		lapPkt := &packets.PacketLapData{
 			Header: header,
 			LapData: [packets.MaxCars]packets.LapData{
@@ -1165,8 +1181,8 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 		}
 		engine.ProcessPacket(ctx, lapPkt)
 
-		if _, exists := engine.lastDirectives["pit_window"]; !exists {
-			t.Errorf("expected pit_window to be emitted when fuel is disabled but pit_strategy is enabled")
+		if _, exists := engine.lastDirectives["pit_plan_box"]; !exists {
+			t.Errorf("expected pit_plan_box to be emitted when fuel is disabled but pit_strategy is enabled")
 		}
 
 		// CarStatus packet with negative fuel delta -> should NOT emit fuel_delta

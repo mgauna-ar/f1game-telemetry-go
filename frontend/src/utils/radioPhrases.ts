@@ -46,7 +46,6 @@ export const REPORT_PHRASES: Record<LocaleCode, Record<ReportPhrase, RadioPhrase
 const BOX_OPTION_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'safety_car',
   'vsc',
-  'pit_window_open',
   'pit_clean_air',
 ]);
 

@@ -545,76 +545,15 @@ func TestFuelRule_TableDriven(t *testing.T) {
 			wantAlerts: 0,
 		},
 		{
-			name: "pit stop window open alert on ideal lap",
-			ctx: &EvaluationContext{
-				LapData: &packets.PacketLapData{
-					LapData: [packets.MaxCars]packets.LapData{
-						{CurrentLapNum: 12, CarPosition: 3},
-					},
-				},
-				Config:         cfg,
-				PlayerCarIndex: 0,
-				Phase:          PhaseRacing,
-				Session: &packets.PacketSessionData{
-					SessionType:           packets.SessionRace,
-					PitStopWindowIdealLap: 12,
-					PitStopRejoinPosition: 6,
-					SafetyCarStatus:       packets.SafetyCarNone,
-				},
-			},
-			wantAlerts:   1,
-			wantSubAlert: "pit_window_open",
-			wantUrgency:  UrgencyLow,
-		},
-		{
-			name: "pit stop window close alert on latest lap",
-			ctx: &EvaluationContext{
-				LapData: &packets.PacketLapData{
-					LapData: [packets.MaxCars]packets.LapData{
-						{CurrentLapNum: 16, CarPosition: 3},
-					},
-				},
-				Config:         cfg,
-				PlayerCarIndex: 0,
-				Phase:          PhaseRacing,
-				Session: &packets.PacketSessionData{
-					SessionType:            packets.SessionRace,
-					PitStopWindowLatestLap: 16,
-					SafetyCarStatus:        packets.SafetyCarNone,
-				},
-			},
-			wantAlerts:   1,
-			wantSubAlert: "pit_window_close",
-			wantUrgency:  UrgencyHigh,
-		},
-		{
-			name: "pit stop window suppressed under safety car",
-			ctx: &EvaluationContext{
-				LapData: &packets.PacketLapData{
-					LapData: [packets.MaxCars]packets.LapData{
-						{CurrentLapNum: 12, CarPosition: 3},
-					},
-				},
-				Config:         cfg,
-				PlayerCarIndex: 0,
-				Phase:          PhaseSafetyCar,
-				Session: &packets.PacketSessionData{
-					SessionType:           packets.SessionRace,
-					PitStopWindowIdealLap: 12,
-					SafetyCarStatus:       packets.SafetyCarFull,
-				},
-			},
-			wantAlerts: 0,
-		},
-		{
 			name: "undercut threat from trailing rival pitting",
 			ctx: &EvaluationContext{
 				LapData: &packets.PacketLapData{
 					LapData: [packets.MaxCars]packets.LapData{
-						{CarPosition: 2, TotalDistance: 5000.0, CurrentLapNum: 10},
-						{CarPosition: 3, TotalDistance: 4950.0, PitStatus: packets.PitStatusPitting, CurrentLapNum: 10},
+						{CarPosition: 2, TotalDistance: 5000.0, CurrentLapNum: 10, ResultStatus: packets.ResultStatusActive},
+						{CarPosition: 3, TotalDistance: 4950.0, PitStatus: packets.PitStatusPitting, CurrentLapNum: 10, ResultStatus: packets.ResultStatusActive},
 					},
 				},
+				PitEntries:     [packets.MaxCars]bool{1: true},
 				Config:         cfg,
 				PlayerCarIndex: 0,
 				Phase:          PhaseRacing,
@@ -2149,17 +2088,24 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 			Wear:               0,
 			Available:          1,
 		}
+		// With the plan's "box next lap" heads-up on, the heads-up says the stop is coming instead.
+		noHeadsUp := cfg.clone()
+		noHeadsUp.EnabledCategories = map[string]bool{"pit_window": false}
 		ctx := &EvaluationContext{
 			Session:        session,
 			LapData:        lapData,
 			TyreSets:       &tyreSets,
-			Config:         cfg,
+			Config:         noHeadsUp,
 			PlayerCarIndex: 0,
 			Phase:          PhaseRacing,
 		}
 		dirs := rule.Evaluate(ctx)
 		if len(dirs) != 1 || dirs[0].ID != "tyre_set_advisory" || !strings.Contains(dirs[0].Message, "Hard") {
 			t.Fatalf("expected tyre_set_advisory with Hard tyres, got %+v", dirs)
+		}
+		ctx.Config = cfg
+		if dirs := NewTyresRule().Evaluate(ctx); len(dirs) != 0 {
+			t.Fatalf("expected no tyre_set_advisory with the plan's heads-up on, got %+v", dirs)
 		}
 	})
 

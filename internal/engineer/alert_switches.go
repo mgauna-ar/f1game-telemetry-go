@@ -101,11 +101,11 @@ var alertGates = []alertGate{
 	{"brakesAlertsEnabled", "subBrakeBias", []string{"brake_bias", "brake_bias_ok"}},
 	{"fuelAlertsEnabled", "subFuelDelta", []string{"fuel_delta"}},
 	{"fuelAlertsEnabled", "subFuelMix", []string{"fuel_mix_neutralized", "fuel_mix_restart"}},
-	{"rivalAlertsEnabled", "subUndercut", []string{"undercut"}},
+	{"rivalAlertsEnabled", "subUndercut", []string{"undercut", "overcut"}},
 	{"rivalAlertsEnabled", "subRivalDefend", []string{"rival_defend", "rival_defend_override"}},
 	{"rivalAlertsEnabled", "subRivalAttack", []string{"rival_attack", "rival_attack_override"}},
 	{"rivalAlertsEnabled", "subGapReport", []string{"gap_report"}},
-	{"pitAlertsEnabled", "subPitWindow", []string{"pit_window"}},
+	{"pitAlertsEnabled", "subPitWindow", []string{"pit_window", "pit_plan_box"}},
 	{"pitAlertsEnabled", "subPitWindowClose", []string{"pit_window_close"}},
 	{"pitAlertsEnabled", "subPitCleanAir", []string{"pit_clean_air"}},
 	{"pitAlertsEnabled", "subTyreSet", []string{"tyre_set_advisory"}},
@@ -127,7 +127,7 @@ var alertGates = []alertGate{
 	{"flagsPensAlertsEnabled", "subTrackLimits", []string{"track_limits"}},
 	{"flagsPensAlertsEnabled", "subPenalties", []string{"penalties"}},
 	{"flagsPensAlertsEnabled", "subFlags", []string{"flags_blue", "flags_yellow", "flags_green", "flags_sc_in", "flags_drs_enabled", "flags_drs_disabled"}},
-	{"flagsPensAlertsEnabled", "subRaceEvents", []string{"car_collision", "car_retirement", "race_fastest_lap"}},
+	{"flagsPensAlertsEnabled", "subRaceEvents", []string{"car_collision", "car_retirement", "race_fastest_lap", "race_final_lap"}},
 }
 
 // IsAlertSwitch reports whether key is one of AlertSwitchKeys.

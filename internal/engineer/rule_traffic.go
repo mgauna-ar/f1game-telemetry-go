@@ -42,8 +42,10 @@ func (r *TrafficRule) ValidPhases() []DrivingPhase {
 func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"pit_clean_air": {
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeNone,
+			ValidPhases:    []DrivingPhase{PhaseRacing},
+			DedupScope:     DedupScopeNone,
+			NotWhileBoxDue: true,
+			LapBound:       true,
 		},
 		"pit_serve_penalty": {
 			ValidPhases: []DrivingPhase{PhasePitLane},
@@ -213,7 +215,8 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 	if windowOpen == 0 || windowClose == 0 || currentLap < windowOpen || currentLap > windowClose {
 		return nil
 	}
-	if currentLap == r.cleanAirLap || ctx.BoxTiming() != BoxThisLap {
+	// Once a call told the player to box this lap, the option to is only noise.
+	if currentLap == r.cleanAirLap || ctx.BoxTiming() != BoxThisLap || ctx.BoxDueLap >= currentLap {
 		return nil
 	}
 	// Tyres this fresh were just fitted: the window is for the next stop.

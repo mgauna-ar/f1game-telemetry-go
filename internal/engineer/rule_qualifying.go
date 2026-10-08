@@ -188,7 +188,7 @@ func (r *QualifyingRule) evaluateInvalidLap(ctx *EvaluationContext, playerLap *p
 
 // evaluateOutLapTraffic tells the driver, once in the final sector of a qualifying out-lap,
 // whether the push lap starts in traffic or in clean air: the gap to the nearest car on track ahead
-// at push pace.
+// at the player's push pace.
 func (r *QualifyingRule) evaluateOutLapTraffic(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
 	if !ctx.IsQualifyingSession() || ctx.Phase != PhaseOutLap || ctx.LapData == nil {
 		return nil
@@ -212,8 +212,9 @@ func (r *QualifyingRule) evaluateOutLapTraffic(ctx *EvaluationContext, playerLap
 		}
 	}
 
-	if nearest >= 0 && pushLapGapSec(nearest) < float64(ctx.Config.QualyCleanAirSec) {
-		gapSec := roundTo(pushLapGapSec(nearest), 1)
+	pace := pushPaceMps(ctx, ctx.PlayerCarIndex)
+	if nearest >= 0 && pushLapGapSec(nearest, pace) < float64(ctx.Config.QualyCleanAirSec) {
+		gapSec := roundTo(pushLapGapSec(nearest, pace), 1)
 		return &Directive{
 			ID:       "qualy_traffic",
 			Category: DirectiveCategoryQualifying,
@@ -328,33 +329,37 @@ func (r *QualifyingRule) evaluateCooldown(ctx *EvaluationContext, playerLap *pac
 }
 
 // evaluateCarBehind warns a player who isn't pushing (out-lap or in-lap of a timed session) of a
-// car on a push lap closing from behind: the nearest within QualyCarBehindWarnSec, each car once
-// per player lap.
+// car on a push lap closing from behind: the one that gets there first, within the driver's
+// QualyCarBehindSec at its own pace, each car once per player lap.
 func (r *QualifyingRule) evaluateCarBehind(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
 	if !timedSession(ctx) || (ctx.Phase != PhaseOutLap && ctx.Phase != PhaseInLap) || ctx.LapData == nil {
 		return nil
 	}
+	warnSec := float64(ctx.Config.QualyCarBehindSec)
+	if warnSec <= 0 {
+		warnSec = QualyCarBehindDefaultSec
+	}
 	trackLen := ctx.TrackLengthM()
-	best, bestGap := -1, float32(0)
+	best, bestGapSec := -1, 0.0
 	for i := range ctx.LapData.LapData {
 		rival := &ctx.LapData.LapData[i]
 		if i == ctx.PlayerCarIndex || rival.DriverStatus != packets.DriverStatusFlyingLap || !onTrack(rival) ||
 			r.behindCalled[i] == playerLap.CurrentLapNum {
 			continue
 		}
-		gap := trackGapM(rival.LapDistance, playerLap.LapDistance, trackLen)
-		if pushLapGapSec(gap) > QualyCarBehindWarnSec {
+		gapSec := pushLapGapSec(trackGapM(rival.LapDistance, playerLap.LapDistance, trackLen), pushPaceMps(ctx, i))
+		if gapSec > warnSec {
 			continue
 		}
-		if best < 0 || gap < bestGap {
-			best, bestGap = i, gap
+		if best < 0 || gapSec < bestGapSec {
+			best, bestGapSec = i, gapSec
 		}
 	}
 	if best < 0 {
 		return nil
 	}
 	r.behindCalled[best] = playerLap.CurrentLapNum
-	gapSec := roundTo(pushLapGapSec(bestGap), 1)
+	gapSec := roundTo(bestGapSec, 1)
 	return &Directive{
 		ID:       "inlap_traffic_behind",
 		Category: DirectiveCategoryQualifying,
@@ -367,8 +372,8 @@ func (r *QualifyingRule) evaluateCarBehind(ctx *EvaluationContext, playerLap *pa
 }
 
 // evaluateTrafficAhead warns a player on a push lap of a car ahead that isn't pushing and is
-// slower: the nearest within QualyTrafficAheadWarnSec that they would reach before the line, each
-// car once per lap.
+// slower: the nearest within QualyTrafficAheadWarnSec at the player's pace that they would reach
+// before the line, each car once per lap.
 func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
 	if !timedSession(ctx) || ctx.Phase != PhaseFlyingLap || ctx.LapData == nil {
 		return nil
@@ -376,6 +381,7 @@ func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap 
 	trackLen := ctx.TrackLengthM()
 	lapLeft := trackLen - playerLap.LapDistance
 	playerTele := ctx.PlayerTelemetry()
+	pace := pushPaceMps(ctx, ctx.PlayerCarIndex)
 	best, bestGap := -1, float32(0)
 	for i := range ctx.LapData.LapData {
 		rival := &ctx.LapData.LapData[i]
@@ -384,7 +390,7 @@ func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap 
 			continue
 		}
 		gap := trackGapM(playerLap.LapDistance, rival.LapDistance, trackLen)
-		if gap > lapLeft || pushLapGapSec(gap) > QualyTrafficAheadWarnSec {
+		if gap > lapLeft || pushLapGapSec(gap, pace) > QualyTrafficAheadWarnSec {
 			continue
 		}
 		// A car at least as fast is no traffic, for now.
@@ -400,7 +406,7 @@ func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap 
 		return nil
 	}
 	r.aheadCalled[best] = playerLap.CurrentLapNum
-	gapSec := roundTo(pushLapGapSec(bestGap), 1)
+	gapSec := roundTo(pushLapGapSec(bestGap, pace), 1)
 	return &Directive{
 		ID:       "qualy_traffic_ahead",
 		Category: DirectiveCategoryQualifying,

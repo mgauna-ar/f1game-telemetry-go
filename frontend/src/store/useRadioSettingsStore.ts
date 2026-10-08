@@ -94,6 +94,7 @@ export function engineerSettingsFromValues(v: EngineerSettingsValues): Omit<Engi
     rain_prob_pct: v.rainProbPct,
     pit_call_lead_m: v.pitCallLeadM,
     gap_report_laps: v.gapReportLaps,
+    qualy_car_behind_sec: v.qualyCarBehindSec,
     trigger_preset: v.triggerPreset,
     alert_switches: Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, v[key]])),
   };

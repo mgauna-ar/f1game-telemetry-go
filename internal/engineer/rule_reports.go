@@ -119,7 +119,8 @@ func (r *ReportsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 // gapReport says the player's position and the gaps to the cars within GapReportMaxGapSec ahead
 // and behind, with how they are moving, early in every GapReportLaps-th lap. A report that can't
-// be made on its lap (in-lap, out-lap, a rival call just made) comes on the next one.
+// be made on its lap (in-lap, out-lap, a rival call just made, the plan's "box next lap") comes on
+// the next one. The last lap has its own call.
 func (r *ReportsRule) gapReport(ctx *EvaluationContext, lap *packets.LapData) (Directive, bool) {
 	n := int(lap.CurrentLapNum)
 	every := ctx.Config.GapReportLaps
@@ -132,7 +133,7 @@ func (r *ReportsRule) gapReport(ctx *EvaluationContext, lap *packets.LapData) (D
 	if pct := ctx.CalculateLapDistancePct(); pct < GapReportFromLapPct || pct > GapReportToLapPct {
 		return Directive{}, false
 	}
-	if ctx.BoxDueLap == n || justPitted(ctx) || rivalCalledSince(ctx.CallLaps, n-1) {
+	if ctx.BoxDueLap == n || isPlanHeadsUpLap(ctx, n) || isFinalLap(ctx, lap) || justPitted(ctx) || rivalCalledSince(ctx.CallLaps, n-1) {
 		return Directive{}, false
 	}
 	r.gapReportLap = n
@@ -222,11 +223,11 @@ func describeGapReport(v *DirectiveValues) string {
 
 // tyreLifeCall projects the tyres' life once a lap from the stint's wear and says how many laps
 // they have left when that first drops to TyreLifeWarnLaps and again at TyreLifeLastLaps, or that
-// they make the end when they last the laps to go.
+// they make the end when they last the laps to go. Nothing on the last lap: the end is there.
 func (r *ReportsRule) tyreLifeCall(ctx *EvaluationContext, lap *packets.LapData) (Directive, bool) {
 	n := int(lap.CurrentLapNum)
 	dmg := ctx.PlayerDamage()
-	if n <= r.tyreCheckLap || dmg == nil {
+	if n <= r.tyreCheckLap || dmg == nil || isFinalLap(ctx, lap) {
 		return Directive{}, false
 	}
 	r.tyreCheckLap = n
@@ -249,7 +250,9 @@ func (r *ReportsRule) tyreLifeCall(ctx *EvaluationContext, lap *packets.LapData)
 
 	switch {
 	case toGo > 0 && life.LapsToLimit >= toGo:
-		if r.tyreEndSaid || toGo > TyreLifeEndCallMaxLaps {
+		// While the game still plans a stop, "these tyres make the end" would argue with the
+		// calls to box; it waits for the plan to be done.
+		if r.tyreEndSaid || toGo > TyreLifeEndCallMaxLaps || planStopAhead(ctx) {
 			return Directive{}, false
 		}
 		r.tyreEndSaid = true

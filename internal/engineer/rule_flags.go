@@ -21,6 +21,7 @@ type FlagsRule struct {
 	lastVehicleFIAFlag       int8
 	scEndingTriggered        bool
 	lastWrongWayAlert        bool
+	finalLapSaid             bool
 }
 
 // NewFlagsRule creates a new FlagsRule.
@@ -132,6 +133,12 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhasePostRace},
 			DedupScope:  DedupScopeNone,
 		},
+		"race_final_lap": {
+			Category:             DirectiveCategoryFlags,
+			ValidPhases:          []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:           DedupScopeNone,
+			SkipCategoryCooldown: true,
+		},
 	}
 }
 
@@ -151,6 +158,7 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.lastVehicleFIAFlag = packets.VehicleFIAFlagNone
 		r.scEndingTriggered = false
 		r.lastWrongWayAlert = false
+		r.finalLapSaid = false
 	}
 }
 
@@ -176,9 +184,12 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 2. Lap-based Flags (Track Limits warnings & penalties)
+	// 2. Lap-based Flags (Track Limits warnings & penalties, the last lap)
 	playerLap := ctx.PlayerLap()
 	if playerLap != nil && (ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
+		if fl := r.evaluateFinalLap(ctx, playerLap); fl != nil {
+			directives = append(directives, *fl)
+		}
 		pnl := r.evaluatePenalties(playerLap)
 		if pnl != nil {
 			// A steward penalty strictly supersedes corner cutting warnings on the same event
@@ -216,6 +227,43 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	return directives
 }
 
+// evaluateFinalLap says once a race, early on the player's last lap and out of the pit lane, that
+// it is the last lap and where they are.
+func (r *FlagsRule) evaluateFinalLap(ctx *EvaluationContext, lap *packets.LapData) *Directive {
+	if !isFinalLap(ctx, lap) {
+		// A flashback to before the last lap re-drives it.
+		if ctx.Session != nil && int(lap.CurrentLapNum) < int(ctx.Session.TotalLaps) {
+			r.finalLapSaid = false
+		}
+		return nil
+	}
+	if r.finalLapSaid || lap.PitStatus != packets.PitStatusNone || lap.CarPosition == 0 ||
+		ctx.CalculateLapDistancePct() > FinalLapCallToPct {
+		return nil
+	}
+	r.finalLapSaid = true
+	pos := int(lap.CarPosition)
+	subAlert, msg := "race_final_lap", fmt.Sprintf("Last lap, P%d. Bring it home.", pos)
+	if pos == 1 {
+		subAlert, msg = "race_final_lap_lead", "Last lap, and we're leading. Bring it home."
+	}
+	return &Directive{
+		ID:       "race_final_lap",
+		Category: DirectiveCategoryFlags,
+		SubAlert: subAlert,
+		Title:    "Final Lap",
+		Message:  msg,
+		Urgency:  UrgencyMedium,
+		Values:   &DirectiveValues{Position: pos},
+	}
+}
+
+// isFinalLap reports whether the player is racing the last lap of a race of more than one lap.
+func isFinalLap(ctx *EvaluationContext, lap *packets.LapData) bool {
+	return ctx.IsRaceSession() && lap != nil && ctx.Session.TotalLaps > 1 &&
+		int(lap.CurrentLapNum) == int(ctx.Session.TotalLaps) && lap.ResultStatus == packets.ResultStatusActive
+}
+
 func (r *FlagsRule) evaluateWrongWay(ctx *EvaluationContext) *Directive {
 	telemetry2 := ctx.PlayerTelemetry2()
 	if telemetry2 == nil {
@@ -251,6 +299,17 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 	r.lastSafetyCarStatus = scStatus
 	switch scStatus {
 	case packets.SafetyCarFull:
+		if safetyCarStopNear(ctx, scStatus) {
+			return &Directive{
+				ID:       "flags_sc",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "safety_car_box",
+				Title:    "Safety Car Deployed: Box",
+				Message:  fmt.Sprintf("Full Safety Car deployed near the planned stop (ideal lap %d). Take the stop under the Safety Car.", ctx.PitPlan.IdealLap),
+				Urgency:  UrgencyCritical,
+				BoxCall:  BoxCallInstruction,
+			}
+		}
 		return &Directive{
 			ID:       "flags_sc",
 			Category: DirectiveCategoryFlags,
@@ -261,6 +320,17 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			BoxCall:  BoxCallOption,
 		}
 	case packets.SafetyCarVirtual:
+		if safetyCarStopNear(ctx, scStatus) {
+			return &Directive{
+				ID:       "flags_sc",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "vsc_box",
+				Title:    "VSC Deployed: Box",
+				Message:  fmt.Sprintf("Virtual Safety Car deployed near the planned stop (ideal lap %d). Take the stop under the VSC.", ctx.PitPlan.IdealLap),
+				Urgency:  UrgencyCritical,
+				BoxCall:  BoxCallInstruction,
+			}
+		}
 		return &Directive{
 			ID:       "flags_sc",
 			Category: DirectiveCategoryFlags,
@@ -302,6 +372,16 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 		case packets.SafetyCarEventReturning:
 			if !r.scEndingTriggered {
 				r.scEndingTriggered = true
+				if d.SafetyCarType == packets.SafetyCarVirtual {
+					return &Directive{
+						ID:       "flags_sc_in",
+						Category: DirectiveCategoryFlags,
+						SubAlert: "vsc_ending",
+						Title:    "VSC Ending",
+						Message:  "VSC ending! Keep the delta positive and be ready to go when it turns green.",
+						Urgency:  UrgencyHigh,
+					}
+				}
 				return &Directive{
 					ID:       "flags_sc_in",
 					Category: DirectiveCategoryFlags,

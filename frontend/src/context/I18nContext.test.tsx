@@ -146,6 +146,7 @@ describe('I18nContext and useI18n Hook', () => {
       'ai_engineer.proactiveAlerts.qualySessionTime',
       'ai_engineer.proactiveAlerts.qualyElimDanger',
       'ai_engineer.proactiveAlerts.qualyCleanAirGap',
+      'ai_engineer.proactiveAlerts.qualyCarBehindGap',
       'ai_engineer.proactiveAlerts.safetyCarAlert',
       'ai_engineer.proactiveAlerts.redFlagAlert',
       'ai_engineer.proactiveAlerts.dynamicRainAlert',

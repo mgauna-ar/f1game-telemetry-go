@@ -107,6 +107,12 @@ type AlertKeyConfig struct {
 	// BreaksRadioSilence lets the call through the radio silence of a flying lap and of the race
 	// start at any urgency: what the driver must hear right then (a yellow flag, a slow car ahead).
 	BreaksRadioSilence bool
+	// NotWhileBoxDue drops the call while a call to box is open: news of a stop to come, or the
+	// option of one, is moot once the driver was told to box.
+	NotWhileBoxDue bool
+	// LapBound drops the call once the player starts another lap while a passing gate holds it:
+	// what it says ("box next lap") is only true on the lap it was made for.
+	LapBound bool
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -140,6 +146,9 @@ type Tuning struct {
 	PitCallLeadM float32 `json:"pit_call_lead_m"`
 	// GapReportLaps is how many laps apart the gap reports come in a race.
 	GapReportLaps int `json:"gap_report_laps"`
+	// QualyCarBehindSec is how far back, in seconds at its pace, a car on a push lap is called to a
+	// player who isn't pushing.
+	QualyCarBehindSec float32 `json:"qualy_car_behind_sec"`
 }
 
 // DefaultTuning returns the built-in radio spacing and alert thresholds.
@@ -167,6 +176,7 @@ func DefaultTuning() Tuning {
 		RainProbPct:            WeatherRainTransitionProbPct,
 		PitCallLeadM:           DefaultPitCallLeadM,
 		GapReportLaps:          DefaultGapReportLaps,
+		QualyCarBehindSec:      QualyCarBehindDefaultSec,
 	}
 }
 
@@ -330,8 +340,13 @@ type EvaluationContext struct {
 	CallLaps map[string]int
 	// BoxDueLap is the lap a call told the player to box on; 0 when none is open.
 	BoxDueLap int
+	// PitPlan is the game's plan for the player's next pit stop in a race.
+	PitPlan PitPlanState
 	// CarHistory is each car's latest session history packet (nil until one came). Read only.
 	CarHistory *[packets.MaxCars]*packets.PacketSessionHistoryData
+	// PitEntries marks the cars whose pit status went from none to pitting on this lap data
+	// packet: each stop shows once, whatever phase the player was in.
+	PitEntries [packets.MaxCars]bool
 }
 
 // PlayerLap returns the player car's LapData if available.
