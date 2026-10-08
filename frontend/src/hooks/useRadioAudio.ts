@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { RADIO_CONVERSATION_LIMITS } from '../constants/f1';
-import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
-import { useI18n } from '../context/I18nContext';
+import { isEdgeBrowser, playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
+import { useI18n, type I18nContextType } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { AIChatRequest } from '../types/ai';
@@ -9,7 +9,8 @@ import { resolveRadioLanguage } from '../utils/chatContext';
 import { api } from '../utils/apiClient';
 import { chatStreamErrorFromResponse, readChatStream } from '../utils/sseUtils';
 import { createSentenceChunker } from '../utils/sentenceChunker';
-import { useSpeechRecognition } from './useSpeechRecognition';
+import { getNotHeardSpeech } from '../utils/radioPhrases';
+import { SPEECH_NOT_SUPPORTED, useSpeechRecognition } from './useSpeechRecognition';
 import { useTTSPlayback, type ReplySpeechStream } from './useTTSPlayback';
 
 export type RadioState = 'idle' | 'transmitting' | 'processing' | 'speaking';
@@ -48,11 +49,40 @@ export interface UseRadioAudioReturn {
   onPTTRelease: () => Promise<void>;
 }
 
+/** Why a transmission came through without words. */
+interface SpeechProblem {
+  /** What the page shows. */
+  message: string;
+  /** The radio itself isn't working, rather than nothing being said or understood. */
+  radioFault: boolean;
+}
+
+/** Why the radio didn't understand a transmission, from the recognizer's error code (null when it reported none). */
+function speechProblem(code: string | null, t: I18nContextType['t']): SpeechProblem {
+  switch (code) {
+    case 'not-allowed':
+    case 'service-not-allowed':
+      return { message: t('ai_engineer.radio.micBlocked'), radioFault: true };
+    case 'audio-capture':
+      return { message: t('ai_engineer.radio.noMicrophone'), radioFault: true };
+    case SPEECH_NOT_SUPPORTED:
+      return { message: t('ai_engineer.radio.notSupported'), radioFault: true };
+  }
+  // Edge stops hearing a page hidden behind the game, whatever it reports.
+  if (isEdgeBrowser() && document.visibilityState === 'hidden') {
+    return { message: t('ai_engineer.radio.edgeBehindGame'), radioFault: true };
+  }
+  if (code === null || code === 'no-speech') return { message: t('ai_engineer.radio.notHeard'), radioFault: false };
+  if (code === 'network') return { message: t('ai_engineer.radio.speechNetwork'), radioFault: true };
+  return { message: t('ai_engineer.radio.speechError', { code }), radioFault: true };
+}
+
 export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudioReturn {
   const { onTranscriptReceived, onResponseReceived } = options;
-  const { locale: uiLocale } = useI18n();
+  const { locale: uiLocale, t } = useI18n();
 
   const [radioState, setRadioState] = useState<RadioState>('idle');
+  const [error, setError] = useState<string | null>(null);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
 
   // Settings from Zustand store
@@ -60,6 +90,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   const radioLanguage = useRadioSettingsStore((s) => s.radioLanguage);
   const persona = useRadioSettingsStore((s) => s.persona);
   const beepsEnabled = useRadioSettingsStore((s) => s.beepsEnabled);
+  const driverCallsign = useRadioSettingsStore((s) => s.driverCallsign);
 
   // Compute effective radio language
   const effectiveLanguage = resolveRadioLanguage(radioLanguage, uiLocale);
@@ -67,12 +98,11 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   // 1. Speech Recognition Sub-hook
   const {
     transcript,
-    error: speechError,
-    setError: setSpeechError,
     startListening,
     stopListening,
     abortListening,
     getFinalTranscript,
+    getErrorCode,
   } = useSpeechRecognition({
     getLang: () => (effectiveLanguage === 'es' ? 'es-AR' : 'en-GB'),
     onTranscriptReceived,
@@ -139,6 +169,16 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   const beepsEnabledRef = useRef(beepsEnabled);
   beepsEnabledRef.current = beepsEnabled;
 
+  const driverCallsignRef = useRef(driverCallsign);
+  driverCallsignRef.current = driverCallsign;
+
+  const tRef = useRef(t);
+  tRef.current = t;
+
+  // The transmission on the air and when its button went down. A newer press replaces it while its
+  // release still waits for the last words.
+  const transmissionRef = useRef({ startedAt: 0 });
+
   // Driver/engineer exchanges from this session, sent with each transmission so follow-ups make sense.
   const conversationRef = useRef<RadioConversation>({ sessionKey: '', turns: [] });
 
@@ -150,35 +190,61 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     activeAbortControllerRef.current = null;
     stopSpeech();
     stopRadioSpeech();
+    setError(null);
     setRadioState('transmitting');
+    transmissionRef.current = { startedAt: Date.now() };
 
     if (beepsEnabledRef.current) {
       playRadioBeep('start');
     }
 
-    const started = startListening();
-    if (!started) {
-      setRadioState('idle');
-    }
+    // A recognizer that can't start is reported on release, like one that heard nothing.
+    startListening();
   }, [startListening, stopSpeech]);
+
+  // Tells the driver a transmission came through without words: the engineer asks to say again, or
+  // says the radio isn't working, and the page shows why.
+  const reportNotHeard = useCallback(
+    (pressMs: number) => {
+      const problem = speechProblem(getErrorCode(), tRef.current);
+      setRadioState((prev) => (prev === 'transmitting' || prev === 'processing' ? 'idle' : prev));
+      // A short tap that heard nothing was an accident, not a question.
+      if (!problem.radioFault && pressMs < RADIO_CONVERSATION_LIMITS.MIN_PRESS_FOR_SAY_AGAIN_MS) return;
+      setError(problem.message);
+      void ttsSpeakMessage(
+        getNotHeardSpeech(
+          effectiveLanguageRef.current,
+          personaRef.current,
+          problem.radioFault,
+          driverCallsignRef.current
+        )
+      );
+    },
+    [getErrorCode, ttsSpeakMessage]
+  );
 
   // Handle Gamepad/PTT Release
   const onPTTRelease = useCallback(async () => {
     if (radioStateRef.current !== 'transmitting') return;
+    const transmission = transmissionRef.current;
+    const pressMs = Date.now() - transmission.startedAt;
 
-    stopListening();
+    const stopped = stopListening();
 
     if (beepsEnabledRef.current) {
       playRadioBeep('end').catch(() => {});
     }
 
     if (!getFinalTranscript().trim()) {
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      // The words said just before the release can still be on their way.
+      setRadioState('processing');
+      await stopped;
+      if (transmissionRef.current !== transmission) return;
     }
 
     const finalTranscript = getFinalTranscript().trim();
     if (!finalTranscript) {
-      setRadioState('idle');
+      reportNotHeard(pressMs);
       return;
     }
 
@@ -232,7 +298,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       // An aborted request was replaced by a newer transmission or stopped on purpose.
       if (!abortController.signal.aborted) {
         const msg = err instanceof Error ? err.message : 'Error processing radio response';
-        setSpeechError(msg);
+        setError(msg);
         // Close the radio on whatever part of the answer was already spoken.
         replySpeech?.finish();
       }
@@ -242,13 +308,13 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
         activeAbortControllerRef.current = null;
       }
     }
-  }, [beginReplyStream, getFinalTranscript, setSpeechError, stopListening]);
+  }, [beginReplyStream, getFinalTranscript, reportNotHeard, stopListening]);
 
   return {
     radioState,
     lastTranscript: transcript || null,
     lastResponse,
-    error: speechError,
+    error,
     effectiveLanguage,
     speakMessage,
     stopRadio,

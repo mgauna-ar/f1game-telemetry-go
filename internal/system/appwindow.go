@@ -15,11 +15,14 @@ var appWindowProfileDir = filepath.Join("F1 Telemetry", "app-window")
 
 // Browsers that can open a page as an app window (--app), most likely to be installed first.
 var (
+	// windowsChrome is Chrome's program, relative to one of windowsProgramDirs.
+	windowsChrome = filepath.Join("Google", "Chrome", "Application", "chrome.exe")
+
 	// windowsAppBrowsers are relative to %ProgramFiles(x86)%, %ProgramFiles% and %LOCALAPPDATA%.
 	// Edge comes with every Windows 10/11.
 	windowsAppBrowsers = []string{
 		filepath.Join("Microsoft", "Edge", "Application", "msedge.exe"),
-		filepath.Join("Google", "Chrome", "Application", "chrome.exe"),
+		windowsChrome,
 	}
 	windowsProgramDirs = []string{"ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"}
 
@@ -63,13 +66,7 @@ func OpenAppWindow(url string, width, height int) error {
 func appBrowser(goos string, getenv func(string) string, exists func(string) bool, lookPath func(string) (string, error)) string {
 	switch goos {
 	case "windows":
-		for _, browser := range windowsAppBrowsers {
-			for _, dir := range windowsProgramDirs {
-				if base := getenv(dir); base != "" && exists(filepath.Join(base, browser)) {
-					return filepath.Join(base, browser)
-				}
-			}
-		}
+		return findWindowsProgram(windowsAppBrowsers, getenv, exists)
 	case "darwin":
 		dirs := []string{macApplications}
 		if home := getenv("HOME"); home != "" {
@@ -86,6 +83,19 @@ func appBrowser(goos string, getenv func(string) string, exists func(string) boo
 		for _, name := range linuxAppBrowsers {
 			if path, err := lookPath(name); err == nil {
 				return path
+			}
+		}
+	}
+	return ""
+}
+
+// findWindowsProgram is the first of programs installed in one of windowsProgramDirs, as its full
+// path, or "" when none is. Each program is relative to those folders.
+func findWindowsProgram(programs []string, getenv func(string) string, exists func(string) bool) string {
+	for _, program := range programs {
+		for _, dir := range windowsProgramDirs {
+			if base := getenv(dir); base != "" && exists(filepath.Join(base, program)) {
+				return filepath.Join(base, program)
 			}
 		}
 	}

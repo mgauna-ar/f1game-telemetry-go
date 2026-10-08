@@ -17,6 +17,16 @@
   --global-color: var(--status-success);
 }
 
+.edgeNotice {
+  margin: 0;
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  border-radius: var(--radius-xs);
+}
+
 .globalLabel {
   display: flex;
   align-items: center;

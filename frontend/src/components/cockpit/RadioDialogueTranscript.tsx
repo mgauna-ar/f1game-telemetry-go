@@ -21,18 +21,22 @@ export const RadioDialogueTranscript: React.FC<RadioDialogueTranscriptProps> = (
 }) => {
   const { t } = useI18n();
 
-  // What is being said now, else the last call from the pit wall, else a placeholder
+  // What is being said now, else why the last transmission didn't get through, else the last call
+  // from the pit wall, else a placeholder
   const line =
     radio.radioState === 'speaking' && radio.lastResponse
       ? { tone: 'speaking', text: `"${radio.lastResponse}"` }
       : radio.radioState === 'transmitting' && radio.lastTranscript
         ? { tone: 'transmitting', text: `"${radio.lastTranscript}..."` }
-        : radio.lastResponse
-          ? { tone: undefined, text: `"${radio.lastResponse}"` }
-          : {
-              tone: 'placeholder',
-              text: connected && session ? t('live.cockpit.noRecentTransmissions') : t('live.cockpit.waitingSubtitle'),
-            };
+        : radio.radioState === 'idle' && radio.error
+          ? { tone: 'problem', text: radio.error }
+          : radio.lastResponse
+            ? { tone: undefined, text: `"${radio.lastResponse}"` }
+            : {
+                tone: 'placeholder',
+                text:
+                  connected && session ? t('live.cockpit.noRecentTransmissions') : t('live.cockpit.waitingSubtitle'),
+              };
 
   return (
     <div className={styles.card}>

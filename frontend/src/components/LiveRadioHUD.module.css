@@ -132,6 +132,13 @@
   text-overflow: ellipsis;
 }
 
+/* Why the last transmission didn't get through, until the next one */
+.problem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--status-warning);
+}
+
 .waveform {
   width: 36px;
   height: 18px;

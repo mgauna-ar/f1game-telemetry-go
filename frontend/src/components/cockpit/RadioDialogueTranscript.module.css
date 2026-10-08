@@ -54,6 +54,10 @@
   color: var(--status-danger);
 }
 
+.text[data-tone='problem'] {
+  color: var(--status-warning);
+}
+
 .text[data-tone='placeholder'] {
   font-style: italic;
   color: var(--text-secondary);

@@ -99,6 +99,28 @@ describe('LiveRadioHUD Component', () => {
     expect(screen.getByText(/"Copy, boxing this lap."/i)).toBeInTheDocument();
   });
 
+  it('shows why the last transmission did not get through instead of the PTT hint', () => {
+    renderWithI18n(<LiveRadioHUD radio={{ ...mockRadio, error: 'Nothing heard on your last transmission.' }} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Nothing heard on your last transmission.');
+    expect(screen.queryByText('Space')).not.toBeInTheDocument();
+  });
+
+  it('warns in Edge, when the app reads the PTT button in the game, that talking from the game needs Chrome', () => {
+    const userAgent = vi
+      .spyOn(navigator, 'userAgent', 'get')
+      .mockReturnValue('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0');
+
+    const { unmount } = renderWithI18n(<LiveRadioHUD radio={{ ...mockRadio, globalActive: true }} />);
+    expect(screen.getByText(/Use Chrome in-game|Usá Chrome en el juego/)).toBeInTheDocument();
+    unmount();
+
+    // Without the app's PTT button the page is only used in the browser, where Edge hears fine.
+    renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
+    expect(screen.queryByText(/Use Chrome in-game|Usá Chrome en el juego/)).not.toBeInTheDocument();
+    userAgent.mockRestore();
+  });
+
   it('turns off radio on power button click', () => {
     renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
 

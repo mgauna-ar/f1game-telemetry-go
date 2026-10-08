@@ -112,6 +112,29 @@ describe('VoiceCockpitView', () => {
     expect(screen.getByText(/TRANSMITTING ON RADIO/i)).toBeInTheDocument();
   });
 
+  it('shows why the last transmission did not get through, over the last pit wall call', () => {
+    const radio = {
+      ...mockRadio,
+      lastResponse: 'Box this lap.',
+      error: 'Edge stopped listening while the game was in front.',
+    };
+
+    renderWithI18n(
+      <VoiceCockpitView
+        radio={radio}
+        session={null}
+        lap={null}
+        carStatus={null}
+        carDamage={null}
+        telemetry={null}
+        connected={true}
+      />
+    );
+
+    expect(screen.getByText('Edge stopped listening while the game was in front.')).toBeInTheDocument();
+    expect(screen.queryByText(/Box this lap/)).not.toBeInTheDocument();
+  });
+
   it('renders vital telemetry strip with position, lap, tyre, fuel, ERS, and damage', () => {
     const mockSession = makeLiveSession({
       TrackId: 0,

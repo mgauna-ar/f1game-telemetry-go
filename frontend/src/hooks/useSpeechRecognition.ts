@@ -1,10 +1,14 @@
 import { useState, useRef, useCallback } from 'react';
+import { RADIO_CONVERSATION_LIMITS } from '../constants/f1';
 import {
   getSpeechRecognitionClass,
   type ISpeechRecognition,
   type ISpeechRecognitionEvent,
   type ISpeechRecognitionErrorEvent,
 } from '../utils/radioAudio';
+
+/** The error code set when the browser has no speech recognition at all. */
+export const SPEECH_NOT_SUPPORTED = 'not-supported';
 
 export interface UseSpeechRecognitionOptions {
   getLang?: () => string;
@@ -13,23 +17,35 @@ export interface UseSpeechRecognitionOptions {
 
 export interface UseSpeechRecognitionReturn {
   transcript: string;
-  error: string | null;
-  setError: React.Dispatch<React.SetStateAction<string | null>>;
   startListening: () => boolean;
-  stopListening: () => void;
+  /** Stops listening. Resolves once the recognizer has delivered its last words, or after a time limit. */
+  stopListening: () => Promise<void>;
   abortListening: () => void;
   clearTranscript: () => void;
   getFinalTranscript: () => string;
+  /**
+   * Why the current transmission was not understood: the recognizer's error code ('not-allowed',
+   * 'no-speech', 'network', ...) or SPEECH_NOT_SUPPORTED, or null when it reported none.
+   */
+  getErrorCode: () => string | null;
+}
+
+/** One recognizer run, from start to its end event. */
+interface RecognitionSession {
+  recognition: ISpeechRecognition;
+  /** Resolves when the recognizer has ended, after its last result. */
+  ended: Promise<void>;
 }
 
 export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}): UseSpeechRecognitionReturn {
   const { getLang, onTranscriptReceived } = options;
 
   const [transcript, setTranscript] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
 
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  // The run whose results and errors count; an aborted or replaced one is ignored.
+  const sessionRef = useRef<RecognitionSession | null>(null);
   const currentTranscriptRef = useRef<string>('');
+  const errorCodeRef = useRef<string | null>(null);
 
   const getLangRef = useRef(getLang);
   getLangRef.current = getLang;
@@ -46,33 +62,45 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
     return currentTranscriptRef.current;
   }, []);
 
+  const getErrorCode = useCallback(() => errorCodeRef.current, []);
+
   const abortListening = useCallback(() => {
-    if (recognitionRef.current) {
+    const session = sessionRef.current;
+    sessionRef.current = null;
+    if (session) {
       try {
-        recognitionRef.current.abort();
+        session.recognition.abort();
       } catch {}
-      recognitionRef.current = null;
     }
   }, []);
 
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      recognitionRef.current = null;
+  const stopListening = useCallback((): Promise<void> => {
+    const session = sessionRef.current;
+    if (!session) return Promise.resolve();
+    try {
+      // The words said just before the release still arrive after stop(), until the end event.
+      session.recognition.stop();
+    } catch {
+      return Promise.resolve();
     }
+    return new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, RADIO_CONVERSATION_LIMITS.RECOGNIZER_END_TIMEOUT_MS);
+      session.ended.then(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
   }, []);
 
   const startListening = useCallback((): boolean => {
     abortListening();
     currentTranscriptRef.current = '';
+    errorCodeRef.current = null;
     setTranscript('');
-    setError(null);
 
     const SpeechRec = getSpeechRecognitionClass();
     if (!SpeechRec) {
-      setError('Speech recognition not supported in browser');
+      errorCodeRef.current = SPEECH_NOT_SUPPORTED;
       return false;
     }
 
@@ -82,7 +110,17 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
       recognition.interimResults = true;
       recognition.lang = getLangRef.current ? getLangRef.current() : 'en-GB';
 
+      let markEnded = () => {};
+      const session: RecognitionSession = {
+        recognition,
+        ended: new Promise<void>((resolve) => {
+          markEnded = resolve;
+        }),
+      };
+      const isCurrent = () => sessionRef.current === session;
+
       recognition.onresult = (event: ISpeechRecognitionEvent) => {
+        if (!isCurrent()) return;
         let text = '';
         for (let i = 0; i < event.results.length; i++) {
           text += event.results[i][0].transcript;
@@ -95,33 +133,31 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
       };
 
       recognition.onerror = (event: ISpeechRecognitionErrorEvent) => {
-        if (event.error !== 'no-speech') {
-          setError(`Speech recognition error: ${event.error}`);
-        }
+        if (isCurrent()) errorCodeRef.current = event.error;
       };
 
       recognition.onend = () => {
-        recognitionRef.current = null;
+        markEnded();
+        if (isCurrent()) sessionRef.current = null;
       };
 
+      sessionRef.current = session;
       recognition.start();
-      recognitionRef.current = recognition;
       return true;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to start speech recognition';
-      setError(msg);
+    } catch {
+      sessionRef.current = null;
+      errorCodeRef.current = 'start-failed';
       return false;
     }
   }, [abortListening]);
 
   return {
     transcript,
-    error,
-    setError,
     startListening,
     stopListening,
     abortListening,
     clearTranscript,
     getFinalTranscript,
+    getErrorCode,
   };
 }

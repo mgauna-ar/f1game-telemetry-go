@@ -82,6 +82,10 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
                   </span>
                 ) : state === 'transmitting' && radio.lastTranscript ? (
                   <span className={styles.quote}>{radio.lastTranscript}...</span>
+                ) : state === 'idle' && radio.error ? (
+                  <span className={styles.problem} title={radio.error} role="status">
+                    {radio.error}
+                  </span>
                 ) : (
                   <PttHint controls={radio} onSetUp={() => openSettings('audio')} />
                 )}
