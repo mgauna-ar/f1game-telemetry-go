@@ -32,6 +32,7 @@ type reportsRace struct {
 	safetyCar   uint8
 	callLaps    map[string]int
 	boxDueLap   int
+	pitPlan     PitPlanState
 	cfg         EngineerConfig
 }
 
@@ -111,6 +112,7 @@ func (r *reportsRace) ctx() *EvaluationContext {
 		PlayerLaps:     r.records,
 		CallLaps:       callLaps,
 		BoxDueLap:      r.boxDueLap,
+		PitPlan:        r.pitPlan,
 	}
 }
 
@@ -253,6 +255,15 @@ func TestReportsRule_GapReport(t *testing.T) {
 		}
 	})
 
+	t.Run("not on the last lap: it has its own call", func(t *testing.T) {
+		if _, ok := findDirective(NewReportsRule().Evaluate(newReportsRace(30).ctx()), "gap_report"); ok {
+			t.Error("gap report on the last lap")
+		}
+		if _, ok := findDirective(NewReportsRule().Evaluate(newReportsRace(29).ctx()), "gap_report"); !ok {
+			t.Error("no gap report on the lap before")
+		}
+	})
+
 	t.Run("a flashback re-arms the report", func(t *testing.T) {
 		rule := NewReportsRule()
 		rule.Evaluate(newReportsRace(6).ctx())
@@ -316,6 +327,29 @@ func TestReportsRule_TyreLife(t *testing.T) {
 		}
 		if calls := tyreCalls(rule, newReportsRace(23).withWearHistory(6, 51, 1)); len(calls) > 0 {
 			t.Errorf("said twice: %+v", calls)
+		}
+	})
+
+	t.Run("make the end waits for the game's planned stop", func(t *testing.T) {
+		rule := NewReportsRule()
+		race := newReportsRace(22).withWearHistory(5, 50, 1)
+		race.pitPlan = PitPlanState{IdealLap: 24, LatestLap: 26}
+		if calls := tyreCalls(rule, race); len(calls) > 0 {
+			t.Fatalf("a stop still planned: got %+v, want nothing", calls)
+		}
+		race = newReportsRace(23).withWearHistory(6, 51, 1)
+		race.pitPlan = PitPlanState{IdealLap: 24, LatestLap: 26, Done: true}
+		if calls := tyreCalls(rule, race); len(calls) != 1 || calls[0].SubAlert != "tyre_life_end" {
+			t.Errorf("plan done: got %+v, want tyre_life_end", calls)
+		}
+	})
+
+	t.Run("nothing on the last lap", func(t *testing.T) {
+		if calls := tyreCalls(NewReportsRule(), newReportsRace(30).withWearHistory(5, 50, 1)); len(calls) > 0 {
+			t.Errorf("last lap: got %+v", calls)
+		}
+		if calls := tyreCalls(NewReportsRule(), newReportsRace(29).withWearHistory(5, 50, 1)); len(calls) != 1 {
+			t.Errorf("the lap before: got %+v, want tyre_life_end", calls)
 		}
 	})
 

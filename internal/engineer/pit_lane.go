@@ -94,8 +94,8 @@ func (p *pitLanes) learn(session *packets.PacketSessionData, prev, next *packets
 	trackLength := float32(session.TrackLength)
 	learned := false
 	for i := range next.LapData {
-		before, after := prev.LapData[i], next.LapData[i]
-		if before.PitStatus != packets.PitStatusNone || after.PitStatus != packets.PitStatusPitting {
+		after := next.LapData[i]
+		if !enteredPitLane(prev.LapData[i], after) {
 			continue
 		}
 		if after.DriverStatus == packets.DriverStatusInGarage || after.LapDistance <= 0 || after.LapDistance > trackLength {
@@ -110,6 +110,24 @@ func (p *pitLanes) learn(session *packets.PacketSessionData, prev, next *packets
 	if learned {
 		p.queueSave()
 	}
+}
+
+// enteredPitLane reports whether a car's pit status went from none to pitting between two lap data
+// packets.
+func enteredPitLane(before, after packets.LapData) bool {
+	return before.PitStatus == packets.PitStatusNone && after.PitStatus == packets.PitStatusPitting
+}
+
+// pitLaneEntries marks the cars that entered the pit lane between prev and next; none without prev.
+func pitLaneEntries(prev, next *packets.PacketLapData) [packets.MaxCars]bool {
+	var entries [packets.MaxCars]bool
+	if prev == nil {
+		return entries
+	}
+	for i := range next.LapData {
+		entries[i] = enteredPitLane(prev.LapData[i], next.LapData[i])
+	}
+	return entries
 }
 
 // load reads the saved pit lanes.

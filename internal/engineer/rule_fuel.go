@@ -7,24 +7,19 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-// FuelRule manages fuel deficit, pit stop window opening, undercut threat alerts, and fuel mix management.
+// FuelRule manages fuel deficit, the undercut and overcut calls, and fuel mix management. The
+// game's pit window is PitPlanRule's.
 type FuelRule struct {
-	mu                          sync.Mutex
-	lastFuelDeltaAlertLap       int
-	lastPitWindowWarnedLap      int
-	lastPitWindowCloseWarnedLap int
-	lastUndercutRivalIndex      int
-	fuelMixNeutralizedWarned    bool
-	fuelMixRestartWarned        bool
+	mu                       sync.Mutex
+	lastFuelDeltaAlertLap    int
+	fuelMixNeutralizedWarned bool
+	fuelMixRestartWarned     bool
 }
 
 // NewFuelRule creates a new FuelRule.
 func NewFuelRule() *FuelRule {
 	return &FuelRule{
-		lastFuelDeltaAlertLap:       -1,
-		lastPitWindowWarnedLap:      -1,
-		lastPitWindowCloseWarnedLap: -1,
-		lastUndercutRivalIndex:      -1,
+		lastFuelDeltaAlertLap: -1,
 	}
 }
 
@@ -53,15 +48,11 @@ func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
 		},
-		"pit_window": {
-			Category:    DirectiveCategoryPitStrategy,
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeLap,
-		},
-		"pit_window_close": {
-			Category:    DirectiveCategoryPitStrategy,
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeLap,
+		"overcut": {
+			Category:       DirectiveCategoryPitStrategy,
+			ValidPhases:    []DrivingPhase{PhaseRacing},
+			DedupScope:     DedupScopeLap,
+			NotWhileBoxDue: true,
 		},
 		"fuel_mix_neutralized": {
 			Category:    DirectiveCategoryFuel,
@@ -82,11 +73,6 @@ func (r *FuelRule) Reset(scope DedupScope) {
 
 	if scope == DedupScopeLap || scope == DedupScopeNone {
 		r.lastFuelDeltaAlertLap = -1
-		r.lastPitWindowWarnedLap = -1
-		r.lastPitWindowCloseWarnedLap = -1
-	}
-	if scope == DedupScopeStint || scope == DedupScopeNone {
-		r.lastUndercutRivalIndex = -1
 	}
 	if scope == DedupScopePhase || scope == DedupScopeNone {
 		r.fuelMixNeutralizedWarned = false
@@ -159,83 +145,71 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 3. Pit Stop Window Opening (from SessionData & LapData, race only on LapData)
-	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && !isNeutralized && ctx.Session != nil && ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowIdealLap > 0 &&
-		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
-		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window") {
-		idealLap := int(ctx.Session.PitStopWindowIdealLap)
-		if idealLap == currentLapNum && r.lastPitWindowWarnedLap != currentLapNum {
-			r.lastPitWindowWarnedLap = currentLapNum
-			playerPos := 1
-			if playerLap != nil && playerLap.CarPosition > 0 {
-				playerPos = int(playerLap.CarPosition)
-			}
-			rejoinPos := int(ctx.Session.PitStopRejoinPosition)
-			if rejoinPos == 0 {
-				rejoinPos = playerPos
-			}
-			if rejoinPos == 0 {
-				rejoinPos = 1
-			}
-			directives = append(directives, Directive{
-				ID:       "pit_window",
-				Category: DirectiveCategoryPitStrategy,
-				SubAlert: "pit_window_open",
-				Title:    "Pit Stop Window",
-				Message:  fmt.Sprintf("Pit stop window is now open (Lap %d). Target rejoin position P%d.", currentLapNum, rejoinPos),
-				Urgency:  UrgencyLow,
-				BoxCall:  BoxCallOption,
-			})
-		}
-	}
-
-	// 3. Pit Stop Window Closing (from SessionData & LapData, race only on LapData)
-	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && !isNeutralized && ctx.Session != nil &&
-		ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowLatestLap > 0 &&
-		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
-		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window_close") {
-		latestLap := int(ctx.Session.PitStopWindowLatestLap)
-		if latestLap == currentLapNum && r.lastPitWindowCloseWarnedLap != currentLapNum {
-			r.lastPitWindowCloseWarnedLap = currentLapNum
-			directives = append(directives, Directive{
-				ID:       "pit_window_close",
-				Category: DirectiveCategoryPitStrategy,
-				SubAlert: "pit_window_close",
-				Title:    "Pit Window Closing",
-				Message:  fmt.Sprintf("Box this lap, box box! Pit stop window is closing (Lap %d), take the stop now to preserve tyre life.", currentLapNum),
-				Urgency:  UrgencyHigh,
-				BoxCall:  BoxCallInstruction,
-			})
-		}
-	}
-
-	// 4. Undercut Threat Detection (from LapData, race only on LapData)
+	// 3-4. The car behind or ahead pits (from LapData, race only on LapData): once per stop, as it
+	// enters the pit lane.
 	if ctx.IsRaceSession() && playerLap != nil && playerLap.CarPosition > 0 && ctx.Phase != PhaseSafetyCar && !isNeutralized &&
 		(ctx.Session == nil || ctx.Session.SafetyCarStatus == packets.SafetyCarNone) && ctx.LapData != nil &&
-		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
-		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "undercut") {
-		playerPos := int(playerLap.CarPosition)
-		for i, rival := range ctx.LapData.LapData {
-			if i == ctx.PlayerCarIndex || int(rival.CarPosition) != playerPos+1 {
-				continue
-			}
-			if rival.PitStatus == packets.PitStatusPitting && r.lastUndercutRivalIndex != i {
-				distDelta := playerLap.TotalDistance - rival.TotalDistance
-				maxUndercutDist := ctx.Config.UndercutGapSec * AverageRaceSpeedMetersPerSec
-				if distDelta > 0 && distDelta < maxUndercutDist {
-					r.lastUndercutRivalIndex = i
-					directives = append(directives, Directive{
-						ID:       "undercut",
-						Category: DirectiveCategoryPitStrategy,
-						SubAlert: "undercut_window",
-						Title:    "Undercut Threat",
-						Message:  fmt.Sprintf("Car behind (P%d) has just pitted for the undercut! Push now to cover it.", playerPos+1),
-						Urgency:  UrgencyCritical,
-					})
-				}
-			}
+		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
+		if d, ok := undercutCall(ctx, playerLap); ok {
+			directives = append(directives, d)
+		}
+		if d, ok := overcutCall(ctx, playerLap); ok {
+			directives = append(directives, d)
 		}
 	}
 
 	return directives
+}
+
+// undercutCall warns that the car behind has just pitted within UndercutGapSec: push now to cover
+// the undercut.
+func undercutCall(ctx *EvaluationContext, playerLap *packets.LapData) (Directive, bool) {
+	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "undercut") {
+		return Directive{}, false
+	}
+	playerPos := int(playerLap.CarPosition)
+	i := carAtPosition(ctx.LapData, playerPos+1)
+	if i < 0 || i == ctx.PlayerCarIndex || !ctx.PitEntries[i] {
+		return Directive{}, false
+	}
+	distDelta := playerLap.TotalDistance - ctx.LapData.LapData[i].TotalDistance
+	if distDelta <= 0 || distDelta >= ctx.Config.UndercutGapSec*AverageRaceSpeedMetersPerSec {
+		return Directive{}, false
+	}
+	return Directive{
+		ID:       "undercut",
+		Category: DirectiveCategoryPitStrategy,
+		SubAlert: "undercut_window",
+		Title:    "Undercut Threat",
+		Message:  fmt.Sprintf("Car behind (P%d) has just pitted for the undercut! Push now to cover it.", playerPos+1),
+		Urgency:  UrgencyCritical,
+	}, true
+}
+
+// overcutCall says that the car ahead has just pitted within UndercutGapSec: push in the clear air
+// to come out ahead after our own stop. Not for the teammate: their stop has its own call.
+func overcutCall(ctx *EvaluationContext, playerLap *packets.LapData) (Directive, bool) {
+	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "overcut") {
+		return Directive{}, false
+	}
+	playerPos := int(playerLap.CarPosition)
+	i := carAtPosition(ctx.LapData, playerPos-1)
+	if i < 0 || i == ctx.PlayerCarIndex || i == ctx.TeammateCarIndex || !ctx.PitEntries[i] {
+		return Directive{}, false
+	}
+	gapMS := deltaToCarInFrontMS(*playerLap)
+	gapSec := msToSec(gapMS)
+	if gapMS == 0 || gapSec > float64(ctx.Config.UndercutGapSec) {
+		return Directive{}, false
+	}
+	gapSec = roundTo(gapSec, 1)
+	return Directive{
+		ID:       "overcut",
+		Category: DirectiveCategoryPitStrategy,
+		SubAlert: "overcut_window",
+		Title:    "Car Ahead Pitted",
+		Message:  fmt.Sprintf("Car ahead (P%d) has pitted, %.1fs up the road. Push now in clear air for the overcut.", playerPos-1, gapSec),
+		Urgency:  UrgencyHigh,
+		Values:   &DirectiveValues{Ahead: &GapToCar{GapSec: gapSec}},
+	}, true
 }

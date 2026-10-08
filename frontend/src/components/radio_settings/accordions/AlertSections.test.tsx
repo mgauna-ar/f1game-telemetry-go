@@ -6,6 +6,7 @@ import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 import { api } from '../../../utils/apiClient';
 import { CoachingAccordion } from './CoachingAccordion';
 import { PitAccordion } from './PitAccordion';
+import { QualyAccordion } from './QualyAccordion';
 import { RivalsAccordion } from './RivalsAccordion';
 import { TeammateAccordion } from './TeammateAccordion';
 import { TyresAccordion } from './TyresAccordion';
@@ -25,7 +26,7 @@ describe('alert sections', () => {
   });
 
   it.each([
-    ['Pit Stop', 'Pit Window Closing', PitAccordion, 'pitAlertsEnabled', 'subPitWindowClose'],
+    ['Pit Stop', 'Last Lap of the Pit Window', PitAccordion, 'pitAlertsEnabled', 'subPitWindowClose'],
     ['Driver Coaching', 'Sector Time Deltas', CoachingAccordion, 'coachingAlertsEnabled', 'subSectorDelta'],
     ['Teammate', 'Teammate Ahead on Track', TeammateAccordion, 'teammateAlertsEnabled', 'subTeammateAhead'],
     ['Tyres & Degradation', 'Laps Left on the Tyres', TyresAccordion, 'tyreAlertsEnabled', 'subTyreLife'],
@@ -67,6 +68,18 @@ describe('alert sections', () => {
     expect(screen.getByText('Lap')).toBeInTheDocument();
     act(() => useRadioSettingsStore.getState().setGapReportLaps(25));
     expect(useRadioSettingsStore.getState().gapReportLaps).toBe(10);
+  });
+
+  it('sets how early the push-lap car behind is called', () => {
+    renderSection(<QualyAccordion {...sectionProps} />);
+
+    expect(screen.getByText('Push-Lap Car Behind Warning')).toBeInTheDocument();
+    expect(screen.getByText('6.0s')).toBeInTheDocument();
+    act(() => useRadioSettingsStore.getState().setQualyCarBehindSec(1));
+    expect(useRadioSettingsStore.getState().qualyCarBehindSec).toBe(3);
+    act(() => useRadioSettingsStore.getState().setQualyCarBehindSec(15));
+    expect(useRadioSettingsStore.getState().qualyCarBehindSec).toBe(10);
+    expect(screen.getByText('10.0s')).toBeInTheDocument();
   });
 
   it('sets hot and cold tyre calls with one margin', () => {

@@ -56,7 +56,6 @@ export const RADIO_FAULT_PHRASES: Record<LocaleCode, RadioPhrasePool> = { en: en
 const BOX_OPTION_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'safety_car',
   'vsc',
-  'pit_window_open',
   'pit_clean_air',
 ]);
 

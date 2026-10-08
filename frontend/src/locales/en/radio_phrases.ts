@@ -37,6 +37,31 @@ export const radio_phrases = {
       'VSC deployed, {driver}. Keep delta positive throughout the lap.',
     ],
   },
+  safety_car_box: {
+    bono: [
+      'Safety Car, Safety Car. Keep the delta positive, we take the stop.',
+      'Safety Car deployed, {driver}. We are pitting under it.',
+    ],
+    colapinto: [
+      'Safety Car! We take the stop under it, {driver}. Keep the delta positive.',
+    ],
+    standard: [
+      'Safety Car deployed. Keep delta positive, we take the stop.',
+      'Safety Car, {driver}. We pit under the Safety Car.',
+    ],
+  },
+  vsc_box: {
+    bono: [
+      'VSC, VSC. Keep the delta positive, we take the stop.',
+      'Virtual Safety Car, {driver}. We pit under it.',
+    ],
+    colapinto: [
+      'VSC! We take the stop under it, {driver}. Mind the delta.',
+    ],
+    standard: [
+      'Virtual Safety Car deployed. Keep delta positive, we take the stop.',
+    ],
+  },
   red_flag: {
     bono: [
       'Red flag, red flag. Session suspended, bring it back to the pit lane slowly.',
@@ -255,17 +280,47 @@ export const radio_phrases = {
       'Undercut threat, {driver}. The car behind has boxed, maximize your pace now.',
     ],
   },
-  pit_window_open: {
+  overcut_window: {
     bono: [
-      'Pit window is open, {driver}. Confirm tyres.',
-      'Pit window open, {driver}. Your call on the stop.',
+      'Car ahead has boxed, {driver}. Clear air now, push for the overcut.',
+      'The car ahead, {gap} seconds up the road, has pitted. Hammer time, {driver}.',
     ],
     colapinto: [
-      'Pit window open, {driver}. Let us know if you want to stop.',
+      'Car ahead just pitted, {driver}! Clear air, push flat out!',
+      'Car ahead has boxed, {gap} seconds up the road! Push now, {driver}!',
     ],
     standard: [
-      'Pit window is open. Confirm if you want to stop.',
-      'Pit stop window open, {driver}. Stand by for the box call.',
+      'Car ahead has pitted. Push now in clear air for the overcut.',
+      'The car ahead, {gap} seconds up the road, has boxed. Maximize your pace, {driver}.',
+    ],
+  },
+  pit_plan_next_lap: {
+    bono: [
+      'Box next lap, {driver}. We come out P{position}.',
+      'Plan is to box next lap, {driver}.',
+      'Next lap is our stop, {driver}. Box next lap.',
+    ],
+    colapinto: [
+      'Box next lap, {driver}! We rejoin P{position}.',
+      'Get ready, {driver}, box next lap!',
+    ],
+    standard: [
+      'Box next lap. We rejoin P{position}.',
+      'Box next lap, {driver}. Stand by.',
+    ],
+  },
+  pit_plan_box: {
+    bono: [
+      'This is our stop, {driver}. We come out P{position}.',
+      'Okay {driver}, this is the planned stop.',
+    ],
+    colapinto: [
+      'This is the stop, {driver}! We come out P{position}.',
+      'Time for the stop, {driver}!',
+    ],
+    standard: [
+      'Planned stop, {driver}. We rejoin P{position}.',
+      'This is the planned stop.',
     ],
   },
   pit_window_close: {
@@ -804,6 +859,19 @@ export const radio_phrases = {
       'Safety Car coming in. Prepare for green flag racing.',
     ],
   },
+  vsc_ending: {
+    bono: [
+      'VSC ending, {driver}. Keep the delta, be ready to go.',
+      'VSC ending, VSC ending. Ready to push.',
+    ],
+    colapinto: [
+      'VSC is ending, {driver}! Be ready on the throttle.',
+    ],
+    standard: [
+      'VSC ending. Keep delta positive until green.',
+      'VSC ending, {driver}. Be ready to go.',
+    ],
+  },
   flags_green: {
     bono: [
       'Green flag, green flag! Track is clear, race is on.',
@@ -900,6 +968,33 @@ export const radio_phrases = {
     standard: [
       'Fastest lap of the race. Good pace.',
       'That is the fastest lap, {driver}. Keep it up.',
+    ],
+  },
+  race_final_lap: {
+    bono: [
+      'Last lap, {driver}. P{position}. Bring it home.',
+      'This is the last lap, {driver}. Bring it home.',
+    ],
+    colapinto: [
+      'Last lap, {driver}! P{position}, bring it home!',
+      'Last lap! Bring it home, {driver}!',
+    ],
+    standard: [
+      'Last lap. P{position}, bring it home.',
+      'Final lap, {driver}. Bring it home cleanly.',
+    ],
+  },
+  race_final_lap_lead: {
+    bono: [
+      'Last lap, {driver}, and you are leading. Bring it home.',
+      'Last lap in the lead. Nice and clean, {driver}.',
+    ],
+    colapinto: [
+      'Last lap and we are leading, {driver}! Bring it home!',
+    ],
+    standard: [
+      'Last lap, P1. Bring it home.',
+      'Final lap in the lead, {driver}. Keep it clean.',
     ],
   },
   car_collision: {

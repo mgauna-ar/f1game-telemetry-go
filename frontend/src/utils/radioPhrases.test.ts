@@ -67,6 +67,10 @@ const CATEGORY_NUMBERS: Partial<Record<RadioAlertCategory, string[]>> = {
   rival_attack_drs: ['gap'],
   rival_defend_override: ['gap'],
   rival_attack_override: ['gap'],
+  pit_plan_next_lap: ['position'],
+  pit_plan_box: ['position'],
+  overcut_window: ['gap'],
+  race_final_lap: ['position'],
 };
 
 /** Every template a category can speak in one locale, across all personas. */
@@ -189,6 +193,10 @@ describe('radioPhrases', () => {
     ['es', 'colapinto', 'tyre_pressure_high', /presión|gomas|neumáticos/i],
     ['es', 'colapinto', 'damage_gearbox_wear', /caja/i],
     ['en', 'bono', 'damage_ice_wear', /ice|combustion engine|power/i],
+    ['en', 'bono', 'overcut_window', /car ahead/i],
+    ['es', 'colapinto', 'overcut_window', /adelante/i],
+    ['en', 'colapinto', 'race_final_lap', /last lap/i],
+    ['es', 'bono', 'race_final_lap_lead', /última vuelta/i],
   ])('%s/%s %s speaks about it', (language, persona, category, pattern) => {
     for (const template of radioPhrasePool(category, language, persona)) {
       expect(template).toMatch(pattern);
@@ -216,11 +224,13 @@ describe('radioPhrases', () => {
       'tyre_crossover',
       'tyre_crossover_inter',
       'tyre_crossover_wet',
-      'pit_window_open',
+      'pit_plan_box',
       'pit_window_close',
       'pit_clean_air',
       'safety_car',
+      'safety_car_box',
       'vsc',
+      'vsc_box',
     ];
     const TIMINGS: EngineerBoxTiming[] = ['this_lap', 'next_lap', 'asap'];
 
@@ -268,6 +278,56 @@ describe('radioPhrases', () => {
       );
       expect(getProactiveRadioSpeech('safety_car', 'en', 'custom', '', 'asap')).toBe(
         'Safety Car deployed, Safety Car. Keep delta positive, stand by for the pit call.'
+      );
+    });
+
+    it("orders the game's planned stop with where we rejoin, and when to box", () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('pit_plan_box', 'en', 'custom', '', 'this_lap', { position: 9 })).toBe(
+        'Planned stop. We rejoin P9. Box this lap, box box.'
+      );
+      expect(getProactiveRadioSpeech('pit_plan_box', 'en', 'custom', '', 'this_lap')).toBe(
+        'This is the planned stop. Box this lap, box box.'
+      );
+    });
+
+    it('says the car ahead pitted with the gap it had', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('overcut_window', 'en', 'custom', '', undefined, { ahead: { gap_sec: 1.5 } })).toBe(
+        'The car ahead, 1.5 seconds up the road, has boxed. Maximize your pace.'
+      );
+      expect(
+        getProactiveRadioSpeech('overcut_window', 'es', 'colapinto', 'Mati', undefined, { ahead: { gap_sec: 1.5 } })
+      ).toBe('¡Paró el de adelante, estaba a 1,5 segundos! Apretá ahora, Mati.');
+    });
+
+    it('says the last lap with the position', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('race_final_lap', 'en', 'custom', '', undefined, { position: 5 })).toBe(
+        'Last lap. P5, bring it home.'
+      );
+      expect(getProactiveRadioSpeech('race_final_lap_lead', 'es', 'custom', '', undefined, { position: 1 })).toBe(
+        'Última vuelta, P1. Tráela a casa.'
+      );
+    });
+
+    it('says the heads-up a lap before the planned stop without a timing of its own', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('pit_plan_next_lap', 'en', 'custom', '', undefined, { position: 9 })).toBe(
+        'Box next lap. We rejoin P9.'
+      );
+      expect(getProactiveRadioSpeech('pit_plan_next_lap', 'es', 'colapinto', 'Mati', undefined, { position: 9 })).toBe(
+        'Box en la próxima vuelta, Mati. Salimos P9.'
+      );
+    });
+
+    it('orders the stop under a Safety Car near the plan', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('safety_car_box', 'en', 'custom', '', 'this_lap')).toBe(
+        'Safety Car deployed. Keep delta positive, we take the stop. Box this lap, box box.'
+      );
+      expect(getProactiveRadioSpeech('vsc_box', 'en', 'custom', '', 'next_lap')).toBe(
+        'Virtual Safety Car deployed. Keep delta positive, we take the stop. Too late for this pit entry. Box next lap.'
       );
     });
 

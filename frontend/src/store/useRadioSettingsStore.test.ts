@@ -44,6 +44,7 @@ function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): Engi
     rain_prob_pct: 50,
     pit_call_lead_m: 500,
     gap_report_laps: 3,
+    qualy_car_behind_sec: 6,
     trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
     alert_switches: presetSwitches(),
     ...overrides,
@@ -293,6 +294,7 @@ describe('useRadioSettingsStore and slices', () => {
         tyre_wear_warn_pct: 48,
         tyre_wear_crit_pct: 82,
         tyre_temp_margin_c: 8,
+        qualy_car_behind_sec: 8.5,
         trigger_preset: RADIO_TRIGGER_PRESETS.CUSTOM,
         alert_switches: { ...presetSwitches(), subTyreWear: true, subTyreThermal: true, subRain: false },
       })
@@ -307,6 +309,7 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.tyreWearWarningPct).toBe(48);
     expect(state.tyreWearCriticalPct).toBe(82);
     expect(state.tyreTempMarginC).toBe(8);
+    expect(state.qualyCarBehindSec).toBe(8.5);
     expect(state.subTyreWear).toBe(true);
     expect(state.subTyreThermal).toBe(true);
     expect(state.subRain).toBe(false);

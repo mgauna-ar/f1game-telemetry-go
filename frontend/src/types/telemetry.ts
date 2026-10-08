@@ -118,9 +118,11 @@ export type RadioAlertCategory =
   | 'brake_cold'
   | 'fuel_deficit'
   | 'undercut_window'
+  | 'overcut_window'
   | 'pit_clean_air'
   | 'pit_entry_reminder'
-  | 'pit_window_open'
+  | 'pit_plan_next_lap'
+  | 'pit_plan_box'
   | 'rival_defend'
   | 'rival_attack'
   | 'sector_delta'
@@ -159,6 +161,8 @@ export type RadioAlertCategory =
   | 'flags_drs_enabled'
   | 'flags_drs_disabled'
   | 'race_fastest_lap'
+  | 'race_final_lap'
+  | 'race_final_lap_lead'
   | 'car_collision'
   | 'car_retirement'
   | 'formation_lap_start'
@@ -195,7 +199,10 @@ export type RadioAlertCategory =
   | 'pit_stop_slow'
   | 'tyre_wear_critical'
   | 'rival_defend_drs'
-  | 'rival_attack_drs';
+  | 'rival_attack_drs'
+  | 'safety_car_box'
+  | 'vsc_box'
+  | 'vsc_ending';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to

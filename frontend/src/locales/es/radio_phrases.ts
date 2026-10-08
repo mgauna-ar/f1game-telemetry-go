@@ -39,6 +39,31 @@ export const radio_phrases = {
       'VSC en pista. Mantén delta positivo en todo el circuito.',
     ],
   },
+  safety_car_box: {
+    colapinto: [
+      '¡Auto de seguridad! Aprovechamos para parar, {driver}. Cuidá el delta.',
+      'Auto de seguridad en pista. Paramos con el auto de seguridad.',
+    ],
+    bono: [
+      'Auto de seguridad en pista. Mantén delta positivo, aprovechamos para parar.',
+      'Auto de seguridad, {driver}. Paramos con el auto de seguridad.',
+    ],
+    standard: [
+      'Auto de seguridad en pista. Mantén delta positivo, hacemos la parada.',
+    ],
+  },
+  vsc_box: {
+    colapinto: [
+      '¡VSC en pista! Aprovechamos para parar, {driver}. Cuidá el delta.',
+    ],
+    bono: [
+      'Auto de seguridad virtual. Mantén delta positivo, aprovechamos para parar.',
+      'VSC en pista, {driver}. Hacemos la parada con el VSC.',
+    ],
+    standard: [
+      'Auto de seguridad virtual en pista. Mantén delta positivo, hacemos la parada.',
+    ],
+  },
   red_flag: {
     colapinto: [
       '¡Bandera roja, bandera roja! Sesión parada, venite despacio para el pit lane.',
@@ -263,16 +288,46 @@ export const radio_phrases = {
       'Amenaza de undercut, {driver}. El de atrás ya paró, máximo ritmo ahora.',
     ],
   },
-  pit_window_open: {
+  overcut_window: {
     colapinto: [
-      'Ventana de pits abierta, {driver}. Avisame si querés parar.',
+      '¡El de adelante entró a boxes, {driver}! Aire limpio, ¡dale con todo!',
+      '¡Paró el de adelante, estaba a {gap} segundos! Apretá ahora, {driver}.',
     ],
     bono: [
-      'Ventana de parada abierta. Confirma si quieres parar.',
+      'El auto de adelante entró a boxes, {driver}. Aire limpio, empuja para el overcut.',
+      'El de adelante paró, estaba a {gap} segundos. Máximo ritmo ahora, {driver}.',
     ],
     standard: [
-      'Ventana de parada abierta. Confirma si quieres parar.',
-      'Ventana de boxes abierta, {driver}. Prepárate para la llamada de parada.',
+      'El auto de adelante entró a boxes. Empuja ahora con aire limpio para el overcut.',
+      'El de adelante paró, estaba a {gap} segundos, {driver}. Máximo ritmo.',
+    ],
+  },
+  pit_plan_next_lap: {
+    colapinto: [
+      'Box en la próxima vuelta, {driver}. Salimos P{position}.',
+      'Preparate, {driver}, box en la próxima vuelta.',
+    ],
+    bono: [
+      'Box en la próxima vuelta, {driver}. Salimos P{position}.',
+      'El plan es parar en la próxima vuelta, {driver}.',
+    ],
+    standard: [
+      'Box en la próxima vuelta. Salimos P{position}.',
+      'Box en la próxima vuelta, {driver}. Atento.',
+    ],
+  },
+  pit_plan_box: {
+    colapinto: [
+      'Esta es la parada, {driver}. Salimos P{position}.',
+      'Llegó la parada, {driver}.',
+    ],
+    bono: [
+      'Es nuestra parada, {driver}. Salimos P{position}.',
+      'Vamos con la parada planificada, {driver}.',
+    ],
+    standard: [
+      'Parada planificada, {driver}. Salimos P{position}.',
+      'Es la parada planificada.',
     ],
   },
   pit_window_close: {
@@ -814,6 +869,20 @@ export const radio_phrases = {
       'Auto de seguridad se retira en esta vuelta. Preparados para bandera verde.',
     ],
   },
+  vsc_ending: {
+    colapinto: [
+      '¡Termina el VSC, {driver}! Preparate para acelerar.',
+      'Se termina el VSC. Cuidá el delta hasta la verde.',
+    ],
+    bono: [
+      'Termina el VSC, {driver}. Mantén el delta y prepárate.',
+      'Fin del VSC. Listos para atacar.',
+    ],
+    standard: [
+      'Termina el VSC. Mantén delta positivo hasta la bandera verde.',
+      'Fin del VSC, {driver}. Prepárate para acelerar.',
+    ],
+  },
   flags_green: {
     colapinto: [
       '¡Bandera verde, bandera verde! Carrera relanzada, dale a fondo.',
@@ -910,6 +979,33 @@ export const radio_phrases = {
     standard: [
       'Vuelta rápida de la carrera. Buen ritmo.',
       'Esa es la vuelta rápida, {driver}. Sigue así.',
+    ],
+  },
+  race_final_lap: {
+    colapinto: [
+      '¡Última vuelta, {driver}! P{position}, ¡traela a casa!',
+      '¡Última vuelta! Traela a casa, {driver}.',
+    ],
+    bono: [
+      'Última vuelta, {driver}. P{position}. Tráela a casa.',
+      'Esta es la última vuelta, {driver}. Tráela a casa.',
+    ],
+    standard: [
+      'Última vuelta. P{position}, tráela a casa.',
+      'Última vuelta, {driver}. Sin riesgos.',
+    ],
+  },
+  race_final_lap_lead: {
+    colapinto: [
+      '¡Última vuelta y vamos primeros, {driver}! ¡Traela a casa!',
+    ],
+    bono: [
+      'Última vuelta, {driver}, y vas líder. Tráela a casa.',
+      'Última vuelta en punta. Limpio, {driver}.',
+    ],
+    standard: [
+      'Última vuelta, P1. Tráela a casa.',
+      'Última vuelta en punta, {driver}. Sin riesgos.',
     ],
   },
   car_collision: {

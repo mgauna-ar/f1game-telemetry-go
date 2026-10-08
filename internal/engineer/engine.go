@@ -64,7 +64,10 @@ type EngineerEngine struct {
 	playerPos playerTrackPosition
 	lineWait  map[string]lineWaitDirective
 	boxDueLap int
-	boxCallAt int64 // unix ms of the last call telling the player to box
+	boxCallAt int64          // unix ms of the last call telling the player to box
+	pitPlan   pitPlanTracker // the game's plan for the player's next stop
+	// pitEntries marks the cars that entered the pit lane on the latest lap data packet.
+	pitEntries [packets.MaxCars]bool
 
 	// The session's red flag count only goes up, so whether a red flag is on now is tracked here:
 	// from the count going up (or RDFL) until the restart.
@@ -86,6 +89,7 @@ type pendingDirective struct {
 	alertKey  string
 	heldAt    int64 // unix ms the call was first held
 	expiresAt int64 // unix ms after which it is no longer worth saying
+	lap       int   // the player's lap when it was first held
 }
 
 // gateDecision is what the radio gates decide for a call.
@@ -123,6 +127,7 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		NewERSRule(),
 		NewBrakesRule(),
 		NewFuelRule(),
+		NewPitPlanRule(),
 		NewRivalsRule(),
 		NewCoachingRule(),
 		NewQualifyingRule(),
@@ -192,6 +197,8 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.playerPos = playerTrackPosition{}
 	e.boxDueLap = 0
 	e.boxCallAt = 0
+	e.pitPlan = pitPlanTracker{}
+	e.pitEntries = [packets.MaxCars]bool{}
 	e.redFlagActive = false
 	e.redFlagCount = 0
 	e.redFlagLap = 0
@@ -276,6 +283,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	case *packets.PacketLapData:
 		e.recordLapTransitionsLocked(p)
 		e.pitLanes.learn(e.latestSession, e.latestLapData, p)
+		e.pitEntries = pitLaneEntries(e.latestLapData, p)
 		e.endRedFlagOnRestartLocked(p)
 		e.latestLapData = p
 	case *packets.PacketCarDamageData:
@@ -308,6 +316,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		}
 	}
 
+	e.pitPlan.update(e.latestSession, e.getPlayerLapDataLocked())
 	e.updateDrivingPhaseLocked()
 
 	evalCtx := e.buildEvaluationContextLocked(header, pkt)
@@ -326,7 +335,7 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		currentLap = int(pLap.CurrentLapNum)
 	}
 
-	return &EvaluationContext{
+	ctx := &EvaluationContext{
 		Header:           header,
 		Packet:           pkt,
 		Session:          e.latestSession,
@@ -350,8 +359,13 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		PlayerLaps:       e.history.playerLaps,
 		CallLaps:         e.callLaps,
 		BoxDueLap:        e.boxDueLap,
+		PitPlan:          e.pitPlan.plan,
 		CarHistory:       &e.history.carHistory,
 	}
+	if _, ok := pkt.(*packets.PacketLapData); ok {
+		ctx.PitEntries = e.pitEntries
+	}
+	return ctx
 }
 
 // pitEntryLocked is the learned pit entry of the session's track, or 0 while unknown.
@@ -436,6 +450,8 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	e.updatePlayerPositionLocked(ctx)
 	e.releaseLineWaitLocked()
 	emittedDirectives = append(emittedDirectives, e.releasePendingLocked(ctx.Header)...)
+	// A held call to box just said opens a box order the rules must see.
+	ctx.BoxDueLap = e.boxDueLap
 
 	for _, rule := range e.rules {
 		if !e.isRuleEnabled(rule) || !e.isValidPhase(rule, ctx.Phase) {
@@ -508,15 +524,16 @@ func (e *EngineerEngine) raceFinishDirectiveLocked(pos int) Directive {
 // instead of being lost. A newer call for the same alert key replaces it: it is what is true now.
 func (e *EngineerEngine) holdDirectiveLocked(d Directive, alertKey string) {
 	now := e.nowMs()
-	heldAt := now
+	heldAt, lap := now, e.playerPos.lap
 	if prev, ok := e.pending[alertKey]; ok {
-		heldAt = prev.heldAt
+		heldAt, lap = prev.heldAt, prev.lap
 	}
 	e.pending[alertKey] = pendingDirective{
 		directive: d,
 		alertKey:  alertKey,
 		heldAt:    heldAt,
 		expiresAt: now + e.maxDelayMs(alertKey),
+		lap:       lap,
 	}
 }
 
@@ -540,7 +557,7 @@ func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader) []Dir
 	now := e.nowMs()
 	var released []Directive
 	for _, p := range held {
-		if now > p.expiresAt {
+		if now > p.expiresAt || (e.alertRules[p.alertKey].LapBound && e.playerPos.lap != p.lap) {
 			delete(e.pending, p.alertKey)
 			continue
 		}
@@ -881,6 +898,11 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 
 	// 6. Deduplication check
 	if e.isDeduplicated(alertKey, isCritical) {
+		return gateDrop
+	}
+
+	// 6b. A stop to come is moot once the driver was told to box.
+	if e.boxDueLap != 0 && e.alertRules[alertKey].NotWhileBoxDue {
 		return gateDrop
 	}
 

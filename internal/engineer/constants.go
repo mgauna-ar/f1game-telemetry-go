@@ -44,7 +44,7 @@ const (
 	SlowPitStopDurationSec        = 4.0
 
 	// Speed and distance estimations. AverageRaceSpeedMetersPerSec is also the push-lap pace
-	// qualifying traffic gaps are measured at.
+	// qualifying traffic gaps are measured at before anyone has set a lap.
 	AverageRaceSpeedMetersPerSec = 65.0
 	SpeedGarageMaxKmh            = 5.0
 	SpeedGridMaxKmh              = 10.0
@@ -104,6 +104,21 @@ const (
 	// PitEntryReminderMinGapMs: no pit entry reminder this soon after the call to box.
 	PitEntryReminderMinGapMs = 15_000
 
+	// The game's pit plan (its ideal and latest lap to pit)
+	PitPlanMinLapsToGo    = 2    // No call to box on the plan in the race's last laps
+	PitPlanMinTyreAgeLaps = 3    // Tyres younger than this were just fitted: no call to box on the plan
+	PitPlanHeadsUpFromPct = 0.10 // The "box next lap" heads-up comes early in the lap before the plan's, from here...
+	PitPlanHeadsUpToPct   = 0.40 // ...to here, well before the pit entry
+	// PitPlanEarlyLaps: a stop up to this many laps before the plan's lap is the plan's stop, and a
+	// Safety Car that early is the time to take it. A VSC saves less of the stop's time loss, so it
+	// is worth it only closer to the plan's lap.
+	PitPlanEarlyLaps = 8
+	VSCStopEarlyLaps = 3
+
+	// FinalLapCallToPct: the "last lap" call comes from the line to here; later, the lap is
+	// half done.
+	FinalLapCallToPct = 0.30
+
 	// Gap and tyre life reports
 	DefaultGapReportLaps   = 3    // Laps between gap reports
 	GapReportFirstLap      = 3    // No gap report before this race lap: the order is still settling
@@ -121,8 +136,9 @@ const (
 	QualyTimeWarnDefaultSec             = 180.0
 	QualyElimDangerTimeSec              = 300.0
 	FinalSectorTrackDistanceFraction    = 0.70
-	QualyCarBehindWarnSec               = 3.5   // A car on a push lap this close behind (at push pace) is called on an out-lap or in-lap
-	QualyTrafficAheadWarnSec            = 5.0   // A slow car this close ahead (at push pace) is called on the player's push lap
+	QualyCarBehindDefaultSec            = 6.0   // A car on a push lap this close behind (at its pace) is called on an out-lap or in-lap
+	QualyTrafficAheadWarnSec            = 5.0   // A slow car this close ahead (at the player's pace) is called on the player's push lap
+	PushPaceMaxOffBest                  = 1.07  // A car's best lap more than this times the session's best isn't its push pace
 	QualyLapResultSettleMs              = 2_000 // The lap result waits this long after the line for the positions to settle
 	InLapCooldownFromLapPct             = 0.10  // The in-lap cool-down call comes this far into the lap, after the lap result
 	QualyQ1EliminationPositionThreshold = 15    // Last safe Q1 place on a 20-car grid, when the car count is unknown

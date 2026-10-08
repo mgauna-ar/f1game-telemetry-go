@@ -30,6 +30,8 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
   const setSubQualyResult = useRadioSettingsStore((s) => s.setSubQualyResult);
   const qualyCleanAirSec = useRadioSettingsStore((s) => s.qualyCleanAirSec);
   const setQualyCleanAirSec = useRadioSettingsStore((s) => s.setQualyCleanAirSec);
+  const qualyCarBehindSec = useRadioSettingsStore((s) => s.qualyCarBehindSec);
+  const setQualyCarBehindSec = useRadioSettingsStore((s) => s.setQualyCarBehindSec);
 
   return (
     <SubsystemAccordion
@@ -87,6 +89,16 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
           step={0.5}
           formatValue={(v) => `${v.toFixed(1)}s`}
           onChange={setQualyCleanAirSec}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.qualyCarBehindGap')}
+          value={qualyCarBehindSec}
+          unit="s"
+          min={3}
+          max={10}
+          step={0.5}
+          formatValue={(v) => `${v.toFixed(1)}s`}
+          onChange={setQualyCarBehindSec}
         />
       </div>
     </SubsystemAccordion>

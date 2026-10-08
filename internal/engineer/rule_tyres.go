@@ -375,8 +375,10 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 4. Tyre Set Allocation Advisory approaching pit window
-	if ctx.Session != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && !r.tyreSetAdvisoryFired {
+	// 4. Tyre Set Allocation Advisory approaching pit window. The plan's "box next lap" heads-up
+	// (pit_window) already says the stop is coming, so this is only said without it.
+	if ctx.Session != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && !r.tyreSetAdvisoryFired &&
+		!ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window") {
 		idealLap := int(ctx.Session.PitStopWindowIdealLap)
 		playerLap := ctx.PlayerLap()
 		currentLapNum := 1
