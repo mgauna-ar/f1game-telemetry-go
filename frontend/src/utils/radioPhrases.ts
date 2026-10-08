@@ -3,12 +3,16 @@ import type { LocaleCode } from '../locales';
 import {
   box_timing_phrases as enBox,
   radio_phrases as en,
+  radio_fault_phrases as enRadioFault,
   report_phrases as enReport,
+  say_again_phrases as enSayAgain,
 } from '../locales/en/radio_phrases';
 import {
   box_timing_phrases as esBox,
   radio_phrases as es,
+  radio_fault_phrases as esRadioFault,
   report_phrases as esReport,
+  say_again_phrases as esSayAgain,
 } from '../locales/es/radio_phrases';
 import type {
   BoxCallKind,
@@ -39,6 +43,12 @@ export const BOX_TIMING_PHRASES: Record<LocaleCode, Record<BoxCallKind, Record<E
 /** The parts the reports' numbers are said with, per language. */
 export const REPORT_PHRASES: Record<LocaleCode, Record<ReportPhrase, RadioPhrasePool>> = { en: enReport, es: esReport };
 
+/** What the engineer says when a transmission came through without words, per language. */
+export const SAY_AGAIN_PHRASES: Record<LocaleCode, RadioPhrasePool> = { en: enSayAgain, es: esSayAgain };
+
+/** What the engineer says when the radio can't hear the driver at all, per language. */
+export const RADIO_FAULT_PHRASES: Record<LocaleCode, RadioPhrasePool> = { en: enRadioFault, es: esRadioFault };
+
 /**
  * The calls that offer a stop rather than order one; every other call that comes with a box timing
  * tells the driver to box. Their phrases leave the timing out: it is added from BOX_TIMING_PHRASES.
@@ -65,6 +75,20 @@ function personaPhrases(catPool: RadioPhrasePool, persona: RadioPersona): readon
 }
 
 const pick = (pool: readonly string[]): string => pool[Math.floor(Math.random() * pool.length)] ?? pool[0] ?? '';
+
+/**
+ * What `persona` says, addressed to the driver's callsign, after a transmission without words: ask
+ * again, or, when the radio itself is not working (`radioFault`), that the pit wall can't hear them.
+ */
+export function getNotHeardSpeech(
+  language: LocaleCode,
+  persona: RadioPersona,
+  radioFault: boolean,
+  driverCallsign?: string
+): string {
+  const pool = radioFault ? RADIO_FAULT_PHRASES[language] : SAY_AGAIN_PHRASES[language];
+  return interpolateCallsign(pick(personaPhrases(pool, persona)), driverCallsign);
+}
 
 /** What `persona` says about when to pit, after a call of `category` with this box timing. */
 export function boxTimingPhrase(

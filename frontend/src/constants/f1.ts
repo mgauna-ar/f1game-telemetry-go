@@ -687,6 +687,10 @@ export const RADIO_ENGLISH_VOICES = [
 export const RADIO_CONVERSATION_LIMITS = {
   /** Driver/engineer exchanges the voice engineer keeps as context within one session. */
   MAX_EXCHANGES: 8,
+  /** How long a released transmission waits for the recognizer's last words. */
+  RECOGNIZER_END_TIMEOUT_MS: 1500,
+  /** A shorter press that heard nothing is taken as an accidental tap: the engineer doesn't ask to say again. */
+  MIN_PRESS_FOR_SAY_AGAIN_MS: 500,
 } as const;
 
 export const RADIO_PTT_MODES = {

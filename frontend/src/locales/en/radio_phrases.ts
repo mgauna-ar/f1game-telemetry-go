@@ -1480,3 +1480,42 @@ export const report_phrases = {
     ],
   },
 } satisfies Record<ReportPhrase, RadioPhrasePool>;
+
+/**
+ * What the engineer says when the driver keyed the radio but no words came through, so the driver
+ * knows to ask again. `{driver}` is the callsign.
+ */
+export const say_again_phrases: RadioPhrasePool = {
+  bono: [
+    'Say again, {driver}, we did not copy.',
+    'Sorry {driver}, we lost you there. Say again.',
+  ],
+  colapinto: [
+    'Say again, {driver}, nothing came through.',
+    'We did not catch that, {driver}. Say again.',
+  ],
+  standard: [
+    'Say again, {driver}, we did not copy.',
+    'Nothing came through, {driver}. Say again.',
+  ],
+};
+
+/**
+ * What the engineer says when the radio itself is not working: the browser can't hear the driver
+ * (the page is in Edge behind the game, the microphone is blocked or missing, the speech service is
+ * down). `{driver}` is the callsign.
+ */
+export const radio_fault_phrases: RadioPhrasePool = {
+  bono: [
+    '{driver}, we have a radio problem. We cannot hear you.',
+    'Radio issue on our side, {driver}. We are not receiving you.',
+  ],
+  colapinto: [
+    'Sorry, {driver}, we cannot hear you. The radio is not working.',
+    'Radio problem, {driver}. Nothing is reaching the pit wall.',
+  ],
+  standard: [
+    'Sorry, {driver}, we cannot hear you. The radio is not working.',
+    'Radio problem, {driver}. We are not receiving you.',
+  ],
+};

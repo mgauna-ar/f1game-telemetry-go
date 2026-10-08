@@ -1486,3 +1486,42 @@ export const report_phrases = {
     ],
   },
 } satisfies Record<ReportPhrase, RadioPhrasePool>;
+
+/**
+ * Lo que dice el ingeniero cuando el piloto abrió la radio pero no llegó ninguna palabra, para que
+ * vuelva a preguntar. `{driver}` es el indicativo.
+ */
+export const say_again_phrases: RadioPhrasePool = {
+  colapinto: [
+    'Repetí, {driver}, no te copiamos.',
+    'No llegó nada, {driver}. Repetí, por favor.',
+  ],
+  bono: [
+    'Repite, {driver}, no te copiamos.',
+    'Te perdimos, {driver}. Repite, por favor.',
+  ],
+  standard: [
+    'Repite, {driver}, no te copiamos.',
+    'No llegó nada por radio, {driver}. Repite, por favor.',
+  ],
+};
+
+/**
+ * Lo que dice el ingeniero cuando la radio no funciona: el navegador no escucha al piloto (la página
+ * está en Edge detrás del juego, el micrófono está bloqueado o no está, el servicio de voz no
+ * responde). `{driver}` es el indicativo.
+ */
+export const radio_fault_phrases: RadioPhrasePool = {
+  colapinto: [
+    'Perdón, {driver}, no te escuchamos. La radio no anda.',
+    'Problema de radio, {driver}. No nos llega nada.',
+  ],
+  bono: [
+    '{driver}, tenemos un problema de radio. No te escuchamos.',
+    'Problema de radio de nuestro lado, {driver}. No te recibimos.',
+  ],
+  standard: [
+    'Perdón, {driver}, no te escuchamos. La radio no funciona.',
+    'Problema de radio, {driver}. No te recibimos.',
+  ],
+};

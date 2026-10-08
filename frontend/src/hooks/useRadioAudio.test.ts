@@ -11,6 +11,7 @@ import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { SESSION_TYPES } from '../constants/f1';
 import type { SessionData } from '../types/telemetry';
 import { makeLiveSession } from '../test/wireFactories';
+import { getNotHeardSpeech } from '../utils/radioPhrases';
 
 class FakeSpeechRecognition {
   static last: FakeSpeechRecognition | null = null;
@@ -18,15 +19,28 @@ class FakeSpeechRecognition {
   interimResults = false;
   lang = '';
   onresult: ((event: ISpeechRecognitionEvent) => void) | null = null;
-  onerror: (() => void) | null = null;
+  onerror: ((event: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
   start() {
     FakeSpeechRecognition.last = this;
   }
   stop() {}
-  abort() {}
+  abort() {
+    this.onend?.();
+  }
+  hear(text: string) {
+    this.onresult?.({ results: { length: 1, 0: { 0: { transcript: text } } } });
+  }
   static say(text: string) {
-    FakeSpeechRecognition.last?.onresult?.({ results: { length: 1, 0: { 0: { transcript: text } } } });
+    FakeSpeechRecognition.last?.hear(text);
+  }
+  /** The recognizer reports an error, as browsers do before ending. */
+  static fail(error: string) {
+    FakeSpeechRecognition.last?.onerror?.({ error });
+  }
+  /** The recognizer ends, after its last words. */
+  static end() {
+    FakeSpeechRecognition.last?.onend?.();
   }
 }
 
@@ -267,6 +281,176 @@ describe('useRadioAudio hook', () => {
       expect(signals[0].aborted).toBe(true);
       expect(result.current.radioState).toBe('transmitting');
       expect(result.current.error).toBeNull();
+    });
+
+    describe('when no words come through', () => {
+      let now = 0;
+      const EDGE_UA =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0';
+
+      beforeEach(() => {
+        now = 10_000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        // The first phrase of each pool, so the spoken line can be compared.
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(api, 'stream');
+      });
+
+      // Holds the button for pressMs, lets the recognizer act after the release, then waits for it.
+      async function transmit(
+        result: { current: ReturnType<typeof useRadioAudio> },
+        pressMs: number,
+        afterRelease: () => void = () => FakeSpeechRecognition.end()
+      ) {
+        act(() => {
+          result.current.onPTTPress();
+        });
+        now += pressMs;
+        let released!: Promise<void>;
+        act(() => {
+          released = result.current.onPTTRelease();
+        });
+        act(afterRelease);
+        await act(async () => {
+          await released;
+        });
+      }
+
+      const spoken = () => vi.mocked(radioAudio.speakRadioResponse).mock.calls.map((call) => call[0]);
+
+      function notHeardLine(radioFault: boolean) {
+        const { persona, driverCallsign } = useRadioSettingsStore.getState();
+        return getNotHeardSpeech('en', persona, radioFault, driverCallsign);
+      }
+
+      it('asks the driver to say again after a press that heard nothing', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        await transmit(result, 1200);
+
+        expect(spoken()).toEqual([notHeardLine(false)]);
+        expect(result.current.error).toBe('Nothing heard on your last transmission.');
+        expect(api.stream).not.toHaveBeenCalled();
+        expect(result.current.radioState).toBe('idle');
+      });
+
+      it('says nothing about a short accidental tap', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        await transmit(result, 200);
+
+        expect(spoken()).toEqual([]);
+        expect(result.current.error).toBeNull();
+        expect(result.current.radioState).toBe('idle');
+      });
+
+      it('says the radio is not working when the microphone is blocked, however short the press', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        await transmit(result, 200, () => {
+          FakeSpeechRecognition.fail('not-allowed');
+          FakeSpeechRecognition.end();
+        });
+
+        expect(spoken()).toEqual([notHeardLine(true)]);
+        expect(result.current.error).toMatch(/microphone is blocked/);
+      });
+
+      it('says the radio is not working when Edge is hidden behind the game', async () => {
+        vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(EDGE_UA);
+        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+        const { result } = renderHook(() => useRadioAudio());
+
+        await transmit(result, 1500);
+
+        expect(spoken()).toEqual([notHeardLine(true)]);
+        expect(result.current.error).toMatch(/^Edge stopped listening/);
+      });
+
+      it('says the radio is not working without speech recognition in the browser', async () => {
+        delete (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition;
+        const { result } = renderHook(() => useRadioAudio());
+
+        await transmit(result, 800, () => {});
+
+        expect(spoken()).toEqual([notHeardLine(true)]);
+        expect(result.current.error).toBe('Speech Recognition is not supported in this browser.');
+      });
+
+      it('waits for the words that arrive after the release', async () => {
+        vi.mocked(api.stream).mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+        const { result } = renderHook(() => useRadioAudio());
+
+        act(() => {
+          result.current.onPTTPress();
+        });
+        now += 1500;
+        let released!: Promise<void>;
+        act(() => {
+          released = result.current.onPTTRelease();
+        });
+        // The recognizer's last words come a moment after the button is up.
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        });
+        act(() => {
+          FakeSpeechRecognition.say('Box this lap?');
+          FakeSpeechRecognition.end();
+        });
+        await act(async () => {
+          await released;
+        });
+
+        expect(requestBody(0).messages).toEqual([
+          { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Box this lap?"' },
+        ]);
+        expect(result.current.error).toBeNull();
+      });
+
+      it('lets a new press take over from a release still waiting for words', async () => {
+        vi.mocked(api.stream).mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+        const { result } = renderHook(() => useRadioAudio());
+
+        act(() => {
+          result.current.onPTTPress();
+        });
+        const first = FakeSpeechRecognition.last!;
+        now += 1500;
+        let waiting!: Promise<void>;
+        act(() => {
+          waiting = result.current.onPTTRelease();
+        });
+        await act(async () => {
+          await Promise.resolve();
+        });
+        expect(result.current.radioState).toBe('processing');
+
+        // The new press aborts the first recognizer; its late words don't count.
+        act(() => {
+          result.current.onPTTPress();
+        });
+        await act(async () => {
+          await waiting;
+        });
+        act(() => {
+          first.hear('Stale words');
+        });
+        expect(result.current.radioState).toBe('transmitting');
+        expect(result.current.lastTranscript).toBeNull();
+
+        act(() => {
+          FakeSpeechRecognition.say('Gap behind?');
+        });
+        await act(async () => {
+          await result.current.onPTTRelease();
+        });
+
+        expect(api.stream).toHaveBeenCalledTimes(1);
+        expect(requestBody(0).messages).toEqual([
+          { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Gap behind?"' },
+        ]);
+        expect(spoken()).not.toContain(notHeardLine(false));
+      });
     });
 
     it('forgets the conversation when a new session starts', async () => {

@@ -4,10 +4,13 @@ import {
   boxTimingPhrase,
   formatTenths,
   formatThousandths,
+  getNotHeardSpeech,
   getProactiveRadioSpeech,
   radioPhrasePool,
+  RADIO_FAULT_PHRASES,
   RADIO_PHRASE_CATALOG,
   REPORT_PHRASES,
+  SAY_AGAIN_PHRASES,
 } from './radioPhrases';
 import { RADIO_ALERT_CATEGORIES } from '../constants/radioAlertCategories';
 import type { RadioPersona } from '../constants/f1';
@@ -492,5 +495,42 @@ describe('radioPhrases', () => {
     const speech = getProactiveRadioSpeech('safety_car', 'es', 'colapinto', ' Franco ');
     expect(speech).toContain('Franco');
     expect(speech).not.toContain('{driver}');
+  });
+
+  describe('a transmission without words', () => {
+    it.each(LOCALES)('every persona asks again or reports the radio fault in %s', (language) => {
+      const random = vi.spyOn(Math, 'random');
+      // The first and the last phrase of each pool
+      for (const draw of [0, 0.99]) {
+        random.mockReturnValue(draw);
+        for (const persona of PERSONAS) {
+          for (const radioFault of [false, true]) {
+            const speech = getNotHeardSpeech(language, persona, radioFault, 'Franco');
+            expect(speech).toContain('Franco');
+            expect(speech).not.toMatch(/[{}]/);
+          }
+        }
+      }
+    });
+
+    it('asks to say again when nothing was understood, and says the radio is down when it is', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getNotHeardSpeech('en', 'custom', false, 'Franco')).toBe('Say again, Franco, we did not copy.');
+      expect(getNotHeardSpeech('en', 'custom', true, 'Franco')).toBe(
+        'Sorry, Franco, we cannot hear you. The radio is not working.'
+      );
+      expect(getNotHeardSpeech('es', 'colapinto', true, '')).toBe('Perdón, no te escuchamos. La radio no anda.');
+      expect(getNotHeardSpeech('es', 'bono', false, '')).toBe('Repite, no te copiamos.');
+    });
+
+    it('has lines for every persona in both languages', () => {
+      for (const pools of [SAY_AGAIN_PHRASES, RADIO_FAULT_PHRASES]) {
+        for (const language of LOCALES) {
+          expect(pools[language].standard.length).toBeGreaterThan(0);
+          expect(pools[language].bono?.length).toBeGreaterThan(0);
+          expect(pools[language].colapinto?.length).toBeGreaterThan(0);
+        }
+      }
+    });
   });
 });
