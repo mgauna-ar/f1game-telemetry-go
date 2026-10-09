@@ -90,6 +90,9 @@ export type ReportPhrase =
   | 'elimination_drop_zone'
   | 'elimination_last_through';
 
+/** The engineer's own lines in a push-to-talk exchange, besides the answer (each locale's `exchange_phrases`). */
+export type ExchangeLine = 'say_again' | 'radio_fault' | 'stand_by' | 'answer_failed';
+
 /** Every message /ws/engineer sends, told apart by `type`. */
 export type {
   EngineerSocketMessage,
@@ -98,6 +101,9 @@ export type {
   PTTLearnTimeoutMessage,
   SettingsChangedMessage,
 } from './generated/api';
+
+/** What the dashboard reports about each push-to-talk exchange, for the app log. */
+export type { PTTSource, PTTTraceOutcome, PTTTraceRequest } from './generated/api';
 
 export type RadioAlertCategory =
   | 'safety_car'

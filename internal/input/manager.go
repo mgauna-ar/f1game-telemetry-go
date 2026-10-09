@@ -2,6 +2,7 @@ package input
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -14,6 +15,9 @@ const (
 	DeviceTypeKeyboard DeviceType = "keyboard"
 	DeviceTypeNone     DeviceType = "none"
 )
+
+// maxJoystickButtons is how many buttons the Windows joystick API reads per device.
+const maxJoystickButtons = 32
 
 // Mapping defines the target button or key to monitor.
 type Mapping struct {
@@ -49,7 +53,7 @@ type BaseManager struct {
 	mu           sync.RWMutex
 	joyMap       Mapping
 	keyMap       Mapping
-	isDown       bool
+	button       buttonState
 	isLearning   bool
 	learnChan    chan Mapping
 	eventChan    chan Event
@@ -93,6 +97,12 @@ func (b *BaseManager) SetMapping(m Mapping) {
 	case DeviceTypeJoystick:
 		if m.DeviceIndex >= 0 && m.ButtonIndex >= 0 {
 			b.joyMap = m
+			// The log shows which wheel button the app watches while a game is in front.
+			slog.Info("Push-to-talk wheel button set", "device", m.DeviceIndex, "button", m.ButtonIndex)
+			if m.ButtonIndex >= maxJoystickButtons {
+				slog.Warn("The app can only watch wheel buttons 1 to 32 while a game is in front",
+					"button", m.ButtonIndex+1)
+			}
 		} else {
 			b.joyMap = Mapping{DeviceType: DeviceTypeNone, DeviceIndex: -1, ButtonIndex: -1}
 		}
@@ -106,7 +116,7 @@ func (b *BaseManager) SetMapping(m Mapping) {
 		b.joyMap = Mapping{DeviceType: DeviceTypeNone, DeviceIndex: -1, ButtonIndex: -1}
 		b.keyMap = Mapping{DeviceType: DeviceTypeNone, KeyCode: 0, KeyName: "None", DeviceName: "Keyboard"}
 	}
-	b.isDown = false // Reset state on mapping change
+	b.button = buttonState{} // Reset state on mapping change
 }
 
 // Events returns the channel for PTT state transitions.

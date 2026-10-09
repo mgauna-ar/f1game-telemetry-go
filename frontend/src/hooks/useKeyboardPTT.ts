@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
 import { isKeyboardEventForKey } from '../utils/keyNames';
+import type { PTTSource } from '../types/telemetry';
 
 export interface UseKeyboardPTTOptions {
   enabled?: boolean;
@@ -9,7 +10,7 @@ export interface UseKeyboardPTTOptions {
   isLearning: boolean;
   setMappedKey: (key: string) => void;
   cancelLearning: () => void;
-  updatePTTState: (nextState: boolean) => void;
+  updatePTTState: (nextState: boolean, source: PTTSource) => void;
   isPTTActive: boolean;
   isGamepadPressed?: () => boolean;
 }
@@ -77,9 +78,9 @@ export function useKeyboardPTT(options: UseKeyboardPTTOptions): UseKeyboardPTTRe
         if (!keyboardPressedRef.current) {
           keyboardPressedRef.current = true;
           if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
-            updatePTTStateRef.current(true);
+            updatePTTStateRef.current(true, 'keyboard');
           } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
-            updatePTTStateRef.current(!isPTTActiveRef.current);
+            updatePTTStateRef.current(!isPTTActiveRef.current, 'keyboard');
           }
         }
       }
@@ -95,7 +96,7 @@ export function useKeyboardPTT(options: UseKeyboardPTTOptions): UseKeyboardPTTRe
         keyboardPressedRef.current = false;
         if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
           if (!isGamepadPressedRef.current?.()) {
-            updatePTTStateRef.current(false);
+            updatePTTStateRef.current(false, 'keyboard');
           }
         }
       }

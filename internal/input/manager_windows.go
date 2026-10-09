@@ -5,6 +5,7 @@ package input
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"syscall"
 	"time"
 	"unsafe"
@@ -72,6 +73,8 @@ type joyCapsW struct {
 type WindowsManager struct {
 	*BaseManager
 	cancelFunc context.CancelFunc
+	// readFailures counts the polls in a row the wheel couldn't be read; only the poll loop uses it.
+	readFailures int
 }
 
 // NewManager creates a new Windows input manager.
@@ -146,7 +149,6 @@ func (w *WindowsManager) tick() {
 	isLearning := w.isLearning
 	joyMapping := w.joyMap
 	keyMapping := w.keyMap
-	wasDown := w.isDown
 	w.mu.Unlock()
 
 	// 1. Interactive Learning Mode Check
@@ -158,7 +160,7 @@ func (w *WindowsManager) tick() {
 			} else {
 				w.keyMap = learned
 			}
-			w.isDown = false
+			w.button = buttonState{}
 			w.isLearning = false
 			if w.learnChan != nil {
 				w.learnChan <- learned
@@ -172,42 +174,57 @@ func (w *WindowsManager) tick() {
 	}
 
 	// 2. Normal Mode: Poll both joystick (if mapped) and keyboard (if mapped)
-	isJoyDown := false
+	joyPressed, joyOK, buttons := false, true, uint32(0)
 	if joyMapping.DeviceType == DeviceTypeJoystick && joyMapping.DeviceIndex >= 0 && joyMapping.ButtonIndex >= 0 {
-		isJoyDown = w.checkJoystickButton(joyMapping.DeviceIndex, joyMapping.ButtonIndex)
+		var code uintptr
+		buttons, code = readJoystickButtons(joyMapping.DeviceIndex)
+		w.noteRead(joyMapping.DeviceIndex, code)
+		joyOK = code == joyErrNoError
+		joyPressed = joyOK && buttons&(1<<uint(joyMapping.ButtonIndex)) != 0
 	}
 
-	isKeyDown := false
-	if keyMapping.KeyCode > 0 {
-		isKeyDown = w.checkKeyboardKey(keyMapping.KeyCode)
+	keyPressed := keyMapping.KeyCode > 0 && w.checkKeyboardKey(keyMapping.KeyCode)
+
+	// A wheel that couldn't be read says nothing about the button, unless the key is held.
+	w.mu.Lock()
+	evt := w.button.poll(joyOK || keyPressed, joyPressed || keyPressed)
+	w.mu.Unlock()
+	if evt == "" {
+		return
 	}
-
-	isCurrentlyDown := isJoyDown || isKeyDown
-
-	if isCurrentlyDown != wasDown {
-		w.mu.Lock()
-		w.isDown = isCurrentlyDown
-		w.mu.Unlock()
-
-		if isCurrentlyDown {
-			w.EmitEvent("down")
-		} else {
-			w.EmitEvent("up")
-		}
-	}
+	// The whole button mask shows what the wheel reported, e.g. another button lighting up instead.
+	slog.Info("Push-to-talk button", "state", evt, "device", joyMapping.DeviceIndex, "button", joyMapping.ButtonIndex,
+		"buttons", fmt.Sprintf("%#x", buttons), "wheel_read", joyOK, "key", keyMapping.KeyName, "key_down", keyPressed)
+	w.EmitEvent(evt)
 }
 
-func (w *WindowsManager) checkJoystickButton(devIndex, btnIndex int) bool {
+// readJoystickButtons returns the pressed buttons of a joystick, one bit each (button 1 is bit 0),
+// and the result code of the read: joyErrNoError, or why it failed.
+func readJoystickButtons(devIndex int) (buttons uint32, code uintptr) {
 	var info joyInfoEx
 	info.dwSize = uint32(unsafe.Sizeof(info))
 	info.dwFlags = joyReturnButtons
 
-	ret, _, _ := procJoyGetPosEx.Call(uintptr(devIndex), uintptr(unsafe.Pointer(&info)))
-	if ret != joyErrNoError {
-		return false
+	code, _, _ = procJoyGetPosEx.Call(uintptr(devIndex), uintptr(unsafe.Pointer(&info)))
+	if code != joyErrNoError {
+		return 0, code
 	}
+	return info.dwButtons, code
+}
 
-	return (info.dwButtons & (1 << uint(btnIndex))) != 0
+// noteRead logs when the wheel stops reading and when it reads again, without a line per poll.
+func (w *WindowsManager) noteRead(device int, code uintptr) {
+	if code == joyErrNoError {
+		if w.readFailures > 0 {
+			slog.Info("Push-to-talk wheel reads again", "device", device, "failed_polls", w.readFailures)
+			w.readFailures = 0
+		}
+		return
+	}
+	if w.readFailures == 0 {
+		slog.Warn("Could not read the push-to-talk wheel", "device", device, "error", code)
+	}
+	w.readFailures++
 }
 
 func (w *WindowsManager) checkKeyboardKey(vkCode int) bool {

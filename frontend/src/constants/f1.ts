@@ -691,6 +691,8 @@ export const RADIO_CONVERSATION_LIMITS = {
   RECOGNIZER_END_TIMEOUT_MS: 1500,
   /** A shorter press that heard nothing is taken as an accidental tap: the engineer doesn't ask to say again. */
   MIN_PRESS_FOR_SAY_AGAIN_MS: 500,
+  /** Without the answer's first sentence this long after the release, the engineer says "stand by". */
+  STAND_BY_AFTER_MS: 2000,
 } as const;
 
 export const RADIO_PTT_MODES = {

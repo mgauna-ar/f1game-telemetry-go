@@ -22,6 +22,8 @@ export interface ReplySpeechStream {
   pushSentence: (sentence: string) => void;
   /** Marks the reply complete; the radio closes with a beep after the last sentence. */
   finish: () => void;
+  /** Resolves once the reply has been spoken to the end, or was cut off. */
+  done: Promise<void>;
 }
 
 type SpeechEmotion = { rateModifier?: number; pitchModifier?: number };
@@ -49,6 +51,8 @@ interface ReplyStreamState {
   awaiting: boolean;
   /** Sentences spoken so far, shown as the last response. */
   spoken: string;
+  /** Resolves the stream's `done` promise. */
+  settle: () => void;
 }
 
 const newQueueItemId = () => Math.random().toString(36).substring(2, 9);
@@ -124,6 +128,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     stream.cancelled = true;
     streamRef.current = null;
     queueRef.current = queueRef.current.filter((item) => item.stream !== stream);
+    stream.settle();
   }, []);
 
   const hasQueuedSentences = (stream: ReplyStreamState) => queueRef.current.some((item) => item.stream === stream);
@@ -135,6 +140,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       if (stream.started && beepsEnabled && !stream.cancelled) {
         await playRadioBeep('end', volume);
       }
+      stream.settle();
     },
     [beepsEnabled, volume]
   );
@@ -207,10 +213,22 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const beginReplyStream = useCallback((): ReplySpeechStream => {
     // A new reply supersedes one still being spoken.
     if (streamRef.current) stopSpeech();
-    const stream: ReplyStreamState = { started: false, finished: false, cancelled: false, awaiting: false, spoken: '' };
+    let settle = () => {};
+    const done = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
+    const stream: ReplyStreamState = {
+      started: false,
+      finished: false,
+      cancelled: false,
+      awaiting: false,
+      spoken: '',
+      settle,
+    };
     streamRef.current = stream;
 
     return {
+      done,
       pushSentence: (sentence: string) => {
         const cleaned = cleanRadioSpeechText(sentence);
         if (stream.cancelled || stream.finished || !isRadioEnabled || !cleaned) return;

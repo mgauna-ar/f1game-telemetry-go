@@ -11,25 +11,42 @@ import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { SESSION_TYPES } from '../constants/f1';
 import type { SessionData } from '../types/telemetry';
 import { makeLiveSession } from '../test/wireFactories';
-import { getNotHeardSpeech } from '../utils/radioPhrases';
+import { getExchangeSpeech } from '../utils/radioPhrases';
+import type { ExchangeLine, PTTTraceRequest } from '../types/telemetry';
 
 class FakeSpeechRecognition {
   static last: FakeSpeechRecognition | null = null;
+  /** Like a browser, end a moment after stop(); off to send words after the release. */
+  static endOnStop = true;
   continuous = false;
   interimResults = false;
   lang = '';
   onresult: ((event: ISpeechRecognitionEvent) => void) | null = null;
   onerror: ((event: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
+  onaudiostart: (() => void) | null = null;
+  onspeechstart: (() => void) | null = null;
   start() {
     FakeSpeechRecognition.last = this;
   }
-  stop() {}
+  stop() {
+    if (FakeSpeechRecognition.endOnStop) queueMicrotask(() => this.onend?.());
+  }
   abort() {
     this.onend?.();
   }
   hear(text: string) {
-    this.onresult?.({ results: { length: 1, 0: { 0: { transcript: text } } } });
+    this.hearSegments([text]);
+  }
+  /** Results for a question said with pauses in it, one segment each. */
+  hearSegments(segments: string[]) {
+    const results: ISpeechRecognitionEvent['results'] = { length: segments.length };
+    segments.forEach((transcript, i) => {
+      results[i] = { 0: { transcript } };
+    });
+    this.onaudiostart?.();
+    this.onspeechstart?.();
+    this.onresult?.({ results });
   }
   static say(text: string) {
     FakeSpeechRecognition.last?.hear(text);
@@ -141,7 +158,9 @@ describe('useRadioAudio hook', () => {
   describe('push-to-talk questions', () => {
     beforeEach(() => {
       (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition = FakeSpeechRecognition;
+      FakeSpeechRecognition.endOnStop = true;
       useSessionStatusStore.getState().setSessionStatus({ session: mockSession() });
+      vi.spyOn(api, 'post').mockResolvedValue({});
     });
 
     afterEach(() => {
@@ -164,6 +183,21 @@ describe('useRadioAudio hook', () => {
     function requestBody(call: number): AIChatRequest {
       return vi.mocked(api.stream).mock.calls[call][1] as AIChatRequest;
     }
+
+    const spoken = () => vi.mocked(radioAudio.speakRadioResponse).mock.calls.map((call) => call[0]);
+
+    /** What the engineer says for this line with the default settings, given Math.random is 0. */
+    function exchangeLine(line: ExchangeLine) {
+      const { persona, driverCallsign } = useRadioSettingsStore.getState();
+      return getExchangeSpeech(line, 'en', persona, driverCallsign);
+    }
+
+    /** The push-to-talk traces sent to the app log. */
+    const traces = () =>
+      vi
+        .mocked(api.post)
+        .mock.calls.filter(([path]) => path === '/api/ai/ptt/trace')
+        .map(([, body]) => body as PTTTraceRequest);
 
     it('sends only the live context mode; the server builds the race briefing and phase', async () => {
       vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
@@ -214,7 +248,8 @@ describe('useRadioAudio hook', () => {
       expect(result.current.radioState).toBe('idle');
     });
 
-    it('shows the AI error sent in the stream instead of going silently idle', async () => {
+    it('says the pit wall has no answer and shows the AI error sent in the stream', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
       vi.spyOn(api, 'stream').mockImplementation(async () =>
         createMockSSEResponse([
           'data: {"error":"429 from upstream","code":"QUOTA_EXCEEDED","provider":"gemini","message":"Quota exceeded."}\n\n',
@@ -224,9 +259,12 @@ describe('useRadioAudio hook', () => {
 
       await askOverRadio(result, 'Gap to the car ahead?');
 
+      expect(spoken()).toEqual([exchangeLine('answer_failed')]);
       expect(result.current.error).toBe('Quota exceeded.');
       expect(result.current.radioState).toBe('idle');
-      expect(result.current.lastResponse).toBeNull();
+      expect(traces()).toEqual([
+        expect.objectContaining({ outcome: 'answer_failed', ai_error: 'Quota exceeded.', heard: 'Gap to the car ahead?' }),
+      ]);
     });
 
     it('shows the message of a failed request', async () => {
@@ -236,10 +274,12 @@ describe('useRadioAudio hook', () => {
             status: 400,
           })
       );
+      vi.spyOn(Math, 'random').mockReturnValue(0);
       const { result } = renderHook(() => useRadioAudio());
 
       await askOverRadio(result, 'Radio check');
 
+      expect(spoken()).toEqual([exchangeLine('answer_failed')]);
       expect(result.current.error).toBe('No API key configured.');
       expect(result.current.radioState).toBe('idle');
     });
@@ -267,7 +307,7 @@ describe('useRadioAudio hook', () => {
         pending = result.current.onPTTRelease();
       });
       await act(async () => {
-        await Promise.resolve();
+        await vi.waitFor(() => expect(signals).toHaveLength(1));
       });
       expect(result.current.radioState).toBe('processing');
 
@@ -285,8 +325,6 @@ describe('useRadioAudio hook', () => {
 
     describe('when no words come through', () => {
       let now = 0;
-      const EDGE_UA =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0';
 
       beforeEach(() => {
         now = 10_000;
@@ -316,12 +354,7 @@ describe('useRadioAudio hook', () => {
         });
       }
 
-      const spoken = () => vi.mocked(radioAudio.speakRadioResponse).mock.calls.map((call) => call[0]);
-
-      function notHeardLine(radioFault: boolean) {
-        const { persona, driverCallsign } = useRadioSettingsStore.getState();
-        return getNotHeardSpeech('en', persona, radioFault, driverCallsign);
-      }
+      const notHeardLine = (radioFault: boolean) => exchangeLine(radioFault ? 'radio_fault' : 'say_again');
 
       it('asks the driver to say again after a press that heard nothing', async () => {
         const { result } = renderHook(() => useRadioAudio());
@@ -356,17 +389,6 @@ describe('useRadioAudio hook', () => {
         expect(result.current.error).toMatch(/microphone is blocked/);
       });
 
-      it('says the radio is not working when Edge is hidden behind the game', async () => {
-        vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(EDGE_UA);
-        vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
-        const { result } = renderHook(() => useRadioAudio());
-
-        await transmit(result, 1500);
-
-        expect(spoken()).toEqual([notHeardLine(true)]);
-        expect(result.current.error).toMatch(/^Edge stopped listening/);
-      });
-
       it('says the radio is not working without speech recognition in the browser', async () => {
         delete (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition;
         const { result } = renderHook(() => useRadioAudio());
@@ -379,6 +401,7 @@ describe('useRadioAudio hook', () => {
 
       it('waits for the words that arrive after the release', async () => {
         vi.mocked(api.stream).mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+        FakeSpeechRecognition.endOnStop = false;
         const { result } = renderHook(() => useRadioAudio());
 
         act(() => {
@@ -409,6 +432,7 @@ describe('useRadioAudio hook', () => {
 
       it('lets a new press take over from a release still waiting for words', async () => {
         vi.mocked(api.stream).mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+        FakeSpeechRecognition.endOnStop = false;
         const { result } = renderHook(() => useRadioAudio());
 
         act(() => {
@@ -438,6 +462,7 @@ describe('useRadioAudio hook', () => {
         expect(result.current.radioState).toBe('transmitting');
         expect(result.current.lastTranscript).toBeNull();
 
+        FakeSpeechRecognition.endOnStop = true;
         act(() => {
           FakeSpeechRecognition.say('Gap behind?');
         });
@@ -450,7 +475,170 @@ describe('useRadioAudio hook', () => {
           { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Gap behind?"' },
         ]);
         expect(spoken()).not.toContain(notHeardLine(false));
+        expect(traces().map((trace) => trace.outcome)).toEqual(['replaced', 'answered']);
       });
+
+      it('reports a short tap to the app log without a word to the driver', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        await transmit(result, 200);
+
+        expect(traces()).toEqual([
+          expect.objectContaining({ outcome: 'tap', held_ms: 200, recognizer_started: true, results: 0 }),
+        ]);
+      });
+    });
+
+    describe('pit wall calls during a question', () => {
+      let now = 0;
+
+      beforeEach(() => {
+        now = 10_000;
+        vi.spyOn(Date, 'now').mockImplementation(() => now);
+        vi.spyOn(api, 'stream').mockImplementation(async () =>
+          createMockSSEResponse(['data: {"text":"Tyres look good."}\n\n'])
+        );
+      });
+
+      it('wait while the driver talks and are said after the answer', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        act(() => {
+          result.current.onPTTPress('global');
+        });
+        await act(async () => {
+          await result.current.speakMessage('Car behind is within a second.');
+        });
+        expect(spoken()).toEqual([]);
+        expect(result.current.radioState).toBe('transmitting');
+
+        act(() => {
+          FakeSpeechRecognition.say('How are the tyres?');
+        });
+        await act(async () => {
+          await result.current.onPTTRelease('global');
+        });
+
+        expect(requestBody(0).messages).toEqual([
+          { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "How are the tyres?"' },
+        ]);
+        expect(spoken()).toEqual(['Tyres look good.', 'Car behind is within a second.']);
+        expect(traces()).toEqual([
+          expect.objectContaining({
+            outcome: 'answered',
+            calls_held: 1,
+            press_source: 'global',
+            release_source: 'global',
+          }),
+        ]);
+      });
+
+      it('let an urgent call through once the driver lets go, and drop routine calls gone stale', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        act(() => {
+          result.current.onPTTPress();
+        });
+        await act(async () => {
+          await result.current.speakMessage('Puncture, box now.', true);
+          await result.current.speakMessage('Gap ahead is two seconds.', false, undefined, 1000);
+        });
+        expect(spoken()).toEqual([]);
+
+        act(() => {
+          FakeSpeechRecognition.say('Gap ahead?');
+        });
+        now += 3000;
+        await act(async () => {
+          await result.current.onPTTRelease();
+        });
+
+        expect(spoken()).toEqual(['Puncture, box now.', 'Tyres look good.']);
+      });
+
+      it('are said right away when no question is under way', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        await act(async () => {
+          await result.current.speakMessage('Car behind is within a second.');
+        });
+
+        expect(spoken()).toEqual(['Car behind is within a second.']);
+      });
+    });
+
+    it('says stand by when the answer takes a while, then the answer', async () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      let answer!: (response: Response) => void;
+      vi.spyOn(api, 'stream').mockImplementation(
+        () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          })
+      );
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const { result } = renderHook(() => useRadioAudio());
+
+        act(() => {
+          result.current.onPTTPress();
+        });
+        act(() => {
+          FakeSpeechRecognition.say('Should we box?');
+        });
+        let released!: Promise<void>;
+        act(() => {
+          released = result.current.onPTTRelease();
+        });
+        await act(async () => {
+          await vi.waitFor(() => expect(api.stream).toHaveBeenCalled());
+        });
+        expect(spoken()).toEqual([]);
+
+        await act(async () => {
+          vi.advanceTimersByTime(2000);
+        });
+        expect(spoken()).toEqual([exchangeLine('stand_by')]);
+
+        await act(async () => {
+          answer(createMockSSEResponse(['data: {"text":"Box this lap."}\n\n']));
+          await released;
+        });
+        expect(spoken()).toEqual([exchangeLine('stand_by'), 'Box this lap.']);
+        expect(traces()).toEqual([expect.objectContaining({ outcome: 'answered', stand_by: true })]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('hears a question with a pause in it whole', async () => {
+      vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+      const { result } = renderHook(() => useRadioAudio());
+
+      act(() => {
+        result.current.onPTTPress();
+      });
+      expect(FakeSpeechRecognition.last?.continuous).toBe(true);
+      act(() => {
+        FakeSpeechRecognition.last?.hearSegments(['Gap to the car ahead', ' and behind?']);
+      });
+      await act(async () => {
+        await result.current.onPTTRelease();
+      });
+
+      expect(requestBody(0).messages).toEqual([
+        { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Gap to the car ahead and behind?"' },
+      ]);
+      expect(traces()).toEqual([
+        expect.objectContaining({
+          outcome: 'answered',
+          heard: 'Gap to the car ahead and behind?',
+          recognizer_started: true,
+          audio_started: true,
+          speech_detected: true,
+          results: 1,
+        }),
+      ]);
     });
 
     it('forgets the conversation when a new session starts', async () => {

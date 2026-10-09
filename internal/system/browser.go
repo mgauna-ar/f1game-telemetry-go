@@ -3,39 +3,16 @@ package system
 import (
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"runtime"
 )
 
-// OpenBrowser opens a dashboard page. On Windows it opens in Chrome when Chrome is installed,
-// otherwise (and on macOS and Linux) in the user's default browser.
-//
-// The voice engineer hears the driver through the browser's speech recognition, and the game is in
-// front of the page while racing. Chrome keeps listening to a page hidden behind the game; Edge, the
-// usual default browser on Windows, doesn't, so questions asked from the game would go unanswered.
+// OpenBrowser opens the specified URL in the user's default browser on Windows, macOS, or Linux.
 func OpenBrowser(url string) error {
-	if chrome := dashboardBrowser(runtime.GOOS, os.Getenv, fileExists); chrome != "" {
-		cmd := exec.Command(chrome, url)
-		if err := cmd.Start(); err == nil {
-			// A running Chrome opens the page in a new tab and this process exits.
-			go func() { _ = cmd.Wait() }()
-			return nil
-		}
-	}
 	if err := OpenPath(url); err != nil {
 		return fmt.Errorf("failed to launch default browser: %w", err)
 	}
 	return nil
-}
-
-// dashboardBrowser is the browser OpenBrowser opens dashboard pages with instead of the default
-// one: Chrome's program on Windows when it is installed, else "".
-func dashboardBrowser(goos string, getenv func(string) string, exists func(string) bool) string {
-	if goos != "windows" {
-		return ""
-	}
-	return findWindowsProgram([]string{windowsChrome}, getenv, exists)
 }
 
 // OpenPath opens a URL, file or folder with whatever the OS uses for it by default: the browser

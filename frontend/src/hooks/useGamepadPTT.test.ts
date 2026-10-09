@@ -280,6 +280,31 @@ describe('useGamepadPTT hook', () => {
     expect(result.current.pttMode).toBe('hold');
   });
 
+  it('releases on an in-game button up that arrives before the page renders the press', () => {
+    const onPTTDown = vi.fn();
+    const onPTTUp = vi.fn();
+    renderHook(() => useGamepadPTT({ onPTTDown, onPTTUp }));
+    const mapping = {
+      device_type: 'joystick',
+      device_index: 0,
+      button_index: 4,
+      key_code: 0,
+      key_name: 'Button 5',
+      device_name: 'Wheel',
+    };
+
+    // Both messages in one go, with no render in between.
+    act(() => {
+      sendEngineerMessage({ type: 'ptt_event', state: 'down', mapping, timestamp: 1 });
+      sendEngineerMessage({ type: 'ptt_event', state: 'up', mapping, timestamp: 2 });
+    });
+
+    expect(onPTTDown).toHaveBeenCalledTimes(1);
+    expect(onPTTDown).toHaveBeenCalledWith('global');
+    expect(onPTTUp).toHaveBeenCalledTimes(1);
+    expect(onPTTUp).toHaveBeenCalledWith('global');
+  });
+
   it('shows a failed save', async () => {
     putSpy.mockRejectedValue(new Error('disk full'));
     const { result } = renderHook(() => useGamepadPTT());

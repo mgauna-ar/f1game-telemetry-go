@@ -1,6 +1,7 @@
 import type {
   BoxCallKind,
   EngineerBoxTiming,
+  ExchangeLine,
   RadioAlertCategory,
   RadioPhrasePool,
   ReportPhrase,
@@ -1577,40 +1578,69 @@ export const report_phrases = {
 } satisfies Record<ReportPhrase, RadioPhrasePool>;
 
 /**
- * What the engineer says when the driver keyed the radio but no words came through, so the driver
- * knows to ask again. `{driver}` is the callsign.
+ * What the engineer says in a push-to-talk exchange besides the answer itself. `{driver}` is the
+ * callsign.
+ * - say_again: the driver keyed the radio but no words came through.
+ * - radio_fault: the radio itself isn't working, so the driver can't be heard (the microphone is
+ *   blocked or missing, the speech service is down).
+ * - stand_by: the question came through and the answer is still on its way.
+ * - answer_failed: the pit wall couldn't get an answer.
  */
-export const say_again_phrases: RadioPhrasePool = {
-  bono: [
-    'Say again, {driver}, we did not copy.',
-    'Sorry {driver}, we lost you there. Say again.',
-  ],
-  colapinto: [
-    'Say again, {driver}, nothing came through.',
-    'We did not catch that, {driver}. Say again.',
-  ],
-  standard: [
-    'Say again, {driver}, we did not copy.',
-    'Nothing came through, {driver}. Say again.',
-  ],
-};
-
-/**
- * What the engineer says when the radio itself is not working: the browser can't hear the driver
- * (the page is in Edge behind the game, the microphone is blocked or missing, the speech service is
- * down). `{driver}` is the callsign.
- */
-export const radio_fault_phrases: RadioPhrasePool = {
-  bono: [
-    '{driver}, we have a radio problem. We cannot hear you.',
-    'Radio issue on our side, {driver}. We are not receiving you.',
-  ],
-  colapinto: [
-    'Sorry, {driver}, we cannot hear you. The radio is not working.',
-    'Radio problem, {driver}. Nothing is reaching the pit wall.',
-  ],
-  standard: [
-    'Sorry, {driver}, we cannot hear you. The radio is not working.',
-    'Radio problem, {driver}. We are not receiving you.',
-  ],
-};
+export const exchange_phrases = {
+  say_again: {
+    bono: [
+      'Say again, {driver}, we did not copy.',
+      'Sorry {driver}, we lost you there. Say again.',
+    ],
+    colapinto: [
+      'Say again, {driver}, nothing came through.',
+      'We did not catch that, {driver}. Say again.',
+    ],
+    standard: [
+      'Say again, {driver}, we did not copy.',
+      'Nothing came through, {driver}. Say again.',
+    ],
+  },
+  radio_fault: {
+    bono: [
+      'We have a radio problem, {driver}. We cannot hear you.',
+      'Radio issue on our side, {driver}. We are not receiving you.',
+    ],
+    colapinto: [
+      'Sorry, {driver}, we cannot hear you. The radio is not working.',
+      'Radio problem, {driver}. Nothing is reaching the pit wall.',
+    ],
+    standard: [
+      'Sorry, {driver}, we cannot hear you. The radio is not working.',
+      'Radio problem, {driver}. We are not receiving you.',
+    ],
+  },
+  stand_by: {
+    bono: [
+      'Copy, {driver}, stand by.',
+      'Understood, {driver}. Stand by, checking.',
+    ],
+    colapinto: [
+      'Copy that, {driver}, give us a second.',
+      'Copy, {driver}. Checking now, stand by.',
+    ],
+    standard: [
+      'Copy, {driver}, stand by.',
+      'Copy that, {driver}. Checking, stand by.',
+    ],
+  },
+  answer_failed: {
+    bono: [
+      'Sorry, {driver}, we cannot get you that right now.',
+      'We have no answer for that at the moment, {driver}.',
+    ],
+    colapinto: [
+      'Sorry, {driver}, the pit wall cannot get you that right now.',
+      'We cannot check that right now, {driver}.',
+    ],
+    standard: [
+      'Sorry, {driver}, we cannot get you that right now.',
+      'We have no answer for that right now, {driver}.',
+    ],
+  },
+} satisfies Record<ExchangeLine, RadioPhrasePool>;
