@@ -200,16 +200,16 @@ func (w *WindowsManager) tick() {
 
 // readJoystickButtons returns the pressed buttons of a joystick, one bit each (button 1 is bit 0),
 // and the result code of the read: joyErrNoError, or why it failed.
-func readJoystickButtons(devIndex int) (uint32, uintptr) {
+func readJoystickButtons(devIndex int) (buttons uint32, code uintptr) {
 	var info joyInfoEx
 	info.dwSize = uint32(unsafe.Sizeof(info))
 	info.dwFlags = joyReturnButtons
 
-	ret, _, _ := procJoyGetPosEx.Call(uintptr(devIndex), uintptr(unsafe.Pointer(&info)))
-	if ret != joyErrNoError {
-		return 0, ret
+	code, _, _ = procJoyGetPosEx.Call(uintptr(devIndex), uintptr(unsafe.Pointer(&info)))
+	if code != joyErrNoError {
+		return 0, code
 	}
-	return info.dwButtons, ret
+	return info.dwButtons, code
 }
 
 // noteRead logs when the wheel stops reading and when it reads again, without a line per poll.
