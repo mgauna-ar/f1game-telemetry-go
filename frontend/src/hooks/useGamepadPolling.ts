@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
 import type { GamepadMapping } from './usePTTConfig';
+import type { PTTSource } from '../types/telemetry';
 
 export interface UseGamepadPollingOptions {
   enabled?: boolean;
@@ -9,7 +10,7 @@ export interface UseGamepadPollingOptions {
   isLearning: boolean;
   setMappedGamepadButton: (mapping: GamepadMapping | null) => void;
   cancelLearning: () => void;
-  updatePTTState: (nextState: boolean) => void;
+  updatePTTState: (nextState: boolean, source: PTTSource) => void;
   isPTTActive: boolean;
   isKeyboardPressed?: () => boolean;
 }
@@ -122,13 +123,13 @@ export function useGamepadPolling(options: UseGamepadPollingOptions): UseGamepad
         gamepadPressedRef.current = isAnyGamepadButtonPressed;
         if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
           if (isAnyGamepadButtonPressed) {
-            updatePTTStateRef.current(true);
+            updatePTTStateRef.current(true, 'gamepad');
           } else if (!isKeyboardPressedRef.current?.()) {
-            updatePTTStateRef.current(false);
+            updatePTTStateRef.current(false, 'gamepad');
           }
         } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
           if (isAnyGamepadButtonPressed) {
-            updatePTTStateRef.current(!isPTTActiveRef.current);
+            updatePTTStateRef.current(!isPTTActiveRef.current, 'gamepad');
           }
         }
       }

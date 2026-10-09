@@ -3,9 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
+	"unicode/utf8"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
 )
@@ -160,5 +163,91 @@ func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 	s.pttMu.Unlock()
 
 	s.inputManager.CancelLearning()
+	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
+}
+
+// PTTTraceOutcomes lists how a push-to-talk exchange can end (PTTTraceRequest.Outcome); it builds
+// the union for the frontend.
+var PTTTraceOutcomes = []string{"answered", "answer_failed", "not_heard", "radio_fault", "tap", "replaced"}
+
+// PTTSources lists where the dashboard heard the push-to-talk button: the app's in-game button
+// (global), the browser reading the wheel (gamepad) or a key on the page (keyboard). It builds the
+// union for the frontend.
+var PTTSources = []string{"global", "gamepad", "keyboard"}
+
+// pttTraceMaxText caps each text a trace carries into the log.
+const pttTraceMaxText = 200
+
+// PTTTraceRequest is what the dashboard reports about one push-to-talk exchange, from the button
+// going down to the end of the engineer's answer. It goes to the app log, so a question asked from
+// inside the game that got no answer can be traced afterwards.
+type PTTTraceRequest struct {
+	Outcome string `json:"outcome" tstype:"PTTTraceOutcome"`
+	// HeldMs is how long the button was down.
+	HeldMs int `json:"held_ms"`
+	// PressSource and ReleaseSource say where the press and the release came from.
+	PressSource   string `json:"press_source,omitempty" tstype:"PTTSource"`
+	ReleaseSource string `json:"release_source,omitempty" tstype:"PTTSource"`
+	// VisibleAtPress and VisibleAtRelease say whether the page was in front, or hidden behind the game.
+	VisibleAtPress   bool `json:"visible_at_press"`
+	VisibleAtRelease bool `json:"visible_at_release"`
+	// What the browser's speech recognition did: started, received audio, detected speech, sent
+	// results, and the error it reported.
+	RecognizerStarted bool   `json:"recognizer_started"`
+	AudioStarted      bool   `json:"audio_started"`
+	SpeechDetected    bool   `json:"speech_detected"`
+	Results           int    `json:"results"`
+	RecognizerError   string `json:"recognizer_error,omitempty"`
+	// Heard is what the recognizer understood.
+	Heard string `json:"heard,omitempty"`
+	// FirstSentenceMs is from the release to the answer's first sentence; TotalMs to the end of the exchange.
+	FirstSentenceMs int    `json:"first_sentence_ms,omitempty"`
+	TotalMs         int    `json:"total_ms"`
+	AIError         string `json:"ai_error,omitempty"`
+	// StandBy is set when the engineer said "stand by" while the answer was on its way.
+	StandBy bool `json:"stand_by"`
+	// CallsHeld counts the pit wall calls that waited for the exchange to end.
+	CallsHeld int `json:"calls_held"`
+}
+
+// clip shortens text from the browser to at most n characters for the log.
+func clip(text string, n int) string {
+	if utf8.RuneCountInString(text) <= n {
+		return text
+	}
+	return string([]rune(text)[:n]) + "…"
+}
+
+func (s *Server) handlePTTTrace(w http.ResponseWriter, r *http.Request) {
+	var req PTTTraceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
+		return
+	}
+	if !slices.Contains(PTTTraceOutcomes, req.Outcome) {
+		writeJSONError(w, fmt.Sprintf("unknown push-to-talk outcome %q", req.Outcome), http.StatusBadRequest)
+		return
+	}
+
+	slog.Info("Push-to-talk transmission",
+		"outcome", req.Outcome,
+		"held_ms", req.HeldMs,
+		"press_source", clip(req.PressSource, pttTraceMaxText),
+		"release_source", clip(req.ReleaseSource, pttTraceMaxText),
+		"visible_at_press", req.VisibleAtPress,
+		"visible_at_release", req.VisibleAtRelease,
+		"recognizer_started", req.RecognizerStarted,
+		"audio_started", req.AudioStarted,
+		"speech_detected", req.SpeechDetected,
+		"results", req.Results,
+		"recognizer_error", clip(req.RecognizerError, pttTraceMaxText),
+		"heard", clip(req.Heard, pttTraceMaxText),
+		"first_sentence_ms", req.FirstSentenceMs,
+		"total_ms", req.TotalMs,
+		"ai_error", clip(req.AIError, pttTraceMaxText),
+		"stand_by", req.StandBy,
+		"calls_held", req.CallsHeld,
+		"browser", clip(r.UserAgent(), pttTraceMaxText),
+	)
 	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
 }

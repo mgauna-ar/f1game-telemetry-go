@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
+import type { PTTSource } from '../types/telemetry';
 import { subscribeEngineerMessages } from '../utils/engineerSocket';
 import { usePTTConfig, type GamepadMapping, type GlobalPTTMapping } from './usePTTConfig';
 import { useKeyboardPTT } from './useKeyboardPTT';
@@ -8,8 +9,10 @@ import { useGamepadPolling } from './useGamepadPolling';
 export type { GamepadMapping, GlobalPTTMapping };
 
 export interface UseGamepadPTTOptions {
-  onPTTDown?: () => void;
-  onPTTUp?: () => void;
+  /** The button went down; `source` says where it was heard. */
+  onPTTDown?: (source: PTTSource) => void;
+  /** The button was let go; `source` says where it was heard. */
+  onPTTUp?: (source: PTTSource) => void;
   enabled?: boolean;
 }
 
@@ -65,13 +68,15 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   const pttModeRef = useRef(pttMode);
   pttModeRef.current = pttMode;
 
-  const updatePTTState = useCallback((nextState: boolean) => {
+  const updatePTTState = useCallback((nextState: boolean, source: PTTSource) => {
     if (isPTTActiveRef.current === nextState) return;
+    // Set now, not on the next render: a release can arrive before the page renders the press.
+    isPTTActiveRef.current = nextState;
     setIsPTTActive(nextState);
     if (nextState) {
-      onPTTDownRef.current?.();
+      onPTTDownRef.current?.(source);
     } else {
-      onPTTUpRef.current?.();
+      onPTTUpRef.current?.(source);
     }
   }, []);
 
@@ -110,10 +115,10 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     if (keyboardPressedRef.current || gamepadPressedRef.current) return;
 
     if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
-      updatePTTState(state === 'down');
+      updatePTTState(state === 'down', 'global');
     } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
       if (state === 'down') {
-        updatePTTState(!isPTTActiveRef.current);
+        updatePTTState(!isPTTActiveRef.current, 'global');
       }
     }
   }, [keyboardPressedRef, gamepadPressedRef, updatePTTState]);

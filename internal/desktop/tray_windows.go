@@ -108,9 +108,9 @@ func (t *tray) run() {
 		case <-t.window.ClickedCh:
 			go t.showWindow()
 		case <-t.dashboard.ClickedCh:
-			t.openPage(t.opts.DashboardURL)
+			t.open(t.opts.DashboardURL)
 		case <-t.live.ClickedCh:
-			t.openPage(t.opts.LiveURL)
+			t.open(t.opts.LiveURL)
 		case <-t.update.ClickedCh:
 			t.open(t.updateURL)
 		case <-t.autostart.ClickedCh:
@@ -218,16 +218,6 @@ func (t *tray) showUpdate(resp *system.UpdateCheckResponse) {
 	t.updateURL = resp.HTMLURL
 	t.update.SetTitle(fmt.Sprintf(t.text.UpdateAvailable, resp.LatestVersion))
 	t.update.Show()
-}
-
-// openPage opens a dashboard page the way system.OpenBrowser does (in Chrome on Windows when it is
-// installed), off the tray's goroutine.
-func (t *tray) openPage(url string) {
-	go func() {
-		if err := system.OpenBrowser(url); err != nil {
-			slog.Warn("Could not open the dashboard from the tray", "url", url, "error", err)
-		}
-	}()
 }
 
 // open opens a URL or file with its default app, off the tray's goroutine.

@@ -108,7 +108,11 @@ func registry() *tsgen.Generator {
 		api.LiveCarLaps{},
 		desktop.DesktopState{},
 		desktop.DesktopUpdate{},
+		api.PTTTraceRequest{},
 	)
+	// What the dashboard reports about each push-to-talk exchange, for the app log.
+	g.TypeAlias("api", "PTTTraceOutcome", stringUnion(api.PTTTraceOutcomes))
+	g.TypeAlias("api", "PTTSource", stringUnion(api.PTTSources))
 
 	// An AI chat request names what it is about; the server builds the prompt data.
 	g.TypeAlias("ai", "ChatContextMode", stringUnion(ai.ChatContextModes))

@@ -1,6 +1,7 @@
 import type {
   BoxCallKind,
   EngineerBoxTiming,
+  ExchangeLine,
   RadioAlertCategory,
   RadioPhrasePool,
   ReportPhrase,
@@ -1584,40 +1585,69 @@ export const report_phrases = {
 } satisfies Record<ReportPhrase, RadioPhrasePool>;
 
 /**
- * Lo que dice el ingeniero cuando el piloto abrió la radio pero no llegó ninguna palabra, para que
- * vuelva a preguntar. `{driver}` es el indicativo.
+ * Lo que dice el ingeniero en un intercambio por push-to-talk, aparte de la respuesta. `{driver}`
+ * es el indicativo.
+ * - say_again: el piloto abrió la radio pero no llegó ninguna palabra.
+ * - radio_fault: la radio no funciona y no se lo escucha (el micrófono está bloqueado o no está,
+ *   el servicio de voz no responde).
+ * - stand_by: la pregunta llegó y la respuesta está en camino.
+ * - answer_failed: el muro de boxes no pudo conseguir la respuesta.
  */
-export const say_again_phrases: RadioPhrasePool = {
-  colapinto: [
-    'Repetí, {driver}, no te copiamos.',
-    'No llegó nada, {driver}. Repetí, por favor.',
-  ],
-  bono: [
-    'Repite, {driver}, no te copiamos.',
-    'Te perdimos, {driver}. Repite, por favor.',
-  ],
-  standard: [
-    'Repite, {driver}, no te copiamos.',
-    'No llegó nada por radio, {driver}. Repite, por favor.',
-  ],
-};
-
-/**
- * Lo que dice el ingeniero cuando la radio no funciona: el navegador no escucha al piloto (la página
- * está en Edge detrás del juego, el micrófono está bloqueado o no está, el servicio de voz no
- * responde). `{driver}` es el indicativo.
- */
-export const radio_fault_phrases: RadioPhrasePool = {
-  colapinto: [
-    'Perdón, {driver}, no te escuchamos. La radio no anda.',
-    'Problema de radio, {driver}. No nos llega nada.',
-  ],
-  bono: [
-    '{driver}, tenemos un problema de radio. No te escuchamos.',
-    'Problema de radio de nuestro lado, {driver}. No te recibimos.',
-  ],
-  standard: [
-    'Perdón, {driver}, no te escuchamos. La radio no funciona.',
-    'Problema de radio, {driver}. No te recibimos.',
-  ],
-};
+export const exchange_phrases = {
+  say_again: {
+    colapinto: [
+      'Repetí, {driver}, no te copiamos.',
+      'No llegó nada, {driver}. Repetí, por favor.',
+    ],
+    bono: [
+      'Repite, {driver}, no te copiamos.',
+      'Te perdimos, {driver}. Repite, por favor.',
+    ],
+    standard: [
+      'Repite, {driver}, no te copiamos.',
+      'No llegó nada por radio, {driver}. Repite, por favor.',
+    ],
+  },
+  radio_fault: {
+    colapinto: [
+      'Perdón, {driver}, no te escuchamos. La radio no anda.',
+      'Problema de radio, {driver}. No nos llega nada.',
+    ],
+    bono: [
+      'Tenemos un problema de radio, {driver}. No te escuchamos.',
+      'Problema de radio de nuestro lado, {driver}. No te recibimos.',
+    ],
+    standard: [
+      'Perdón, {driver}, no te escuchamos. La radio no funciona.',
+      'Problema de radio, {driver}. No te recibimos.',
+    ],
+  },
+  stand_by: {
+    colapinto: [
+      'Copiado, {driver}, aguantá un segundo.',
+      'Copiado, {driver}. Lo revisamos, aguardá.',
+    ],
+    bono: [
+      'Copiado, {driver}, espera.',
+      'Entendido, {driver}. Lo comprobamos, espera.',
+    ],
+    standard: [
+      'Copiado, {driver}, aguarda.',
+      'Recibido, {driver}. Lo revisamos, aguarda.',
+    ],
+  },
+  answer_failed: {
+    colapinto: [
+      'Perdón, {driver}, ahora no te lo podemos confirmar.',
+      'No lo podemos chequear ahora, {driver}.',
+    ],
+    bono: [
+      'Lo siento, {driver}, ahora no podemos darte ese dato.',
+      'Ahora mismo no tenemos ese dato, {driver}.',
+    ],
+    standard: [
+      'Perdón, {driver}, ahora no te lo podemos confirmar.',
+      'Ahora no tenemos ese dato, {driver}.',
+    ],
+  },
+} satisfies Record<ExchangeLine, RadioPhrasePool>;

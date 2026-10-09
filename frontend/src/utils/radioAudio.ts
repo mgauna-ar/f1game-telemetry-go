@@ -714,14 +714,6 @@ export function isSpeechRecognitionSupported(): boolean {
   return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
 }
 
-/**
- * Whether the page runs in Microsoft Edge. Edge's speech recognition stops hearing the driver while
- * the game is in front of the page, so push-to-talk from the game only works in Chrome.
- */
-export function isEdgeBrowser(userAgent: string = typeof navigator === 'undefined' ? '' : navigator.userAgent): boolean {
-  return /\bEdg\//.test(userAgent);
-}
-
 export interface ISpeechRecognitionResult {
   transcript: string;
 }
@@ -749,6 +741,10 @@ export interface ISpeechRecognition {
   onresult: ((event: ISpeechRecognitionEvent) => void) | null;
   onerror: ((event: ISpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
+  /** The microphone started sending audio. */
+  onaudiostart?: (() => void) | null;
+  /** The recognizer detected speech in the audio. */
+  onspeechstart?: (() => void) | null;
 }
 
 export type SpeechRecognitionConstructor = new () => ISpeechRecognition;

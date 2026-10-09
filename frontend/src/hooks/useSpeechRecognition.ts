@@ -10,6 +10,17 @@ import {
 /** The error code set when the browser has no speech recognition at all. */
 export const SPEECH_NOT_SUPPORTED = 'not-supported';
 
+/** What the recognizer did during the current transmission, for the push-to-talk trace. */
+export interface RecognizerReport {
+  started: boolean;
+  /** The microphone sent audio. */
+  audio: boolean;
+  /** Speech was detected in the audio. */
+  speech: boolean;
+  /** How many result events arrived. */
+  results: number;
+}
+
 export interface UseSpeechRecognitionOptions {
   getLang?: () => string;
   onTranscriptReceived?: (transcript: string) => void;
@@ -28,6 +39,7 @@ export interface UseSpeechRecognitionReturn {
    * 'no-speech', 'network', ...) or SPEECH_NOT_SUPPORTED, or null when it reported none.
    */
   getErrorCode: () => string | null;
+  getReport: () => RecognizerReport;
 }
 
 /** One recognizer run, from start to its end event. */
@@ -46,6 +58,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
   const sessionRef = useRef<RecognitionSession | null>(null);
   const currentTranscriptRef = useRef<string>('');
   const errorCodeRef = useRef<string | null>(null);
+  const reportRef = useRef<RecognizerReport>({ started: false, audio: false, speech: false, results: 0 });
 
   const getLangRef = useRef(getLang);
   getLangRef.current = getLang;
@@ -63,6 +76,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
   }, []);
 
   const getErrorCode = useCallback(() => errorCodeRef.current, []);
+
+  const getReport = useCallback(() => ({ ...reportRef.current }), []);
 
   const abortListening = useCallback(() => {
     const session = sessionRef.current;
@@ -96,6 +111,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
     abortListening();
     currentTranscriptRef.current = '';
     errorCodeRef.current = null;
+    reportRef.current = { started: false, audio: false, speech: false, results: 0 };
     setTranscript('');
 
     const SpeechRec = getSpeechRecognitionClass();
@@ -106,7 +122,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
 
     try {
       const recognition = new SpeechRec();
-      recognition.continuous = false;
+      // Keep listening for the whole press: a pause mid-question, while driving, doesn't end it.
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = getLangRef.current ? getLangRef.current() : 'en-GB';
 
@@ -121,10 +138,14 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
 
       recognition.onresult = (event: ISpeechRecognitionEvent) => {
         if (!isCurrent()) return;
-        let text = '';
+        reportRef.current.results += 1;
+        // Each pause starts a new segment.
+        const segments: string[] = [];
         for (let i = 0; i < event.results.length; i++) {
-          text += event.results[i][0].transcript;
+          const segment = event.results[i][0].transcript.trim();
+          if (segment) segments.push(segment);
         }
+        const text = segments.join(' ');
         currentTranscriptRef.current = text;
         setTranscript(text);
         if (onTranscriptReceivedRef.current) {
@@ -136,6 +157,14 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
         if (isCurrent()) errorCodeRef.current = event.error;
       };
 
+      recognition.onaudiostart = () => {
+        if (isCurrent()) reportRef.current.audio = true;
+      };
+
+      recognition.onspeechstart = () => {
+        if (isCurrent()) reportRef.current.speech = true;
+      };
+
       recognition.onend = () => {
         markEnded();
         if (isCurrent()) sessionRef.current = null;
@@ -143,6 +172,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
 
       sessionRef.current = session;
       recognition.start();
+      reportRef.current.started = true;
       return true;
     } catch {
       sessionRef.current = null;
@@ -159,5 +189,6 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
     clearTranscript,
     getFinalTranscript,
     getErrorCode,
+    getReport,
   };
 }

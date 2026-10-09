@@ -14,11 +14,6 @@
   color: var(--text-secondary);
 }
 
-.edge {
-  flex-shrink: 0;
-  cursor: help;
-}
-
 .setUp {
   flex-shrink: 0;
   font-weight: var(--font-weight-bold);

@@ -113,6 +113,31 @@ export interface PTTSettingsResponse extends PTT {
   saved: boolean;
 }
 
+export type PTTSource = 'global' | 'gamepad' | 'keyboard';
+
+export type PTTTraceOutcome = 'answered' | 'answer_failed' | 'not_heard' | 'radio_fault' | 'tap' | 'replaced';
+
+/** Go: api.PTTTraceRequest */
+export interface PTTTraceRequest {
+  outcome: PTTTraceOutcome;
+  held_ms: number;
+  press_source?: PTTSource;
+  release_source?: PTTSource;
+  visible_at_press: boolean;
+  visible_at_release: boolean;
+  recognizer_started: boolean;
+  audio_started: boolean;
+  speech_detected: boolean;
+  results: number;
+  recognizer_error?: string;
+  heard?: string;
+  first_sentence_ms?: number;
+  total_ms: number;
+  ai_error?: string;
+  stand_by: boolean;
+  calls_held: number;
+}
+
 /** Go: api.SetPlayerCarRequest */
 export interface SetPlayerCarRequest {
   car_index: number | null;

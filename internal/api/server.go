@@ -235,6 +235,7 @@ func (s *Server) setupPTTRoutes(r chi.Router) {
 	r.Get("/ai/ptt/config", s.handleGetPTTConfig)
 	r.Post("/ai/ptt/learn", s.handleStartPTTLearn)
 	r.Post("/ai/ptt/learn/cancel", s.handleCancelPTTLearn)
+	r.Post("/ai/ptt/trace", s.handlePTTTrace)
 }
 
 func (s *Server) setupSystemRoutes(r chi.Router) {

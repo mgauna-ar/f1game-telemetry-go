@@ -8,7 +8,6 @@ import {
   cleanRadioSpeechText,
   normalizeSpanishRadioSpeech,
   isSpeechRecognitionSupported,
-  isEdgeBrowser,
   getRadioAnalyserNode,
   connectMicrophoneToAnalyser,
   disconnectMicrophoneFromAnalyser,
@@ -133,15 +132,6 @@ describe('radioAudio utils', () => {
   describe('Neural TTS speech synthesis and Web Audio decoding', () => {
     it('detects microphone speech recognition capability', () => {
       expect(isSpeechRecognitionSupported()).toBe(false); // in jsdom default
-    });
-
-    it('tells Edge apart from Chrome and other Chromium browsers', () => {
-      const chrome =
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
-      expect(isEdgeBrowser(`${chrome} Edg/130.0.0.0`)).toBe(true);
-      expect(isEdgeBrowser(chrome)).toBe(false);
-      expect(isEdgeBrowser(`${chrome} OPR/115.0.0.0`)).toBe(false);
-      expect(isEdgeBrowser('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0')).toBe(false);
     });
 
     it('calls /api/ai/tts and plays audio buffer through Web Audio API', async () => {

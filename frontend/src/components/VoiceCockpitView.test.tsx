@@ -116,7 +116,7 @@ describe('VoiceCockpitView', () => {
     const radio = {
       ...mockRadio,
       lastResponse: 'Box this lap.',
-      error: 'Edge stopped listening while the game was in front.',
+      error: 'The microphone is blocked for this page.',
     };
 
     renderWithI18n(
@@ -131,7 +131,7 @@ describe('VoiceCockpitView', () => {
       />
     );
 
-    expect(screen.getByText('Edge stopped listening while the game was in front.')).toBeInTheDocument();
+    expect(screen.getByText('The microphone is blocked for this page.')).toBeInTheDocument();
     expect(screen.queryByText(/Box this lap/)).not.toBeInTheDocument();
   });
 

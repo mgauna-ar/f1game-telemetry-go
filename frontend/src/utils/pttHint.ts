@@ -5,8 +5,6 @@ export interface PttControls {
   mappedKey?: string;
   mappedGamepadButton?: GamepadMapping | null;
   globalMapping?: GlobalPTTMapping | null;
-  /** The app reads the push-to-talk button itself, so it works while the game has focus. */
-  globalActive?: boolean;
 }
 
 export interface PttHint {

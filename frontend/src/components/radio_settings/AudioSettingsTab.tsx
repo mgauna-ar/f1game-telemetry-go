@@ -12,7 +12,6 @@ import {
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
 import { normalizeKeyName } from '../../utils/keyNames';
-import { isEdgeBrowser } from '../../utils/radioAudio';
 import { Badge } from '../ui/Badge';
 import { Button, IconButton } from '../ui/Button';
 import { Select } from '../ui/Field';
@@ -190,13 +189,6 @@ export const PttSettings: React.FC<AudioSettingsTabProps> = ({ radio }) => {
           </Badge>
         )}
       </div>
-
-      {/* Edge stops hearing a page hidden behind the game, so talking from the game needs Chrome */}
-      {radio.globalActive && isEdgeBrowser() && (
-        <p className={styles.edgeNotice} role="note">
-          {t('ai_engineer.radio.edgeWarning')}
-        </p>
-      )}
 
       <div className={shared.grid2}>
         {/* Wheel or gamepad button */}

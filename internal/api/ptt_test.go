@@ -1,7 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
@@ -44,5 +49,52 @@ func TestPTTMessagesJSON(t *testing.T) {
 				t.Errorf("got  %s\nwant %s", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestPTTTrace checks that a push-to-talk trace from the dashboard lands in the app log, and that a
+// malformed one is refused.
+func TestPTTTrace(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	var logged bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	post := func(body string) int {
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/ai/ptt/trace", strings.NewReader(body)))
+		return rec.Code
+	}
+
+	long := strings.Repeat("box ", 100)
+	trace := `{"outcome":"answer_failed","held_ms":2400,"press_source":"global","release_source":"global",` +
+		`"visible_at_press":false,"recognizer_started":true,` +
+		`"results":3,"heard":"` + long + `","ai_error":"Quota exceeded.","calls_held":2,"total_ms":3100}`
+	if code := post(trace); code != http.StatusOK {
+		t.Fatalf("trace: status %d, want 200", code)
+	}
+	line := logged.String()
+	for _, want := range []string{
+		`msg="Push-to-talk transmission"`, "outcome=answer_failed", "held_ms=2400", "press_source=global",
+		"release_source=global", "visible_at_press=false",
+		"results=3", `ai_error="Quota exceeded."`, "calls_held=2",
+	} {
+		if !strings.Contains(line, want) {
+			t.Errorf("log line misses %s:\n%s", want, line)
+		}
+	}
+	if strings.Contains(line, long) {
+		t.Errorf("the heard text was not shortened:\n%s", line)
+	}
+
+	for name, body := range map[string]string{
+		"unknown outcome": `{"outcome":"maybe"}`,
+		"not JSON":        `outcome=answered`,
+	} {
+		if code := post(body); code != http.StatusBadRequest {
+			t.Errorf("%s: status %d, want 400", name, code)
+		}
 	}
 }
