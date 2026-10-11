@@ -10,7 +10,7 @@ Architectural boundaries, invariants, and verification gates.
   4. **Frontend Lint:** `npm run lint` (`oxlint` + `jsx-a11y`) in `frontend/` (0 errors).
   5. **Frontend Tests:** `npm test` (`vitest`, Testing Library; 100% pass).
   6. **Production Build:** `npm run build` (`tsc -b && vite build`, 0 errors).
-  7. **Reporting:** Report real test counts, lint and build results.
+  7. **Reporting:** Real test counts, lint and build results.
 * **UDP Simulator (`cmd/simulator`) & Helpers:**
   - `make simulate` (2026: 22 cars + 2 observers; `FORMAT=2025`: 20 + 2) or `simulate.bat` sends every packet type at 20Hz (`CarTelemetry2` for 2026).
   - Scenarios (`-scenario <name>`): `wear`, `sc`, `vsc`, `rain`, `start`, `pit`, `strategy`, `qualy`. `run.bat` runs the embedded Windows build.
@@ -22,7 +22,7 @@ Architectural boundaries, invariants, and verification gates.
 * **Principles:** **DRY** (reuse constants, wire types, helpers, hooks), **Separation of Concerns** (thin HTTP handlers; domain logic in `internal/{analytics,session,engineer}`; presentation in React + Zustand), **KISS & YAGNI** (no speculative abstractions).
 
 ## 3. Technology Stack & Architecture
-* **Platform & Spec:** Windows 10/11, macOS, Linux. Exclusive to **F1 2025** & **F1 2026 DLC** UDP (`PacketFormat` 2025/2026, 29-byte `PacketHeader`; ≤2023 deprecated). Vite (`frontend/dist`) embeds via `//go:embed` (`frontend/embed.go`), served with SPA fallback (`setupStaticRoutes`) + `system.OpenBrowser`.
+* **Platform & Spec:** Windows 10/11, macOS, Linux. Exclusive to **F1 2025** & **F1 2026 DLC** UDP (`PacketFormat` 2025/2026, 29-byte `PacketHeader`; ≤2023 deprecated). Vite (`frontend/dist`) embeds via `//go:embed` (`frontend/embed.go`), served with SPA fallback (`setupStaticRoutes`).
 * **Backend Packages (`internal/`):**
   - `api/`: HTTP router, decoding, middleware, serialization only (**zero domain/analytical logic**). Enforces `http.CrossOriginProtection`, no CORS headers, `MaxJSONBodyBytes` (2 MB) on `/api`, `MaxImportPayloadSize` (100 MB) on imports.
   - `udp/`: Non-blocking UDP listener (`Listener`).
@@ -33,10 +33,10 @@ Architectural boundaries, invariants, and verification gates.
   - `ai/`: Providers (`gemini.go`, `openai.go`, `claude.go` on `anthropic-sdk-go`, OpenAI-compatible `custom`) + Edge neural TTS. `provider.go` is the registry (`DefaultModel()`, `ServerKeys`, models, `chatSession`). `chat.go` runs the tool loop over `ChatOptions.ToolExecutor` (≤ `MaxToolRounds`, last round without tools, retry without tools if rejected), streaming text + `[DONE]`. API keys in headers only; `custom` uses only the request key.
   - `storage/`: CGO-free `modernc.org/sqlite`, migrations (`schema_version`), `MarshalJSON` sanitization, `EncodeLapTelemetry` lap BLOBs (`lap_telemetry`, `ON DELETE CASCADE`; `.f1session` 2.0) ≤ 20 Hz (`ThinSamples`), incremental `auto_vacuum`. **Session UIDs are always stored/serialized as Hex strings** (`TEXT`, `0x...`).
   - `settings/`: Shared JSON settings (`settings.Sections`: `ai`, `voice`, `ptt`, `engineer`, `comparator`).
-  - `locales/`: Type-safe `PromptCatalog`, registry (`Resolve`, `Get`), `en`/`es` catalogs (no boolean flags).
+  - `locales/`: Type-safe `PromptCatalog`, thread-safe registry (`Resolve`, `Get`), `EnglishCatalog`/`SpanishCatalog`, Edge TTS voice mappings (no boolean flags).
   - `input/`: Global PTT (`winmm.dll` DirectInput wheels, `user32.dll` keyboard on Windows; Gamepad API + `Space` fallback).
-  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance` (2nd launch exits quietly).
-  - `desktop/`: `App` behind loopback-only `/api/desktop` (`system.OpenAppWindow`, `LoadDesktop`, HKCU `Run`, Quit). Tray (`fyne.io/systray` only in `_windows.go`; `onExit` = shutdown), en/es by OS, dialogs; stubs elsewhere. Release `-H=windowsgui`, log by DB. Icons: `go generate`.
+  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`) + self-update (`InstallRelease`; `Restart` sets `F1T_UPDATED`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance` (2nd launch exits quietly).
+  - `desktop/`: `App` behind loopback-only `/api/desktop` (`system.OpenAppWindow`, `LoadDesktop`, HKCU `Run`, `POST /desktop/update` (`InstallUpdate`, `Restart`; `can_update`), Quit). Tray (`fyne.io/systray` only in `_windows.go`; `onExit` = shutdown), en/es by OS, dialogs; stubs elsewhere. Release `-H=windowsgui`, log by DB. Icons: `go generate`.
   - `tsgen/`: Stdlib Go-to-TS wire type generator (`cmd/tsgen`).
 
 ### Wire Types & REST Contracts
@@ -89,5 +89,5 @@ Architectural boundaries, invariants, and verification gates.
   - **Breakpoints:** `@media (--phone)` (≤600px), `(--tablet)` (≤900px), `(--laptop)` (≤1100px) from `styles/breakpoints.ts` (`breakpointMedia` in `vite.config.ts`, enforced by `breakpoints.test.ts`) or `useMediaQuery(maxWidth(...))`. Tests: roles, labels, `data-*`, not class names.
 
 ## 6. Multi-Language, CI/CD & Documentation
-* **Localization:** `locales/en/` is base schema, always bundled; others load on demand (`loadLocale`, preloaded in tests); radio phrases load with Live (`utils/radioPhrases.ts`). Backend (`internal/locales`) uses `PromptCatalog` (`EnglishCatalog`, `SpanishCatalog`), thread-safe `Resolve`/`Get`, Edge TTS voice mappings without boolean flags. `I18nProvider` + `useI18n` (`context/`) support `en` and `es` (`"Español (Latinoamérica)"`), saved as `f1_telemetry_language`.
+* **Localization:** `locales/en/` is base schema, always bundled; others load on demand (`loadLocale`, preloaded in tests); radio phrases load with Live (`utils/radioPhrases.ts`). Backend: `internal/locales`. `I18nProvider` + `useI18n` (`context/`) support `en` and `es` (`"Español (Latinoamérica)"`), saved as `f1_telemetry_language`.
 * **CI & Docs:** Add new tests, generators or linters to `.github/workflows/ci.yml`. Update docs on architecture/flag/feature changes: `README.md`, rules in `.agents/AGENTS.md` (`< 20 KB`, so it never truncates).

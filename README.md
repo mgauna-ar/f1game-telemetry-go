@@ -66,13 +66,13 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
 
    Other platforms (Intel Macs, ARM Linux) aren't published as binaries: build from source with `make build-embedded`. Windows on ARM runs the x64 build.
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). A small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, and an **Open dashboard** button. It's a Chrome, Edge, Chromium or Brave window without tabs (Edge comes with Windows; without one of these it opens as a tab in your default browser). On macOS it opens in your own browser profile, so the browser stays the one you're signed in to. Closing it keeps the app running: on Windows in the tray, on macOS / Linux in its terminal (stop it with Ctrl+C or the window's **Quit** button). Turn off **Show this window at startup** in it to start straight to the tray or terminal. Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). A small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, an **Open dashboard** button and, when a new release is out, **Update now** (see [Updating](#-updating)). It's a Chrome, Edge, Chromium or Brave window without tabs (Edge comes with Windows; without one of these it opens as a tab in your default browser). On macOS it opens in your own browser profile, so the browser stays the one you're signed in to. Closing it keeps the app running: on Windows in the tray, on macOS / Linux in its terminal (stop it with Ctrl+C or the window's **Quit** button). Turn off **Show this window at startup** in it to start straight to the tray or terminal. Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
 
 #### 🖥️ On Windows: lives in the notification area
 
 There's no console window: the app runs with an icon in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible).
 
-* **Left-click** the icon to bring the app window back. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Show window**, **Open dashboard**, **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
+* **Left-click** the icon to bring the app window back. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Show window**, **Open dashboard**, **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out; install it from the app window.
 * The icon shows a green dot while the game is sending telemetry.
 * **Start with Windows** (in the menu or the app window) starts it in the tray when you sign in, without the window, using the same database.
 * The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
@@ -83,6 +83,14 @@ There's no console window: the app runs with an icon in the notification area (n
 > Because this is a free, community open-source project without an expensive commercial code-signing certificate, Windows Defender SmartScreen may display a blue warning (*"Windows protected your PC"* or *"Unknown Publisher"*). This is standard and expected for newly released, unsigned open-source executables.
 >
 > To proceed: click **"More info"** → **"Run anyway"**. You can also verify binary integrity against the official SHA-256 hashes published in `checksums.txt`, or compile the binary yourself from source.
+
+### 🔄 Updating
+
+When a new release is out, the app window shows it with a **What's new** link and an **Update now** button. One click downloads the release for your system from GitHub, checks it against the release's `checksums.txt`, makes sure it starts, puts it in place of the app and restarts it. The window reloads on the new version. Your sessions, settings and log stay where they are, and the app keeps its flags (port, database). It works on Windows, macOS and Linux, even during a session (the restart drops a few seconds of telemetry).
+
+* The app needs to be able to write to its own folder. If it can't (for example a copy in `/usr/local/bin`), the window says why and links to the release to download it by hand.
+* Only the PC running the app sees the button, not a phone or tablet.
+* Versions before the first one with **Update now** don't have it: download that one by hand once.
 
 ### 🧪 Development Builds (Without a Release)
 

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -84,7 +85,7 @@ func InstallRelease(ctx context.Context, rel *UpdateCheckResponse, exe string) e
 	dir := filepath.Dir(target)
 	tmp, err := os.CreateTemp(dir, "."+binaryBaseName+"-update-*")
 	if err != nil {
-		return fmt.Errorf("can't write to %s: %w", dir, err)
+		return fmt.Errorf("can't write to %s: %w", dir, osReason(err))
 	}
 	defer func() {
 		_ = tmp.Close()
@@ -268,7 +269,7 @@ func extractBinary(archive *os.File, archiveName, binary, dest string) error {
 
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, executableMode)
 	if err != nil {
-		return fmt.Errorf("can't write to %s: %w", filepath.Dir(dest), err)
+		return fmt.Errorf("can't write to %s: %w", filepath.Dir(dest), osReason(err))
 	}
 	n, copyErr := io.Copy(out, io.LimitReader(src, maxBinaryBytes+1))
 	closeErr := out.Close()
@@ -320,23 +321,38 @@ func runVersionCheck(ctx context.Context, binary, version string) error {
 func replaceExecutable(exe, newPath string, moveAside bool) error {
 	if !moveAside {
 		if err := os.Rename(newPath, exe); err != nil {
-			return fmt.Errorf("can't replace %s: %w", exe, err)
+			return fmt.Errorf("can't replace %s: %w", exe, osReason(err))
 		}
 		return nil
 	}
 
 	old := exe + replacedBinarySuffix
 	if err := os.Remove(old); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("can't remove the previous update's %s: %w", old, err)
+		return fmt.Errorf("can't remove the previous update's %s: %w", old, osReason(err))
 	}
 	if err := os.Rename(exe, old); err != nil {
-		return fmt.Errorf("can't replace %s: %w", exe, err)
+		return fmt.Errorf("can't replace %s: %w", exe, osReason(err))
 	}
 	if err := os.Rename(newPath, exe); err != nil {
 		if restoreErr := os.Rename(old, exe); restoreErr != nil {
-			return fmt.Errorf("can't replace %s (%w), and the old version couldn't be put back from %s: %w", exe, err, old, restoreErr)
+			return fmt.Errorf("can't replace %s (%w), and the old version couldn't be put back from %s: %w",
+				exe, osReason(err), old, osReason(restoreErr))
 		}
-		return fmt.Errorf("can't replace %s: %w", exe, err)
+		return fmt.Errorf("can't replace %s: %w", exe, osReason(err))
 	}
 	return nil
+}
+
+// osReason is err without the paths the os package puts in it ("open /dir/.f1telemetry-update-1:
+// permission denied" becomes "permission denied"), for messages that already name the folder or file.
+func osReason(err error) error {
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) {
+		return pathErr.Err
+	}
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		return linkErr.Err
+	}
+	return err
 }

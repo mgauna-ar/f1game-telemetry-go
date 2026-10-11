@@ -391,3 +391,34 @@ func TestRunVersionCheck(t *testing.T) {
 		t.Error("runVersionCheck() of a missing binary succeeded")
 	}
 }
+
+// TestInstallReleaseReadOnlyFolder is an app in a folder it can't write to, such as /usr/local/bin.
+func TestInstallReleaseReadOnlyFolder(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs a folder this user can't write to")
+	}
+	archiveName := fmt.Sprintf("f1telemetry_%s_%s_%s%s", testTag, runtime.GOOS, runtime.GOARCH, zipExt)
+	archive := zipArchive(t, map[string]string{binaryName(runtime.GOOS): "new"})
+	rel := fakeRelease(t, map[string][]byte{
+		archiveName:        archive,
+		checksumsAssetName: []byte(sha256Hex(archive) + "  " + archiveName),
+	})
+	exe := installedExe(t)
+	dir := filepath.Dir(exe)
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+
+	err := InstallRelease(t.Context(), rel, exe)
+	realDir, _ := filepath.EvalSymlinks(dir)
+	if want := "can't write to " + realDir + ": permission denied"; err == nil || err.Error() != want {
+		t.Fatalf("InstallRelease() error = %v, want %q", err, want)
+	}
+	if !errors.Is(err, os.ErrPermission) {
+		t.Errorf("InstallRelease() error = %v, want it to be os.ErrPermission", err)
+	}
+	if data, readErr := os.ReadFile(exe); readErr != nil || string(data) != "old" {
+		t.Errorf("executable = %q, %v; want it untouched", data, readErr)
+	}
+}
