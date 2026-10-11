@@ -1,5 +1,5 @@
 import { api } from './apiClient';
-import type { DesktopState, DesktopUpdate } from '../types/desktop';
+import type { DesktopState, DesktopUpdate, InstallUpdateResponse } from '../types/desktop';
 
 /**
  * The page the app window shows (`main.tsx` renders it instead of the dashboard). The server opens
@@ -12,11 +12,13 @@ export const isDesktopWindowPath = (pathname: string): boolean => pathname === D
 
 /**
  * /api/desktop: the app on the PC it runs on. The server answers only requests from that PC, so a
- * phone or tablet opening the page gets 403 and the page leaves these controls out.
+ * phone or tablet opening the page gets 403 and the page leaves these controls out. `installUpdate`
+ * puts the newest release in place of the app and restarts it, answering with that version.
  */
 export const desktopClient = {
   getState: (signal?: AbortSignal) => api.get<DesktopState>('/api/desktop', signal),
   update: (update: DesktopUpdate) => api.put<DesktopState>('/api/desktop', update),
   openDashboard: () => api.post('/api/desktop/open-dashboard'),
+  installUpdate: () => api.post<InstallUpdateResponse>('/api/desktop/update'),
   quit: () => api.post('/api/desktop/quit'),
 };

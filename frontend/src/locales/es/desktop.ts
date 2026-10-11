@@ -31,4 +31,15 @@ export const desktop = {
   quit: 'Salir de F1 Telemetry',
   stoppedTitle: 'F1 Telemetry se detuvo',
   stoppedBody: 'Ya podés cerrar esta ventana.',
+  update: {
+    available: 'La versión {version} está disponible',
+    whatsNew: 'Novedades',
+    button: 'Actualizar ahora',
+    hint: 'La descarga y reinicia F1 Telemetry. Tus sesiones y tu configuración se mantienen.',
+    installing: 'Descargando e instalando {version}…',
+    restarting: 'Reiniciando F1 Telemetry…',
+    failed: 'No se pudo actualizar: {error}',
+    releasePage: 'Descargala desde la página de la versión',
+    timedOut: 'F1 Telemetry no volvió después de instalar {version}. Abrilo de nuevo.',
+  },
 };
