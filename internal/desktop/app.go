@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"sync/atomic"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/settings"
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
@@ -23,6 +24,19 @@ const (
 // Windows app has it, and not for a `go run` build.
 var ErrStartWithOSUnavailable = errors.New("starting at sign-in is not available here")
 
+// Errors from InstallUpdate.
+var (
+	// ErrUpdateUnavailable: this build can't update itself (a dev build).
+	ErrUpdateUnavailable = errors.New("this build can't update itself; download the new version from the release page")
+	// ErrNoUpdate: no newer release is out.
+	ErrNoUpdate = errors.New("this is already the latest version")
+	// ErrUpdateInProgress: an update is being installed, or is installed and waits for the restart.
+	ErrUpdateInProgress = errors.New("the update is already being installed")
+)
+
+// installRelease puts a release in place of the executable (a var so tests don't download).
+var installRelease = system.InstallRelease
+
 // DesktopState is GET /api/desktop: how the app behaves on the PC it runs on.
 type DesktopState struct {
 	// ShowWindowAtStart is whether a start (not at sign-in) opens the app window.
@@ -34,6 +48,13 @@ type DesktopState struct {
 	// Tray is whether the app keeps running in the notification area once its window is closed;
 	// otherwise it runs in a terminal.
 	Tray bool `json:"tray"`
+	// CanUpdate is whether the app can install a newer release itself (a release build).
+	CanUpdate bool `json:"can_update"`
+}
+
+// InstallUpdateResponse is POST /api/desktop/update: the version the app restarts into.
+type InstallUpdateResponse struct {
+	Version string `json:"version"`
 }
 
 // DesktopUpdate is PUT /api/desktop: the settings to change; the ones left out stay as they are.
@@ -54,6 +75,10 @@ type AppConfig struct {
 	Tray bool
 	// Quit stops the app.
 	Quit func()
+	// CheckUpdates looks for a newer release; nil (dev builds) turns updating off.
+	CheckUpdates func(ctx context.Context) (*system.UpdateCheckResponse, error)
+	// Restart stops the app and starts its executable again, after an update.
+	Restart func()
 }
 
 // App is the app on the PC it runs on, behind /api/desktop and the tray: its small window, whether
@@ -63,6 +88,8 @@ type App struct {
 	exe string
 	// startWithOSChanged tells the tray the window changed StartWithOS, so its checkbox follows.
 	startWithOSChanged chan bool
+	// updating is set while an update is installed, and stays set once it is, until the restart.
+	updating atomic.Bool
 }
 
 // NewApp returns the desktop app.
@@ -86,6 +113,7 @@ func (a *App) State(ctx context.Context) (DesktopState, error) {
 		StartWithOS:          available && autostartEnabled(a.exe),
 		StartWithOSAvailable: available,
 		Tray:                 a.cfg.Tray,
+		CanUpdate:            a.canUpdate(),
 	}, nil
 }
 
@@ -147,4 +175,44 @@ func (a *App) OpenDashboard() error {
 // Quit stops the app.
 func (a *App) Quit() {
 	a.cfg.Quit()
+}
+
+func (a *App) canUpdate() bool {
+	return a.cfg.CheckUpdates != nil && a.exe != ""
+}
+
+// InstallUpdate puts the newest release in place of this executable and reports its version. The
+// app keeps running the old version until Restart.
+func (a *App) InstallUpdate(ctx context.Context) (string, error) {
+	if !a.canUpdate() {
+		return "", ErrUpdateUnavailable
+	}
+	if !a.updating.CompareAndSwap(false, true) {
+		return "", ErrUpdateInProgress
+	}
+	version, err := a.installUpdate(ctx)
+	if err != nil {
+		a.updating.Store(false)
+	}
+	return version, err
+}
+
+func (a *App) installUpdate(ctx context.Context) (string, error) {
+	resp, err := a.cfg.CheckUpdates(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !resp.UpdateAvailable {
+		return "", ErrNoUpdate
+	}
+	slog.Info("Installing update", "from", resp.CurrentVersion, "to", resp.LatestVersion)
+	if err := installRelease(ctx, resp, a.exe); err != nil {
+		return "", err
+	}
+	return resp.LatestVersion, nil
+}
+
+// Restart stops the app and starts the executable again, running the update just installed.
+func (a *App) Restart() {
+	a.cfg.Restart()
 }

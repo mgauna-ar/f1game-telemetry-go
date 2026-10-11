@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,6 +19,9 @@ type fakeDesktopApp struct {
 	updateErr  error
 	updates    []desktop.DesktopUpdate
 	dashboards int
+	installErr error
+	installs   int
+	restart    chan struct{}
 	quit       chan struct{}
 }
 
@@ -36,6 +40,15 @@ func (f *fakeDesktopApp) Update(_ context.Context, u desktop.DesktopUpdate) (des
 
 func (f *fakeDesktopApp) OpenDashboard() error { f.dashboards++; return nil }
 func (f *fakeDesktopApp) Quit()                { close(f.quit) }
+func (f *fakeDesktopApp) Restart()             { close(f.restart) }
+
+func (f *fakeDesktopApp) InstallUpdate(context.Context) (string, error) {
+	f.installs++
+	if f.installErr != nil {
+		return "", f.installErr
+	}
+	return "v1.7.0", nil
+}
 
 const loopbackRemoteAddr = "127.0.0.1:52100"
 
@@ -94,12 +107,13 @@ func TestDesktopRoutesRejectOtherDevices(t *testing.T) {
 		{http.MethodPut, "/api/desktop"},
 		{http.MethodPost, "/api/desktop/open-dashboard"},
 		{http.MethodPost, "/api/desktop/quit"},
+		{http.MethodPost, "/api/desktop/update"},
 	} {
 		if rec := desktopRequest(t, server, tc.method, tc.path, "{}", "192.168.1.30:40000"); rec.Code != http.StatusForbidden {
 			t.Errorf("%s %s from the LAN = %d, want 403", tc.method, tc.path, rec.Code)
 		}
 	}
-	if app.dashboards != 0 || len(app.updates) != 0 {
+	if app.dashboards != 0 || len(app.updates) != 0 || app.installs != 0 {
 		t.Error("a LAN request reached the desktop app")
 	}
 }
@@ -118,5 +132,53 @@ func TestPutDesktopStartWithOSUnavailable(t *testing.T) {
 	rec := desktopRequest(t, server, http.MethodPut, "/api/desktop", `{"start_with_os":true}`, loopbackRemoteAddr)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("PUT start_with_os where unavailable = %d, want 400", rec.Code)
+	}
+}
+
+func TestDesktopInstallUpdate(t *testing.T) {
+	server, _ := setupTestServer(t)
+	app := &fakeDesktopApp{restart: make(chan struct{}), quit: make(chan struct{})}
+	server.SetDesktopApp(app)
+
+	rec := desktopRequest(t, server, http.MethodPost, "/api/desktop/update", "", loopbackRemoteAddr)
+	var resp desktop.InstallUpdateResponse
+	if rec.Code != http.StatusAccepted || json.NewDecoder(rec.Body).Decode(&resp) != nil || resp.Version != "v1.7.0" {
+		t.Fatalf("POST /api/desktop/update = %d %+v, want 202 with v1.7.0", rec.Code, resp)
+	}
+	select {
+	case <-app.restart:
+	case <-time.After(time.Second):
+		t.Fatal("the update was installed but the app didn't restart")
+	}
+}
+
+func TestDesktopInstallUpdateErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "dev build", err: desktop.ErrUpdateUnavailable, want: http.StatusBadRequest},
+		{name: "already latest", err: desktop.ErrNoUpdate, want: http.StatusConflict},
+		{name: "already installing", err: desktop.ErrUpdateInProgress, want: http.StatusConflict},
+		{name: "install failed", err: errors.New("can't write to /usr/local/bin"), want: http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, _ := setupTestServer(t)
+			app := &fakeDesktopApp{installErr: tt.err, restart: make(chan struct{}), quit: make(chan struct{})}
+			server.SetDesktopApp(app)
+
+			rec := desktopRequest(t, server, http.MethodPost, "/api/desktop/update", "", loopbackRemoteAddr)
+			var body ErrorResponse
+			if rec.Code != tt.want || json.NewDecoder(rec.Body).Decode(&body) != nil || body.Error != tt.err.Error() {
+				t.Errorf("POST /api/desktop/update = %d %+v, want %d with %q", rec.Code, body, tt.want, tt.err)
+			}
+			select {
+			case <-app.restart:
+				t.Error("the app restarted after a failed update")
+			case <-time.After(50 * time.Millisecond):
+			}
+		})
 	}
 }

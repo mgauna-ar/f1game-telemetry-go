@@ -15,11 +15,13 @@ import (
 )
 
 // DesktopApp is the app on the PC it runs on (desktop.App): its small window's settings, starting
-// at sign-in, and quitting.
+// at sign-in, updating itself, and quitting.
 type DesktopApp interface {
 	State(ctx context.Context) (desktop.DesktopState, error)
 	Update(ctx context.Context, u desktop.DesktopUpdate) (desktop.DesktopState, error)
 	OpenDashboard() error
+	InstallUpdate(ctx context.Context) (string, error)
+	Restart()
 	Quit()
 }
 
@@ -29,13 +31,15 @@ func (s *Server) SetDesktopApp(app DesktopApp) {
 }
 
 // setupDesktopRoutes adds /api/desktop, for the app window (the /desktop page). Only the PC the
-// app runs on may use it: a phone or tablet on the network can't quit the app or change how it starts.
+// app runs on may use it: a phone or tablet on the network can't quit or update the app or change
+// how it starts.
 func (s *Server) setupDesktopRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(loopbackOnly, s.requireDesktopApp)
 		r.Get("/desktop", s.handleGetDesktop)
 		r.Put("/desktop", s.handlePutDesktop)
 		r.Post("/desktop/open-dashboard", s.handleDesktopOpenDashboard)
+		r.Post("/desktop/update", s.handleDesktopInstallUpdate)
 		r.Post("/desktop/quit", s.handleDesktopQuit)
 	})
 }
@@ -97,6 +101,25 @@ func (s *Server) handleDesktopOpenDashboard(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
+}
+
+// handleDesktopInstallUpdate puts the newest release in place of this executable, answers, then
+// restarts into it; the graceful shutdown lets this response finish.
+func (s *Server) handleDesktopInstallUpdate(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Update requested from the app window")
+	version, err := s.desktopApp.InstallUpdate(r.Context())
+	switch {
+	case errors.Is(err, desktop.ErrUpdateUnavailable):
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
+	case errors.Is(err, desktop.ErrNoUpdate), errors.Is(err, desktop.ErrUpdateInProgress):
+		writeJSONError(w, err.Error(), http.StatusConflict)
+	case err != nil:
+		slog.Error("Failed to install the update", "error", err)
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+	default:
+		writeJSON(w, http.StatusAccepted, desktop.InstallUpdateResponse{Version: version})
+		go s.desktopApp.Restart()
+	}
 }
 
 // handleDesktopQuit answers first, then stops the app; the graceful shutdown lets this response finish.

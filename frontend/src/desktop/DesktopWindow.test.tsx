@@ -10,6 +10,7 @@ const windowsTray: DesktopState = {
   start_with_os: false,
   start_with_os_available: true,
   tray: true,
+  can_update: false,
 };
 
 const endpoint = { udp_addr: '0.0.0.0:20777', udp_port: 20777, local_ip: '127.0.0.1', lan_ips: ['192.168.1.20'] };

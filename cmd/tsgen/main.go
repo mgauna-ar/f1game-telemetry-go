@@ -108,6 +108,7 @@ func registry() *tsgen.Generator {
 		api.LiveCarLaps{},
 		desktop.DesktopState{},
 		desktop.DesktopUpdate{},
+		desktop.InstallUpdateResponse{},
 		api.PTTTraceRequest{},
 	)
 	// What the dashboard reports about each push-to-talk exchange, for the app log.
