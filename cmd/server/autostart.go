@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"slices"
 )
 
 // Flags that autostartArgs sets itself or that make no sense when starting at sign-in.
@@ -21,13 +22,18 @@ const (
 // from the environment or a .env file are left out: the .env next to the executable is read
 // again at every start.
 func autostartArgs(fs *flag.FlagSet, absDB string) []string {
+	args := setFlagArgs(fs, flagDB, flagOpenBrowser, flagNoBrowser, flagVersion, flagAutostart)
+	return append(args, "-"+flagAutostart, fmt.Sprintf("-%s=%s", flagDB, absDB))
+}
+
+// setFlagArgs are the flags set on fs's command line as -name=value, leaving out skip.
+func setFlagArgs(fs *flag.FlagSet, skip ...string) []string {
 	var args []string
 	fs.Visit(func(f *flag.Flag) {
-		switch f.Name {
-		case flagDB, flagOpenBrowser, flagNoBrowser, flagVersion, flagAutostart:
+		if slices.Contains(skip, f.Name) {
 			return
 		}
 		args = append(args, fmt.Sprintf("-%s=%s", f.Name, f.Value.String()))
 	})
-	return append(args, "-"+flagAutostart, fmt.Sprintf("-%s=%s", flagDB, absDB))
+	return args
 }

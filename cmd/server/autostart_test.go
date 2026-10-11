@@ -32,22 +32,29 @@ func TestAutostartArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			fs.String("http", ":8080", "")
-			fs.String("udp", "0.0.0.0:20777", "")
-			fs.String(flagDB, "f1telemetry.db", "")
-			fs.Bool(flagOpenBrowser, false, "")
-			fs.Bool(flagNoBrowser, false, "")
-			fs.Bool("no-tray", false, "")
-			fs.Bool(flagVersion, false, "")
-			fs.Bool(flagAutostart, false, "")
-			if err := fs.Parse(tt.args); err != nil {
-				t.Fatal(err)
-			}
+			fs := serverFlags(t, tt.args)
 
 			if got := autostartArgs(fs, absDB); !slices.Equal(got, tt.want) {
 				t.Errorf("autostartArgs() = %q, want %q", got, tt.want)
 			}
 		})
 	}
+}
+
+// serverFlags is a flag set with the server's flags that matter here, parsed from args.
+func serverFlags(t *testing.T, args []string) *flag.FlagSet {
+	t.Helper()
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.String("http", ":8080", "")
+	fs.String("udp", "0.0.0.0:20777", "")
+	fs.String(flagDB, "f1telemetry.db", "")
+	fs.Bool(flagOpenBrowser, false, "")
+	fs.Bool(flagNoBrowser, false, "")
+	fs.Bool("no-tray", false, "")
+	fs.Bool(flagVersion, false, "")
+	fs.Bool(flagAutostart, false, "")
+	if err := fs.Parse(args); err != nil {
+		t.Fatal(err)
+	}
+	return fs
 }

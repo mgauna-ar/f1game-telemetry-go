@@ -4,20 +4,34 @@ import { DesktopWindow } from './DesktopWindow';
 import { api, ApiError } from '../utils/apiClient';
 import { useTelemetryEndpointStore, DEFAULT_TELEMETRY_ENDPOINT } from '../store/useTelemetryEndpointStore';
 import type { DesktopState } from '../types/desktop';
+import type { UpdateCheckResponse } from '../types/system';
 
 const windowsTray: DesktopState = {
   show_window_at_start: true,
   start_with_os: false,
   start_with_os_available: true,
   tray: true,
+  can_update: false,
 };
 
 const endpoint = { udp_addr: '0.0.0.0:20777', udp_port: 20777, local_ip: '127.0.0.1', lan_ips: ['192.168.1.20'] };
 
+const newerRelease: UpdateCheckResponse = {
+  update_available: true,
+  current_version: 'v1.4.0',
+  latest_version: 'v1.7.0',
+  release_name: 'v1.7.0',
+  release_notes: '',
+  html_url: 'https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.7.0',
+  published_at: '2026-10-11T12:00:00Z',
+  is_prerelease: false,
+  assets: [],
+};
+
 const waiting = { udp_addr: endpoint.udp_addr, udp_port: endpoint.udp_port, packet_age_ms: null, session: null };
 
-/** Answers the page's GETs: its desktop state (or an error), the version, the endpoint and the feed. */
-function mockGets(desktop: DesktopState | Error, feed: unknown = waiting) {
+/** Answers the page's GETs: its desktop state (or an error), the version, the endpoint, the feed and the newest release. */
+function mockGets(desktop: DesktopState | Error, feed: unknown = waiting, release: UpdateCheckResponse = newerRelease) {
   return vi.spyOn(api, 'get').mockImplementation(async (path: string) => {
     switch (path) {
       case '/api/desktop':
@@ -29,6 +43,8 @@ function mockGets(desktop: DesktopState | Error, feed: unknown = waiting) {
         return endpoint;
       case '/api/system/status':
         return feed;
+      case '/api/system/check-updates':
+        return release;
       default:
         return null;
     }
@@ -157,7 +173,54 @@ describe('DesktopWindow', () => {
     expect(await screen.findByText(/only available on the PC running F1 Telemetry/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Quit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Update now/ })).not.toBeInTheDocument();
     const dashboard = screen.getByRole('heading', { name: 'Dashboard' }).parentElement!;
     expect(within(dashboard).queryByRole('button', { name: /Open dashboard/ })).not.toBeInTheDocument();
+  });
+
+  it('offers a newer release and installs it with one click', async () => {
+    mockGets({ ...windowsTray, can_update: true });
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ version: 'v1.7.0' });
+    render(<DesktopWindow />);
+
+    const notice = (await screen.findByRole('heading', { name: 'Version v1.7.0 is available' })).closest('section')!;
+    expect(within(notice).getByRole('link', { name: /What's new/ })).toHaveAttribute('href', newerRelease.html_url);
+    fireEvent.click(within(notice).getByRole('button', { name: /Update now/ }));
+
+    expect(post).toHaveBeenCalledWith('/api/desktop/update');
+    expect(await within(notice).findByText('Restarting F1 Telemetry…')).toBeInTheDocument();
+    expect(within(notice).getByRole('button', { name: /Update now/ })).toBeDisabled();
+  });
+
+  it('shows a failed update with a link to the release page', async () => {
+    mockGets({ ...windowsTray, can_update: true });
+    vi.spyOn(api, 'post').mockRejectedValue(
+      new ApiError("can't write to /usr/local/bin: permission denied", 500, 'Internal Server Error')
+    );
+    render(<DesktopWindow />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Update now/ }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Could not update: can't write to /usr/local/bin: permission denied");
+    expect(within(alert).getByRole('link', { name: 'Download it from the release page' })).toHaveAttribute(
+      'href',
+      newerRelease.html_url
+    );
+    expect(screen.getByRole('button', { name: /Update now/ })).toBeEnabled();
+  });
+
+  it("doesn't offer updates on a build that can't update itself, or when it's the latest", async () => {
+    const get = mockGets(windowsTray);
+    const { unmount } = render(<DesktopWindow />);
+    expect(await screen.findByRole('button', { name: /Quit F1 Telemetry/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Update now/ })).not.toBeInTheDocument();
+    expect(get).not.toHaveBeenCalledWith('/api/system/check-updates', expect.anything());
+    unmount();
+
+    mockGets({ ...windowsTray, can_update: true }, waiting, { ...newerRelease, update_available: false });
+    render(<DesktopWindow />);
+    expect(await screen.findByRole('button', { name: /Quit F1 Telemetry/ })).toBeInTheDocument();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/system/check-updates', expect.anything()));
+    expect(screen.queryByRole('button', { name: /Update now/ })).not.toBeInTheDocument();
   });
 });

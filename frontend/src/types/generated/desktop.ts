@@ -6,10 +6,16 @@ export interface DesktopState {
   start_with_os: boolean;
   start_with_os_available: boolean;
   tray: boolean;
+  can_update: boolean;
 }
 
 /** Go: desktop.DesktopUpdate */
 export interface DesktopUpdate {
   show_window_at_start?: boolean;
   start_with_os?: boolean;
+}
+
+/** Go: desktop.InstallUpdateResponse */
+export interface InstallUpdateResponse {
+  version: string;
 }

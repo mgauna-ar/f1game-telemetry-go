@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { ExternalLink, Power } from 'lucide-react';
+import { Download, ExternalLink, Power } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { useSystemStatusStore } from '../store/useSystemStatusStore';
@@ -15,8 +15,9 @@ import { api, ApiError } from '../utils/apiClient';
 import { desktopClient } from '../utils/desktopClient';
 import { liveSessionLabel } from '../utils/liveSessionLabel';
 import type { DesktopState, DesktopUpdate } from '../types/desktop';
-import type { SystemVersion } from '../types/system';
+import type { SystemVersion, UpdateCheckResponse } from '../types/system';
 import { useFitWindowToContent } from './useFitWindowToContent';
+import { useInstallUpdate } from './useInstallUpdate';
 import styles from './DesktopWindow.module.css';
 
 const LOGO_SIZE = 44;
@@ -52,6 +53,55 @@ const StatusLine: React.FC<{ status: LiveStatus; udpPort: number }> = ({ status,
   );
 };
 
+/** A newer release and the button that installs it and restarts the app on it. */
+const UpdateNotice: React.FC<{ release: UpdateCheckResponse }> = ({ release }) => {
+  const { t } = useI18n();
+  const { state, install } = useInstallUpdate();
+  const headingId = useId();
+  const busy = state.phase === 'installing' || state.phase === 'restarting';
+  let progress = t('desktop.update.hint');
+  if (state.phase === 'installing') progress = t('desktop.update.installing', { version: release.latest_version });
+  if (state.phase === 'restarting') progress = t('desktop.update.restarting');
+
+  return (
+    <section className={styles.update} aria-labelledby={headingId}>
+      <div className={styles.updateHeader}>
+        <h2 id={headingId} className={styles.updateTitle}>
+          {t('desktop.update.available', { version: release.latest_version })}
+        </h2>
+        {release.html_url && (
+          <a href={release.html_url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+            {t('desktop.update.whatsNew')}
+            <ExternalLink size={12} aria-hidden="true" />
+          </a>
+        )}
+      </div>
+      {/* Always there, so screen readers hear the progress as it changes */}
+      <p className={styles.hint} aria-live="polite">
+        {progress}
+      </p>
+      <Button variant="secondary" block icon={<Download size={16} />} loading={busy} onClick={() => void install()}>
+        {t('desktop.update.button')}
+      </Button>
+      {state.phase === 'failed' && (
+        <Callout tone="warning" role="alert">
+          {t('desktop.update.failed', { error: state.error })}{' '}
+          {release.html_url && (
+            <a href={release.html_url} target="_blank" rel="noopener noreferrer">
+              {t('desktop.update.releasePage')}
+            </a>
+          )}
+        </Callout>
+      )}
+      {state.phase === 'timedOut' && (
+        <Callout tone="warning" role="alert">
+          {t('desktop.update.timedOut', { version: state.version })}
+        </Callout>
+      )}
+    </section>
+  );
+};
+
 /**
  * The app window: a small page the server opens in a browser window of its own at startup (and
  * from the Windows tray). It shows whether the game is sending telemetry, where to open the
@@ -66,6 +116,7 @@ export const DesktopWindow: React.FC = () => {
   const [desktop, setDesktop] = useState<DesktopState | 'unavailable' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stopped, setStopped] = useState(false);
+  const [release, setRelease] = useState<UpdateCheckResponse | null>(null);
   const startupHeadingId = useId();
   const otherIps = otherDeviceIps(endpoint);
   const windowRef = useRef<HTMLElement>(null);
@@ -93,6 +144,18 @@ export const DesktopWindow: React.FC = () => {
       });
     return () => controller.abort();
   }, []);
+
+  // Only the PC running a release build can update it, so only then ask GitHub for a newer one
+  const canUpdate = desktop !== null && desktop !== 'unavailable' && desktop.can_update;
+  useEffect(() => {
+    if (!canUpdate) return;
+    const controller = new AbortController();
+    api
+      .get<UpdateCheckResponse>('/api/system/check-updates', controller.signal)
+      .then(setRelease)
+      .catch(() => {});
+    return () => controller.abort();
+  }, [canUpdate]);
 
   const update = useCallback(
     async (change: DesktopUpdate) => {
@@ -156,6 +219,8 @@ export const DesktopWindow: React.FC = () => {
       </header>
 
       <StatusLine status={status} udpPort={endpoint.udp_port} />
+
+      {canUpdate && release?.update_available && <UpdateNotice release={release} />}
 
       <section className={styles.section}>
         <h2 className={styles.heading}>{t('desktop.dashboardHeading')}</h2>

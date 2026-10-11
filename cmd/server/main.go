@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -51,6 +52,7 @@ type ServerConfig struct {
 	OpenBrowser  bool
 	NoTray       bool
 	Autostart    bool
+	AfterUpdate  bool
 	ShowVersion  bool
 	GeminiAPIKey string
 	OpenAIAPIKey string
@@ -73,6 +75,10 @@ func loadServerConfig() ServerConfig {
 	versionFlag := flag.Bool(flagVersion, false, "Print version information and exit")
 	flag.Parse()
 
+	// Set by the restart after an update. Cleared once read, so programs the app opens don't get it.
+	afterUpdate := getEnvBool(system.UpdatedEnv, false)
+	_ = os.Unsetenv(system.UpdatedEnv)
+
 	return ServerConfig{
 		UDPAddr:      *udpFlag,
 		HTTPAddr:     *httpFlag,
@@ -80,6 +86,7 @@ func loadServerConfig() ServerConfig {
 		OpenBrowser:  *openBrowserFlag,
 		NoTray:       *noTrayFlag,
 		Autostart:    *autostartFlag,
+		AfterUpdate:  afterUpdate,
 		ShowVersion:  *versionFlag,
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
@@ -114,8 +121,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := run(cfg, envFiles); err != nil {
+	// Read before an update can move the running executable aside (Windows)
+	exe, err := os.Executable()
+	if err != nil {
+		slog.Warn("Could not find the executable", "error", err)
+	}
+
+	restart, err := run(cfg, envFiles, exe)
+	if err != nil {
 		fatal(err)
+	}
+	if restart {
+		if err := system.Restart(exe, restartArgs(flag.CommandLine)); err != nil {
+			fatal(fmt.Errorf("the update is installed, but the app didn't start again (%w): start it again", err))
+		}
 	}
 }
 
@@ -129,7 +148,8 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func run(cfg ServerConfig, envFiles []string) error {
+// run runs the app until it quits. restart reports that it stopped to run the update it installed.
+func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err error) {
 	system.SetAppVersion(version, commit, date)
 
 	// Calculate display URLs
@@ -147,7 +167,7 @@ func run(cfg ServerConfig, envFiles []string) error {
 	// a second copy (before touching the database or the running copy's log file)
 	ln, err := net.Listen("tcp", cfg.HTTPAddr)
 	if err != nil {
-		return openRunningInstance(ctx, localURL, port, cfg.OpenBrowser, err)
+		return false, openRunningInstance(ctx, localURL, port, cfg.OpenBrowser, err)
 	}
 
 	logPath, closeLog := setupLogging(dbPath, tray || !desktop.HasConsole(), desktop.HasConsole())
@@ -158,13 +178,18 @@ func run(cfg ServerConfig, envFiles []string) error {
 
 	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, dbPath, tray)
 	slog.Info("Starting F1 Telemetry Analyzer", "version", version, "dashboard", localURL, "network", lanURL,
-		"udpAddr", cfg.UDPAddr, "db", dbPath, "log", logPath)
+		"udpAddr", cfg.UDPAddr, "db", dbPath, "log", logPath, "afterUpdate", cfg.AfterUpdate)
+	if exe != "" {
+		if err := system.RemoveReplacedExecutable(exe); err != nil {
+			slog.Warn("Could not remove the version an update replaced", "error", err)
+		}
+	}
 
 	// 2. Initialize Database
 	repo, err := initDatabase(cfg.DBPath)
 	if err != nil {
 		_ = ln.Close()
-		return fmt.Errorf("failed to initialize database on %s: %w", dbPath, err)
+		return false, fmt.Errorf("failed to initialize database on %s: %w", dbPath, err)
 	}
 	defer repo.Close()
 
@@ -186,20 +211,29 @@ func run(cfg ServerConfig, envFiles []string) error {
 	}
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 
-	// The app on this PC: its small window, starting at sign-in, and Quit from the window
+	// The app on this PC: its small window, starting at sign-in, updating, and Quit from the window
 	quitRequested := make(chan struct{})
 	var quitOnce sync.Once
+	quit := func() {
+		if tray {
+			desktop.Quit()
+			return
+		}
+		quitOnce.Do(func() { close(quitRequested) })
+	}
+	var restartRequested atomic.Bool
+	checkUpdates := updateChecker()
 	desktopApp := desktop.NewApp(desktop.AppConfig{
 		Store:         repo,
 		DashboardURL:  localURL,
 		AutostartArgs: autostartArgs(flag.CommandLine, dbPath),
 		Tray:          tray,
-		Quit: func() {
-			if tray {
-				desktop.Quit()
-				return
-			}
-			quitOnce.Do(func() { close(quitRequested) })
+		Quit:          quit,
+		CheckUpdates:  checkUpdates,
+		Restart: func() {
+			slog.Info("Restarting into the new version")
+			restartRequested.Store(true)
+			quit()
 		},
 	})
 
@@ -253,15 +287,16 @@ func run(cfg ServerConfig, envFiles []string) error {
 	// 9. Setup UDP Listener
 	listener, err := initUDPListener(ctx, cfg.UDPAddr)
 	if err != nil {
-		return fmt.Errorf("%w. If another telemetry app (such as SimHub) uses UDP port %s, close it or pick "+
+		return false, fmt.Errorf("%w. If another telemetry app (such as SimHub) uses UDP port %s, close it or pick "+
 			"another port with -udp or F1T_UDP_ADDR (and set the same port in the game)", err, extractPort(cfg.UDPAddr, "20777"))
 	}
 
 	// 10. Start Packet Processing Loop
 	startPacketProcessing(ctx, listener, sessionManager, engineerEngine, liveBroadcaster, cfg.UDPAddr)
 
-	// 11. Open the app window, unless this is a start at sign-in or it was turned off
-	if !cfg.Autostart {
+	// 11. Open the app window, unless this is a start at sign-in or it was turned off. After an
+	// update the window that asked for it reloads itself instead.
+	if !cfg.Autostart && !cfg.AfterUpdate {
 		go openWindowAtStart(ctx, desktopApp)
 	}
 
@@ -274,7 +309,7 @@ func run(cfg ServerConfig, envFiles []string) error {
 	if !tray {
 		waitForSignal(quitRequested)
 		shutdown()
-		return nil
+		return restartRequested.Load(), nil
 	}
 
 	go func() {
@@ -290,11 +325,11 @@ func run(cfg ServerConfig, envFiles []string) error {
 		DBPath:       dbPath,
 		LogPath:      logPath,
 		Feed:         liveBroadcaster.FeedStatus,
-		CheckUpdates: updateChecker(),
+		CheckUpdates: checkUpdates,
 		App:          desktopApp,
 	}, shutdown)
 	shutdown()
-	return nil
+	return restartRequested.Load(), nil
 }
 
 // openRunningInstance handles a busy HTTP port: when this app is the one answering there, the
