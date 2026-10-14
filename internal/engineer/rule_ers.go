@@ -8,7 +8,13 @@ import (
 )
 
 // ERSRule manages low ERS battery reserve, ERS clipping and engine temperature alerts.
-type ERSRule struct{}
+type ERSRule struct {
+	// The low battery call is made once a stint: lowCalledPct is the charge it was made at and
+	// lowCalledAt when. It is made again only lower by ERSLowRecallStepPct, ERSLowRecallMinMs on.
+	lowCalled    bool
+	lowCalledPct float32
+	lowCalledAt  int64
+}
 
 // NewERSRule creates a new ERSRule.
 func NewERSRule() *ERSRule {
@@ -35,7 +41,7 @@ func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"ers_low": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeLap,
+			DedupScope:  DedupScopeNone, // once a stint, again when lower (Evaluate)
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"ers_clipping": {
@@ -69,7 +75,9 @@ func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 }
 
 func (r *ERSRule) Reset(scope DedupScope) {
-	// State is managed by engine deduplication & cooldowns
+	if scope == DedupScopeStint || scope == DedupScopeNone {
+		r.lowCalled = false
+	}
 }
 
 func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
@@ -93,8 +101,10 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 		lapFraction := CalculateLapDistanceFraction(ctx.Session, playerLap)
 		isFinalSector := lapFraction >= ERSPushLapDistanceFraction
 
-		if ersPct <= ctx.Config.ERSLowPct && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
+		lower := !r.lowCalled || (ersPct <= r.lowCalledPct-ERSLowRecallStepPct && ctx.Now-r.lowCalledAt >= ERSLowRecallMinMs)
+		if ersPct <= ctx.Config.ERSLowPct && lower && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
 			!isNeutralized && !isPushMode && !isFinalSector {
+			r.lowCalled, r.lowCalledPct, r.lowCalledAt = true, ersPct, ctx.Now
 			var ersMsg string
 			if ctx.Is2026() {
 				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Use Lift & Coast for MGU-K regeneration on straights.", int(math.Round(float64(ersPct))))

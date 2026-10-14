@@ -121,7 +121,23 @@ type AlertKeyConfig struct {
 	// car (damage, wear, a temperature) is still true once the radio is open. Its MaxDelayMs counts
 	// from the end of the silence, for at most SilenceMaxHoldMs in all.
 	OutlastsSilence bool
+	// SpeechMs is about how long the call takes to say; the next routine call waits for it. Zero
+	// means DefaultSpeechMs.
+	SpeechMs int64
+	// CooldownGroup is the chatter cooldown the call starts and waits for instead of its
+	// category's: a report or a 2026 aero zone call doesn't hold back the battle calls after it.
+	CooldownGroup string
+	// WaitsForSCToSettle holds the call for the first SCColdCallDelayMs of a Safety Car or VSC,
+	// so the deployment's own calls come first.
+	WaitsForSCToSettle bool
 }
+
+// Cooldown groups of the calls that don't share their category's chatter cooldown.
+const (
+	cooldownReports      = "reports"
+	cooldownAeroZones    = "aero_zones"
+	cooldownFormationLap = "formation_lap"
+)
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
 // every alert threshold. It is the shared part of the engine config and the saved engineer
@@ -254,6 +270,8 @@ type EngineerDirective struct {
 	BoxCall BoxCall `json:"-"`
 	// Values are the numbers a report says (gap report, tyre life); the dashboard speaks them.
 	Values *DirectiveValues `json:"values,omitempty"`
+	// lapDistance is where the player was on the lap when the call was made, for the log.
+	lapDistance float32
 }
 
 // DirectiveValues are the numbers a report call says. Only the fields of its report are set.
@@ -357,6 +375,27 @@ type EvaluationContext struct {
 	PitEntries [packets.MaxCars]bool
 	// ChequeredFlag is whether the leader has taken the chequered flag in this race.
 	ChequeredFlag bool
+	// TrackProfile is what was learned about the track (pit lane, quiet stretches); nil when
+	// nothing was. Read only.
+	TrackProfile *trackProfile
+	// LastSaid is when each alert key was last said, unix ms. Read only.
+	LastSaid map[string]int64
+}
+
+// CallLost reports whether the call a rule made under alertKey at madeAt never got on the radio
+// and is past its useful life (maxDelayMs): a gate held it until it went stale, or dropped it. A
+// rule that makes a call once can make it again then.
+func (ctx *EvaluationContext) CallLost(alertKey string, madeAt, maxDelayMs int64) bool {
+	return alertKey != "" && ctx.Now-madeAt > maxDelayMs && ctx.LastSaid[alertKey] < madeAt
+}
+
+// PitLossSec is what a stop costs at this track against staying out, in seconds: learned from
+// the race stops timed here, else DefaultPitLaneLossSeconds.
+func (ctx *EvaluationContext) PitLossSec() float64 {
+	if loss, ok := ctx.TrackProfile.pitLossSec(ctx.TrackLengthM(), racePaceMps(ctx)); ok {
+		return loss
+	}
+	return DefaultPitLaneLossSeconds
 }
 
 // PlayerLap returns the player car's LapData if available.

@@ -250,8 +250,9 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 	}
 
 	trackLen := float64(ctx.TrackLengthM())
-	rejoinAt := float64(playerLap.TotalDistance) - DefaultPitLaneLossSeconds*AverageRaceSpeedMetersPerSec
-	window := CleanAirTrafficWindowSeconds * AverageRaceSpeedMetersPerSec
+	pace := racePaceMps(ctx)
+	rejoinAt := float64(playerLap.TotalDistance) - ctx.PitLossSec()*pace
+	window := CleanAirTrafficWindowSeconds * pace
 	for i, rival := range ctx.LapData.LapData {
 		if i == ctx.PlayerCarIndex || rival.TotalDistance == 0 || rival.ResultStatus != packets.ResultStatusActive ||
 			rival.PitStatus != packets.PitStatusNone || rival.DriverStatus == packets.DriverStatusInGarage {

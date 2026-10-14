@@ -87,10 +87,11 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			OutlastsSilence: true,
 		},
 		"tyre_cold": {
-			ValidPhases:       []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
-			MinLapDistancePct: MinOutLapDistanceCompletionPct,
-			DedupScope:        DedupScopePhase,
-			MaxDelayMs:        ConditionMaxDelayMs,
+			ValidPhases:        []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
+			MinLapDistancePct:  MinOutLapDistanceCompletionPct,
+			DedupScope:         DedupScopePhase,
+			MaxDelayMs:         ConditionMaxDelayMs,
+			WaitsForSCToSettle: true,
 		},
 		"tyre_crossover": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},

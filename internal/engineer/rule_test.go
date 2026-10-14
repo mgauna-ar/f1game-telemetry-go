@@ -590,7 +590,7 @@ func TestFuelRule_TableDriven(t *testing.T) {
 		})
 	}
 
-	t.Run("fuel rule lap dedup and reset", func(t *testing.T) {
+	t.Run("fuel rule once a stint and again when worse", func(t *testing.T) {
 		rule := NewFuelRule()
 		ctx := &EvaluationContext{
 			Status: &packets.PacketCarStatusData{
@@ -618,13 +618,23 @@ func TestFuelRule_TableDriven(t *testing.T) {
 
 		dirs2 := rule.Evaluate(ctx)
 		if len(dirs2) != 0 {
-			t.Fatalf("expected 0 directives on repeated evaluation on same lap, got %d", len(dirs2))
+			t.Fatalf("expected 0 directives on repeated evaluation, got %d", len(dirs2))
 		}
 
-		rule.Reset(DedupScopeLap)
+		// A new lap with the same deficit isn't said again; a deficit a step worse is.
+		ctx.LapData.LapData[0].CurrentLapNum = 6
+		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
+			t.Fatalf("expected 0 directives on the next lap with the same deficit, got %d", len(dirs))
+		}
+		ctx.Status.CarStatusData[0].FuelRemainingLaps = -1.0 - FuelDeltaRecallStepLaps
+		if dirs := rule.Evaluate(ctx); len(dirs) != 1 {
+			t.Fatalf("expected 1 directive once the deficit grew by a step, got %d", len(dirs))
+		}
+
+		rule.Reset(DedupScopeStint)
 		dirs3 := rule.Evaluate(ctx)
 		if len(dirs3) != 1 {
-			t.Fatalf("expected 1 directive after Reset(DedupScopeLap), got %d", len(dirs3))
+			t.Fatalf("expected 1 directive after Reset(DedupScopeStint), got %d", len(dirs3))
 		}
 	})
 }
@@ -1112,6 +1122,7 @@ func TestERSRule_YearAware(t *testing.T) {
 			SessionType: packets.SessionRace,
 		},
 	}
+	rule.Reset(DedupScopeStint) // the low battery call is made once a stint
 	dirs2026 := rule.Evaluate(ctx2026)
 	if len(dirs2026) != 1 || !strings.Contains(dirs2026[0].Message, "MGU-K regeneration") {
 		t.Fatalf("expected 2026 ERS message to mention MGU-K regeneration: %+v", dirs2026)

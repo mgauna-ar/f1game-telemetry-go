@@ -96,6 +96,7 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:           MomentMaxDelayMs,
 			SkipCategoryCooldown: true,
 			BreaksRadioSilence:   true,
+			SpeechMs:             LongSpeechMs,
 		},
 		"inlap_cooldown": {
 			Category:    DirectiveCategoryCoaching,

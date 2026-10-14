@@ -59,13 +59,15 @@ func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"formation_lap_start": {
-			ValidPhases: []DrivingPhase{PhaseFormationLap},
-			DedupScope:  DedupScopePhase,
+			ValidPhases:   []DrivingPhase{PhaseFormationLap},
+			DedupScope:    DedupScopePhase,
+			CooldownGroup: cooldownFormationLap,
 		},
 		"grid_approach": {
-			ValidPhases: []DrivingPhase{PhaseFormationLap},
-			DedupScope:  DedupScopePhase,
-			MaxDelayMs:  MomentMaxDelayMs,
+			ValidPhases:   []DrivingPhase{PhaseFormationLap},
+			DedupScope:    DedupScopePhase,
+			MaxDelayMs:    MomentMaxDelayMs,
+			CooldownGroup: cooldownFormationLap,
 		},
 		"start_reaction_time": {
 			ValidPhases: []DrivingPhase{PhaseRacing},

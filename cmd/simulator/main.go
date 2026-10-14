@@ -23,6 +23,7 @@ const (
 	defaultTargetUDP            = defaultTargetHost + ":20777"
 	sendInterval                = 50 * time.Millisecond // 20Hz
 	simBrakingThrottleThreshold = 0.3
+	simFlatOutThrottleGain      = 1.25 // throttle peaks are cut flat at 1: the straights
 	simBrakingForce             = 0.8
 	// simTrackLengthM is the simulated track's length (Melbourne).
 	simTrackLengthM = 5278
@@ -36,6 +37,8 @@ const (
 	simPitEntryM  = 4950
 	simPitBoxEndM = 150
 	simPitExitM   = 300
+	// simPitLaneMs is how long the pit lane takes, entry to exit, on the cars' pit lane timers.
+	simPitLaneMs = 24_000
 	// simPlayerPitLap is the lap the player pits at the end of; a puncture comes on the lap before,
 	// just past the point a call to box that lap can still be made (a frame's distance past it, as
 	// the telemetry packet that shows it comes before the frame's lap data).
@@ -332,7 +335,8 @@ func main() {
 				gear = 8
 			}
 
-			throttle := float32(0.5 + 0.5*math.Sin(st.angle*2))
+			// Flat out on the two straights of the lap, so the engineer can learn where they are.
+			throttle := float32(min(1, simFlatOutThrottleGain*(0.5+0.5*math.Sin(st.angle*2))))
 			brake := float32(0.0)
 			if throttle < simBrakingThrottleThreshold {
 				brake = simBrakingForce
@@ -683,24 +687,24 @@ func buildMotionCars(cfg SimulatorConfig, angle float64, posY float32) []packets
 
 func buildTelemetryCars(cfg SimulatorConfig, angle float64, speedKmh, rpm uint16, gear int8, throttle, brake float32) []packets.CarTelemetryData {
 	telemetryCars := make([]packets.CarTelemetryData, cfg.TotalSlots)
-	for i := 0; i < cfg.TotalSlots; i++ {
-		if i < cfg.NumActiveCars {
-			factor := 1.0 - float64(i)*0.02
-			if factor < 0.5 {
-				factor = 0.5
-			}
-			a := angle - float64(i)*0.08
-			telemetryCars[i] = packets.CarTelemetryData{
-				Speed:             uint16(float64(speedKmh) * factor),
-				Throttle:          float32(float64(throttle) * factor),
-				Steer:             float32(math.Sin(a)),
-				Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
-				Gear:              gear,
-				EngineRPM:         uint16(float64(rpm) * factor),
-				DRS:               uint8(i % 2),
-				EngineTemperature: uint16(90 + i),
-				TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
-			}
+	for i := 0; i < cfg.TotalSlots && i < cfg.NumActiveCars; i++ {
+		factor := 1.0 - float64(i)*0.02
+		if factor < 0.5 {
+			factor = 0.5
+		}
+		a := angle - float64(i)*0.08
+		// The wheel is straight when flat out, turned in the corners.
+		carThrottle := float64(throttle) * factor
+		telemetryCars[i] = packets.CarTelemetryData{
+			Speed:             uint16(float64(speedKmh) * factor),
+			Throttle:          float32(carThrottle),
+			Steer:             float32(math.Sin(a) * (1 - carThrottle)),
+			Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
+			Gear:              gear,
+			EngineRPM:         uint16(float64(rpm) * factor),
+			DRS:               uint8(i % 2),
+			EngineTemperature: uint16(90 + i),
+			TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
 		}
 	}
 	return telemetryCars
@@ -837,6 +841,12 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			if st.lapNum > 1 {
 				numStops = uint8(i / 8)
 			}
+			// The pit lane timer runs while a car is in the pit lane of the pit and strategy scenarios.
+			var pitLaneTimer uint8
+			pitLaneTime := uint16(21500 + i*400)
+			if (cfg.Scenario == "pit" || cfg.Scenario == "strategy") && pitStatus != packets.PitStatusNone {
+				pitLaneTimer, pitLaneTime = 1, simPitLaneTime(carLapDist)
+			}
 			if cfg.Scenario == "strategy" && i == 0 {
 				numStops = uint8(simStrategyStopsMade(st.lapNum, lapDist))
 			}
@@ -860,7 +870,8 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				PitStopShouldServePen:       pitStopShouldServePen,
 				PitStopTimerInMS:            pitStopTimerInMS,
 				NumPitStops:                 numStops,
-				PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
+				PitLaneTimerActive:          pitLaneTimer,
+				PitLaneTimeInLaneInMS:       pitLaneTime,
 				SpeedTrapFastestSpeed:       speedTrap,
 				SpeedTrapFastestLap:         uint8(1 + (i % 3)),
 				Penalties:                   penalties,
@@ -1076,6 +1087,17 @@ func simPitStatus(ownLap uint8, lapDist float32, pitLap uint8) uint8 {
 		return packets.PitStatusPitting
 	}
 	return packets.PitStatusNone
+}
+
+// simPitLaneTime is how long a car carLapDist into its lap has been in the pit lane, in ms: the
+// lane runs from simPitEntryM to simPitExitM on the next lap and takes simPitLaneMs.
+func simPitLaneTime(carLapDist float32) uint16 {
+	covered := carLapDist - simPitEntryM
+	if covered < 0 {
+		covered += simTrackLengthM
+	}
+	laneLength := float32(simTrackLengthM - simPitEntryM + simPitExitM)
+	return uint16(min(covered/laneLength, 1) * simPitLaneMs)
 }
 
 // simCarLap is the lap a car carLapDist into its lap is on: one behind the leader's until it too

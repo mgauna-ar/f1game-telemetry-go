@@ -11,9 +11,13 @@ import (
 // RivalsRule manages defending against cars behind, attacking cars ahead,
 // and 2026 active aero / override boost zone anticipation.
 type RivalsRule struct {
-	mu                          sync.Mutex
-	lastDrsWarningIndex         int
-	lastCarAheadWarningIndex    int
+	mu                       sync.Mutex
+	lastDrsWarningIndex      int
+	lastCarAheadWarningIndex int
+	// The defend and attack calls last made, and when: one that never got on the radio before it
+	// went stale (a long call before it) is made again while the car is still close.
+	defendKey, attackKey        string
+	defendAt, attackAt          int64
 	activeAeroAnticipationFired bool
 	overtakeAnticipationFired   bool
 }
@@ -67,16 +71,18 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:              MomentMaxDelayMs,
 		},
 		"aero_straight_anticipation": {
-			Category:    DirectiveCategoryRivals,
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
-			DedupScope:  DedupScopeNone,
-			MaxDelayMs:  MomentMaxDelayMs,
+			Category:      DirectiveCategoryRivals,
+			ValidPhases:   []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    MomentMaxDelayMs,
+			CooldownGroup: cooldownAeroZones,
 		},
 		"overtake_boost_anticipation": {
-			Category:    DirectiveCategoryRivals,
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeNone,
-			MaxDelayMs:  MomentMaxDelayMs,
+			Category:      DirectiveCategoryRivals,
+			ValidPhases:   []DrivingPhase{PhaseRacing},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    MomentMaxDelayMs,
+			CooldownGroup: cooldownAeroZones,
 		},
 	}
 }
@@ -190,7 +196,7 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 // can use it (not on the first laps, in the wet or when race control has it off).
 func (r *RivalsRule) defendCall(ctx *EvaluationContext, i, playerPos int, is2026 bool) (Directive, bool) {
 	gapSec := raceGapSec(ctx, ctx.PlayerCarIndex, i)
-	if r.lastDrsWarningIndex == i && gapSec > float64(ctx.Config.RivalGapSec+RivalRearmHysteresisSec) {
+	if r.lastDrsWarningIndex == i && (gapSec > float64(ctx.Config.RivalGapSec+RivalRearmHysteresisSec) || ctx.CallLost(r.defendKey, r.defendAt, MomentMaxDelayMs)) {
 		r.lastDrsWarningIndex = -1
 	}
 	if gapSec <= 0 || gapSec > float64(ctx.Config.RivalGapSec) || r.lastDrsWarningIndex == i {
@@ -216,6 +222,7 @@ func (r *RivalsRule) defendCall(ctx *EvaluationContext, i, playerPos int, is2026
 		subAlert = "rival_defend_drs"
 		msg = fmt.Sprintf("Defend! Car behind (P%d) has DRS (%.1fs gap%s).%s", playerPos+1, gap.GapSec, trendNote(gap), extra)
 	}
+	r.defendKey, r.defendAt = id, ctx.Now
 	return Directive{
 		ID:       id,
 		Category: DirectiveCategoryRivals,
@@ -231,7 +238,7 @@ func (r *RivalsRule) defendCall(ctx *EvaluationContext, i, playerPos int, is2026
 // only after pulling away past the threshold. "Catching" is only said when the gap is closing.
 func (r *RivalsRule) attackCall(ctx *EvaluationContext, i, playerPos int, is2026 bool) (Directive, bool) {
 	gapSec := raceGapSec(ctx, i, ctx.PlayerCarIndex)
-	if r.lastCarAheadWarningIndex == i && gapSec > float64(ctx.Config.RivalAheadGapSec+RivalRearmHysteresisSec) {
+	if r.lastCarAheadWarningIndex == i && (gapSec > float64(ctx.Config.RivalAheadGapSec+RivalRearmHysteresisSec) || ctx.CallLost(r.attackKey, r.attackAt, MomentMaxDelayMs)) {
 		r.lastCarAheadWarningIndex = -1
 	}
 	if gapSec <= 0 || gapSec > float64(ctx.Config.RivalAheadGapSec) || r.lastCarAheadWarningIndex == i {
@@ -257,6 +264,7 @@ func (r *RivalsRule) attackCall(ctx *EvaluationContext, i, playerPos int, is2026
 		subAlert = "rival_attack_drs"
 		msg = fmt.Sprintf("DRS on the car ahead (P%d), gap %.1fs%s.%s", playerPos-1, gap.GapSec, trendNote(gap), tyres)
 	}
+	r.attackKey, r.attackAt = id, ctx.Now
 	return Directive{
 		ID:       id,
 		Category: DirectiveCategoryRivals,

@@ -5,8 +5,9 @@ import "github.com/mgauna/f1game-telemetry-go/internal/packets"
 // Analytical thresholds, timing constants, and heuristic parameters for the AI Race Engineer Engine.
 const (
 	// DefaultDirectiveCooldownMs is the default cooldown between non-critical directives in the same category.
-	DefaultDirectiveCooldownMs   = 45_000
-	GlobalRadioChatterCooldownMs = 4_000
+	DefaultDirectiveCooldownMs = 45_000
+	// GlobalRadioChatterCooldownMs is the gap after a call is spoken before the next routine one.
+	GlobalRadioChatterCooldownMs = 1_500
 
 	// Smart Driving Discretion thresholds
 	SmartDiscretionBrakeThreshold = 0.30
@@ -26,6 +27,34 @@ const (
 	MaxSpeechTTLMs        = 15_000
 	MinSpeechTTLMs        = 2_000
 	SilenceMaxHoldMs      = 180_000 // the longest a condition call waits out radio silence (a formation lap and the start)
+
+	// Radio timing: how long a call takes from the server to the driver's ears and to say, so the
+	// next routine call waits for it to end. A critical call (Safety Car, red flag, a crash) gets a
+	// breather after it. Cold tyre and brake calls wait for a Safety Car deployment's own calls.
+	RadioDeliveryLatencyMs = 1_000 // From the server to speech starting: phrase, synthesis, beep
+	DefaultSpeechMs        = 4_500
+	LongSpeechMs           = 7_000 // A report with several numbers
+	CriticalBreatherMs     = 4_000
+	SCColdCallDelayMs      = 20_000
+	// PauseDetectMs: a session clock standing still this long is a pause; held calls don't age
+	// through it.
+	PauseDetectMs = 1_000
+
+	// Quiet stretches: where on the lap the player is flat out, off the brakes and straight, learned
+	// in QuietBinM bins over QuietLearnMinLaps whole laps at racing pace (QuietMinCoverage of the
+	// bins sampled). A routine call waits for one long enough to say it, for up to QuietWaitShare
+	// of its useful life.
+	QuietBinM            = 50.0
+	QuietThrottleMin     = 0.95
+	QuietBrakeMax        = 0.05
+	QuietSteerMax        = 0.10
+	QuietMinSpeedKmh     = 150.0
+	QuietMinCoverage     = 0.90
+	QuietLapWeight       = 0.3 // Weight of the latest lap in each bin's average
+	QuietLearnMinLaps    = 3
+	QuietBinMinShare     = 0.7 // A bin is quiet when the player is flat out and straight there this often
+	QuietUnknownSpeedMps = 50.0
+	QuietWaitShare       = 0.5
 
 	// Stint & Pit stop tracking heuristics
 	PitStopDetectionMaxTyreAgeLaps = 1
@@ -99,6 +128,7 @@ const (
 
 	// Fuel & Pit strategy thresholds
 	FuelDeltaDeficitDefaultLaps  = -0.5
+	FuelDeltaRecallStepLaps      = 0.5 // The fuel deficit is said again once a stint only this much worse
 	MinFuelAlertLapNum           = 3
 	DefaultPitLaneLossSeconds    = 21.0
 	CleanAirTrafficWindowSeconds = 3.0
@@ -111,6 +141,8 @@ const (
 	TeammateGapThresholdSec        = 2.5
 	ERSPushLapDistanceFraction     = 0.85
 	ERSClippingThresholdJoules     = 3800000.0
+	ERSLowRecallStepPct            = 5.0     // The low battery call is said again in a stint only this much lower...
+	ERSLowRecallMinMs              = 120_000 // ...and this long after the last one
 	ERSClippingMaxDistanceFraction = 0.85
 
 	// Rivals & Overtake thresholds
@@ -121,6 +153,12 @@ const (
 	// Pit entry and box calls
 	DefaultPitCallLeadM = 500.0 // How far before the pit entry a "box this lap" call must come
 	PitEntryMaxSamples  = 9     // Pit entry samples kept per track; the entry is their median
+	// The pit lane's cost: timed race stops kept per track, the shortest time in the lane that is a
+	// stop, and the range a learned cost must fall in (else DefaultPitLaneLossSeconds is used).
+	PitLaneMaxSamples = 9
+	PitLaneMinMs      = 5_000
+	PitLossMinSec     = 5.0
+	PitLossMaxSec     = 60.0
 	// PitEntryReminderMinGapMs: no pit entry reminder this soon after the call to box.
 	PitEntryReminderMinGapMs = 15_000
 

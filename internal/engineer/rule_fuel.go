@@ -10,8 +10,11 @@ import (
 // FuelRule manages fuel deficit, the undercut and overcut calls, and fuel mix management. The
 // game's pit window is PitPlanRule's.
 type FuelRule struct {
-	mu                       sync.Mutex
-	lastFuelDeltaAlertLap    int
+	mu sync.Mutex
+	// The fuel deficit call is made once a stint, at fuelDeltaCalledLaps, and again only when the
+	// deficit grows by FuelDeltaRecallStepLaps.
+	fuelDeltaCalled          bool
+	fuelDeltaCalledLaps      float32
 	fuelMixNeutralizedWarned bool
 	// wasNeutralized is whether the last packet was under a Safety Car or VSC; restartDue is set
 	// by each one, until the restart checks the fuel mix.
@@ -21,9 +24,7 @@ type FuelRule struct {
 
 // NewFuelRule creates a new FuelRule.
 func NewFuelRule() *FuelRule {
-	return &FuelRule{
-		lastFuelDeltaAlertLap: -1,
-	}
+	return &FuelRule{}
 }
 
 func (r *FuelRule) Name() string {
@@ -43,7 +44,7 @@ func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 		"fuel_delta": {
 			Category:    DirectiveCategoryFuel,
 			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeLap,
+			DedupScope:  DedupScopeNone, // once a stint, again when worse (Evaluate)
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"undercut": {
@@ -74,8 +75,8 @@ func (r *FuelRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if scope == DedupScopeLap || scope == DedupScopeNone {
-		r.lastFuelDeltaAlertLap = -1
+	if scope == DedupScopeStint || scope == DedupScopeNone {
+		r.fuelDeltaCalled = false
 	}
 	// The fuel mix calls span the Safety Car and the restart, two phases, so only a new session
 	// clears them; each Safety Car re-arms them (Evaluate).
@@ -107,8 +108,9 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 	if status != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && !isNeutralized &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) &&
 		ctx.Config.IsAlertEnabled(string(DirectiveCategoryFuel), "fuel_delta") {
-		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > MinFuelAlertLapNum && currentLapNum != r.lastFuelDeltaAlertLap {
-			r.lastFuelDeltaAlertLap = currentLapNum
+		worse := !r.fuelDeltaCalled || status.FuelRemainingLaps <= r.fuelDeltaCalledLaps-FuelDeltaRecallStepLaps
+		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > MinFuelAlertLapNum && worse {
+			r.fuelDeltaCalled, r.fuelDeltaCalledLaps = true, status.FuelRemainingLaps
 			directives = append(directives, Directive{
 				ID:       "fuel_delta",
 				Category: DirectiveCategoryFuel,

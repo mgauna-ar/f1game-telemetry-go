@@ -25,7 +25,7 @@ type planRace struct {
 func newPlanRace(t *testing.T, ideal, latest uint8) *planRace {
 	t.Helper()
 	e, b, clock, h := raceEngine(t)
-	e.pitLanes.entrySamples[0] = []float32{4800}
+	e.profiles.tracks[0] = &trackProfile{entryM: []float32{4800}}
 	r := &planRace{t: t, e: e, b: b, clock: clock, h: h, session: packets.PacketSessionData{
 		Header: h, SessionType: packets.SessionRace, TrackLength: 5000, TotalLaps: 30,
 		PitStopWindowIdealLap: ideal, PitStopWindowLatestLap: latest, PitStopRejoinPosition: 9,

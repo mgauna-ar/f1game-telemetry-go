@@ -49,23 +49,36 @@ type EngineerEngine struct {
 	latestParticipant *packets.PacketParticipantsData
 
 	// Internal state tracking
-	lastStintLapAge         int
-	stintStartedAt          int64 // unix ms the current stint started; 0 before the first
-	startLightsActive       bool
-	raceStarted             bool
-	chequeredFlagReceived   bool
-	postRaceAnnounced       bool
-	finishedAt              int64 // unix ms the player was first seen finished; 0 before
-	lastGlobalDirectiveTime int64
+	lastStintLapAge       int
+	stintStartedAt        int64 // unix ms the current stint started; 0 before the first
+	startLightsActive     bool
+	raceStarted           bool
+	chequeredFlagReceived bool
+	postRaceAnnounced     bool
+	finishedAt            int64 // unix ms the player was first seen finished; 0 before
+	phaseStartedAt        int64 // unix ms the current driving phase started
+	// radioBusyUntil is when the radio is free for a routine call: the last call said, its
+	// speech and the gap after it (and a breather after a critical call).
+	radioBusyUntil int64
+	// The session clock: the session time last seen running and when, whether it ran this
+	// session, and whether it stands still now (a pause).
+	clockSessionTime float32
+	clockSeenAt      int64
+	clockRuns        bool
+	clockStill       bool
 	// classification is the race's final classification, once the game sends it.
 	classification *packets.PacketFinalClassificationData
 
-	// Calls a passing gate (braking, radio spacing, cooldown, pause) held back, by alert key.
-	pending map[string]pendingDirective
+	// Calls a passing gate (braking, radio spacing, cooldown, pause) held back, by alert key, and
+	// how many were held this session (their order).
+	pending     map[string]pendingDirective
+	pendingSeen uint64
 
-	// Box calls: the learned pit entries (kept across sessions), where the player is, calls to box
-	// waiting for the line, and the lap a call told the player to box on (0: none).
-	pitLanes  *pitLanes
+	// What was learned about each track (pit lane, quiet stretches), kept across sessions.
+	profiles *trackProfiles
+
+	// Box calls: where the player is, calls to box waiting for the line, and the lap a call told
+	// the player to box on (0: none).
 	playerPos playerTrackPosition
 	lineWait  map[string]lineWaitDirective
 	boxDueLap int
@@ -92,10 +105,12 @@ type EngineerEngine struct {
 type pendingDirective struct {
 	directive Directive
 	alertKey  string
-	heldAt    int64 // unix ms the call was first held
-	clockFrom int64 // unix ms its useful life started: when it was held, or when radio silence ended
-	expiresAt int64 // unix ms after which it is no longer worth saying
-	lap       int   // the player's lap when it was first held
+	heldAt    int64  // unix ms the call was first held
+	seq       uint64 // order it was first held in, for calls held the same millisecond
+	clockFrom int64  // unix ms its useful life started: when it was last made, or when radio silence ended
+	waitFrom  int64  // unix ms it started waiting for the radio: when first held, or when radio silence ended
+	expiresAt int64  // unix ms after which it is no longer worth saying
+	lap       int    // the player's lap when it was first held
 }
 
 // gateDecision is what the radio gates decide for a call.
@@ -119,7 +134,7 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		phaseKeys:        make(map[string]bool),
 		lapKeys:          make(map[string]int),
 		pending:          make(map[string]pendingDirective),
-		pitLanes:         newPitLanes(),
+		profiles:         newTrackProfiles(),
 		lineWait:         make(map[string]lineWaitDirective),
 		teammateCarIndex: -1,
 		playerTeamID:     -1,
@@ -219,7 +234,10 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.postRaceAnnounced = false
 	e.finishedAt = 0
 	e.classification = nil
-	e.lastGlobalDirectiveTime = 0
+	e.phaseStartedAt = 0
+	e.radioBusyUntil = 0
+	e.clockSessionTime, e.clockSeenAt, e.clockRuns, e.clockStill = 0, 0, false, false
+	e.profiles.resetSession()
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
 	e.latestSession = nil
@@ -255,6 +273,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	e.playerCarIndex = int(header.PlayerCarIndex)
 	e.packetFormat = header.PacketFormat
 	e.lastPacketAt = e.nowMs()
+	e.trackSessionClockLocked(header.SessionTime)
 
 	switch p := pkt.(type) {
 	case *packets.PacketEventData:
@@ -277,6 +296,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 			// that no longer happened.
 			e.pending = make(map[string]pendingDirective)
 			e.lineWait = make(map[string]lineWaitDirective)
+			e.profiles.spoilQuietLap()
 		}
 		e.recordRaceEventLocked(p)
 	case *packets.PacketParticipantsData:
@@ -298,7 +318,10 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	case *packets.PacketLapData:
 		e.detectStintStartLocked(p)
 		e.recordLapTransitionsLocked(p)
-		e.pitLanes.learn(e.latestSession, e.latestLapData, p)
+		e.profiles.learnPitLane(e.latestSession, e.latestLapData, p)
+		if e.playerCarIndex >= 0 && e.playerCarIndex < len(p.LapData) {
+			e.profiles.endQuietLap(int(p.LapData[e.playerCarIndex].CurrentLapNum))
+		}
 		e.pitEntries = pitLaneEntries(e.latestLapData, p)
 		e.endRedFlagOnRestartLocked(p)
 		e.latestLapData = p
@@ -317,6 +340,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		}
 	case *packets.PacketCarTelemetryData:
 		e.latestTelemetry = p
+		e.sampleQuietLocked()
 	case *packets.PacketCarTelemetry2Data:
 		e.latestTelemetry2 = p
 	case *packets.PacketTyreSetsData:
@@ -380,6 +404,8 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		PitPlan:          e.pitPlan.plan,
 		CarHistory:       &e.history.carHistory,
 		ChequeredFlag:    e.chequeredFlagReceived,
+		TrackProfile:     e.trackProfileLocked(),
+		LastSaid:         e.lastDirectives,
 	}
 	if _, ok := pkt.(*packets.PacketLapData); ok {
 		ctx.PitEntries = e.pitEntries
@@ -419,12 +445,65 @@ func (e *EngineerEngine) startStintLocked(reason string) {
 	slog.Debug("Engineer stint started", "reason", reason)
 }
 
+// trackProfileLocked is what was learned about the session's track, or nil.
+func (e *EngineerEngine) trackProfileLocked() *trackProfile {
+	if e.latestSession == nil {
+		return nil
+	}
+	return e.profiles.profile(e.latestSession.TrackId)
+}
+
 // pitEntryLocked is the learned pit entry of the session's track, or 0 while unknown.
 func (e *EngineerEngine) pitEntryLocked() float32 {
-	if e.latestSession == nil {
-		return 0
+	return e.trackProfileLocked().entry()
+}
+
+// sampleQuietLocked samples the player's driving for the track's quiet stretches, at racing pace
+// only: a race lap or a push lap (not under a Safety Car, that is its own phase), out of the pit
+// lane.
+func (e *EngineerEngine) sampleQuietLocked() {
+	s, lap, tele := e.latestSession, e.getPlayerLapDataLocked(), e.getPlayerTelemetryLocked()
+	if s == nil || lap == nil || tele == nil || s.TrackId < 0 || s.TrackLength == 0 {
+		return
 	}
-	return e.pitLanes.entry(e.latestSession.TrackId)
+	if (e.currentPhase != PhaseRacing && e.currentPhase != PhaseFlyingLap) || lap.PitStatus != packets.PitStatusNone {
+		return
+	}
+	e.profiles.sampleQuiet(s.TrackId, float32(s.TrackLength), int(lap.CurrentLapNum), lap.LapDistance, tele)
+}
+
+// trackSessionClockLocked notices the game standing still: a pause stops the session clock, and
+// offline the packets may stop too. Held calls don't age while it stands still: once it runs
+// again their clocks move on by the time it stood. A clock never seen running (a test's fixed
+// session time) is never taken for a pause.
+func (e *EngineerEngine) trackSessionClockLocked(sessionTime float32) {
+	now := e.nowMs()
+	switch {
+	case e.clockSeenAt == 0 || sessionTime < e.clockSessionTime:
+		// The first packet, or the clock went back (a flashback, a restart).
+		e.clockSessionTime, e.clockSeenAt, e.clockStill = sessionTime, now, false
+	case sessionTime > e.clockSessionTime:
+		still := now - e.clockSeenAt - int64(float64(sessionTime-e.clockSessionTime)*1000)
+		if still >= PauseDetectMs {
+			e.shiftHeldCallsLocked(still)
+		}
+		e.clockRuns = true
+		e.clockSessionTime, e.clockSeenAt, e.clockStill = sessionTime, now, false
+	default:
+		e.clockStill = e.clockRuns && now-e.clockSeenAt >= PauseDetectMs
+	}
+}
+
+// shiftHeldCallsLocked moves the clocks of the held calls on by ms, the time the game stood still.
+func (e *EngineerEngine) shiftHeldCallsLocked(ms int64) {
+	for key, p := range e.pending {
+		p.heldAt += ms
+		p.clockFrom += ms
+		p.waitFrom += ms
+		p.expiresAt += ms
+		e.pending[key] = p
+	}
+	slog.Debug("Engineer paused, held calls kept", "pausedMs", ms, "held", len(e.pending))
 }
 
 func (e *EngineerEngine) nowMs() int64 {
@@ -499,7 +578,9 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 
 	e.updatePlayerPositionLocked(ctx)
 	e.releaseLineWaitLocked()
-	emittedDirectives = append(emittedDirectives, e.releasePendingLocked(ctx.Header)...)
+	// Urgent calls have the radio first: the held ones, then this packet's. Routine calls, held or
+	// new, are said after them, oldest first, so one never goes out just before a Safety Car call.
+	emittedDirectives = append(emittedDirectives, e.releasePendingLocked(ctx.Header, true)...)
 	// A held call to box just said opens a box order the rules must see.
 	ctx.BoxDueLap = e.boxDueLap
 
@@ -522,8 +603,12 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 			if alertKey == "" {
 				alertKey = cat
 			}
-			switch e.gateDirectiveLocked(alertKey, cat, d.Urgency) {
+			switch e.gateDirectiveLocked(alertKey, cat, d.Urgency, 0) {
 			case gateEmit:
+				if !isUrgent(d.Urgency) {
+					e.holdDirectiveLocked(d, alertKey) // said below, in turn
+					continue
+				}
 				if e.waitForLineLocked(d, alertKey) {
 					continue
 				}
@@ -535,6 +620,7 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 			}
 		}
 	}
+	emittedDirectives = append(emittedDirectives, e.releasePendingLocked(ctx.Header, false)...)
 
 	return append(emittedDirectives, e.pitEntryReminderLocked(ctx.Header)...)
 }
@@ -597,15 +683,18 @@ func (e *EngineerEngine) raceFinishDirectiveLocked(pos int) Directive {
 // instead of being lost. A newer call for the same alert key replaces it: it is what is true now.
 func (e *EngineerEngine) holdDirectiveLocked(d Directive, alertKey string) {
 	now := e.nowMs()
-	heldAt, lap := now, e.playerPos.lap
+	e.pendingSeen++
+	heldAt, seq, waitFrom, lap := now, e.pendingSeen, now, e.playerPos.lap
 	if prev, ok := e.pending[alertKey]; ok {
-		heldAt, lap = prev.heldAt, prev.lap
+		heldAt, seq, waitFrom, lap = prev.heldAt, prev.seq, prev.waitFrom, prev.lap
 	}
 	e.pending[alertKey] = pendingDirective{
 		directive: d,
 		alertKey:  alertKey,
 		heldAt:    heldAt,
+		seq:       seq,
 		clockFrom: now,
+		waitFrom:  waitFrom,
 		expiresAt: now + e.maxDelayMs(alertKey),
 		lap:       lap,
 	}
@@ -614,29 +703,34 @@ func (e *EngineerEngine) holdDirectiveLocked(d Directive, alertKey string) {
 // releasePendingLocked says the held calls the gates now let through, oldest first, and forgets
 // the ones that went stale or that the gates now turn down for good (phase, switch, dedup). A call
 // waiting out radio silence doesn't age until the silence ends, for at most SilenceMaxHoldMs.
-func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader) []Directive {
+// With urgentOnly, only the urgent calls are looked at.
+func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader, urgentOnly bool) []Directive {
 	if len(e.pending) == 0 {
 		return nil
 	}
 	held := make([]pendingDirective, 0, len(e.pending))
 	for _, p := range e.pending {
-		held = append(held, p)
+		if !urgentOnly || isUrgent(p.directive.Urgency) {
+			held = append(held, p)
+		}
 	}
 	sort.Slice(held, func(i, j int) bool {
 		if held[i].heldAt != held[j].heldAt {
 			return held[i].heldAt < held[j].heldAt
 		}
-		return held[i].alertKey < held[j].alertKey
+		return held[i].seq < held[j].seq
 	})
 
 	now := e.nowMs()
 	var released []Directive
 	for _, p := range held {
-		if now > p.expiresAt || (e.alertRules[p.alertKey].LapBound && e.playerPos.lap != p.lap) {
+		// A held call doesn't go stale while the game stands still.
+		stale := now > p.expiresAt && !e.clockStill
+		if stale || (e.alertRules[p.alertKey].LapBound && e.playerPos.lap != p.lap) {
 			delete(e.pending, p.alertKey)
 			continue
 		}
-		switch e.gateDirectiveLocked(p.alertKey, string(p.directive.Category), p.directive.Urgency) {
+		switch e.gateDirectiveLocked(p.alertKey, string(p.directive.Category), p.directive.Urgency, now-p.waitFrom) {
 		case gateEmit:
 			if e.waitForLineLocked(p.directive, p.alertKey) {
 				continue
@@ -647,7 +741,7 @@ func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader) []Dir
 				delete(e.pending, p.alertKey)
 				continue
 			}
-			p.clockFrom, p.expiresAt = now, now+e.maxDelayMs(p.alertKey)
+			p.clockFrom, p.waitFrom, p.expiresAt = now, now, now+e.maxDelayMs(p.alertKey)
 			e.pending[p.alertKey] = p
 		case gateDrop:
 			delete(e.pending, p.alertKey)
@@ -662,6 +756,23 @@ func (e *EngineerEngine) maxDelayMs(alertKey string) int64 {
 		return rule.MaxDelayMs
 	}
 	return DefaultMaxDelayMs
+}
+
+// speechMs is about how long the call takes to say.
+func (e *EngineerEngine) speechMs(alertKey string) int64 {
+	if rule, ok := e.alertRules[alertKey]; ok && rule.SpeechMs > 0 {
+		return rule.SpeechMs
+	}
+	return DefaultSpeechMs
+}
+
+// cooldownKey is the chatter cooldown a call starts and waits for: its cooldown group, else its
+// category.
+func (e *EngineerEngine) cooldownKey(alertKey, category string) string {
+	if group := e.alertRules[alertKey].CooldownGroup; group != "" {
+		return group
+	}
+	return category
 }
 
 func (e *EngineerEngine) minRepeatMs(alertKey string) int64 {
@@ -715,6 +826,7 @@ func (e *EngineerEngine) updateDrivingPhaseLocked() {
 	if newPhase != e.currentPhase {
 		e.previousPhase = e.currentPhase
 		e.currentPhase = newPhase
+		e.phaseStartedAt = e.nowMs()
 		e.phaseKeys = make(map[string]bool)
 		for _, r := range e.rules {
 			r.Reset(DedupScopePhase)
@@ -844,8 +956,11 @@ func (e *EngineerEngine) isRaceSessionLocked() bool {
 	return packets.IsRaceSession(e.latestSession.SessionType)
 }
 
+// isGamePaused reports whether the game is paused: the session says so (online), or its clock
+// stands still (offline).
 func (e *EngineerEngine) isGamePaused(isCritical bool) bool {
-	return e.latestSession != nil && e.latestSession.GamePaused == 1 && !isCritical
+	paused := e.clockStill || (e.latestSession != nil && e.latestSession.GamePaused == 1)
+	return paused && !isCritical
 }
 
 func (e *EngineerEngine) isPhaseAllowed(alertKey string) bool {
@@ -914,21 +1029,34 @@ func (e *EngineerEngine) isDeduplicated(alertKey string, isCritical bool) bool {
 	return false
 }
 
-func (e *EngineerEngine) isSmartDiscretionSuppressed(isCritical bool) bool {
-	if isCritical || !e.config.SmartDiscretionEnabled {
+// discretionHoldLocked reports whether a routine call waits for a better moment to be said. Once
+// the track's quiet stretches are learned, it waits until its speech would start on one long
+// enough to say it, for up to QuietWaitShare of its useful life (waitedMs is how long it waited
+// so far). Before that, and after, it waits only while the driver brakes or steers hard. A call
+// that must break radio silence is said at once.
+func (e *EngineerEngine) discretionHoldLocked(alertKey, urgency string, waitedMs int64) bool {
+	if isUrgent(urgency) || !e.config.SmartDiscretionEnabled {
 		return false
 	}
-
-	playerTele := e.getPlayerTelemetryLocked()
-	if playerTele != nil {
-		brakeActive := playerTele.Brake > SmartDiscretionBrakeThreshold
-		heavySteer := math.Abs(float64(playerTele.Steer)) > SmartDiscretionSteerThreshold
-		if brakeActive || heavySteer {
-			return true
+	waitLimit := int64(QuietWaitShare * float64(e.maxDelayMs(alertKey)))
+	if !e.alertRules[alertKey].BreaksRadioSilence && waitedMs < waitLimit {
+		if runway, ok := e.quietRunwayLocked(RadioDeliveryLatencyMs); ok {
+			return runway < e.speechMs(alertKey)
 		}
 	}
+	playerTele := e.getPlayerTelemetryLocked()
+	return playerTele != nil && (playerTele.Brake > SmartDiscretionBrakeThreshold ||
+		math.Abs(float64(playerTele.Steer)) > SmartDiscretionSteerThreshold)
+}
 
-	return false
+// quietRunwayLocked is how long the player stays on a quiet stretch once speech starts leadMs
+// from now. ok is false when the track's quiet stretches don't apply: not learned yet, or the
+// player isn't at racing pace (Safety Car, out-lap, pit lane).
+func (e *EngineerEngine) quietRunwayLocked(leadMs int64) (int64, bool) {
+	if (e.currentPhase != PhaseRacing && e.currentPhase != PhaseFlyingLap) || !e.playerPos.known || e.playerPos.inPitLane {
+		return 0, false
+	}
+	return e.trackProfileLocked().quietRunwayMs(e.playerPos.lapDistance, leadMs)
 }
 
 func (e *EngineerEngine) isChatterCooldownActive(category string, isCritical bool) bool {
@@ -947,9 +1075,10 @@ func (e *EngineerEngine) isChatterCooldownActive(category string, isCritical boo
 }
 
 // gateDirectiveLocked runs a call through the radio gates. Gates that say the call is wrong here
-// (switch, phase, dedup, repeat) drop it; gates that only say "not right now" (pause, braking or
-// steering, category cooldown, radio spacing) hold it so it is said once the radio is free.
-func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string) gateDecision {
+// (switch, phase, dedup, repeat) drop it; gates that only say "not right now" (pause, a Safety Car
+// just out, braking or not on a straight, category cooldown, the radio busy) hold it so it is said
+// once the radio is free. waitedMs is how long the call has waited so far (0 for a fresh one).
+func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string, waitedMs int64) gateDecision {
 	isCritical := urgency == UrgencyCritical || urgency == UrgencyHigh
 	cfg := e.alertRules[alertKey]
 
@@ -1023,19 +1152,24 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 		return gateHold
 	}
 
-	// 10. Smart Driving Discretion: say it once the driver is off the brakes and straight
-	if e.isSmartDiscretionSuppressed(isCritical) {
+	// 9b. A Safety Car just out: its own calls (the flag, the fuel mix, the stop) come first.
+	if cfg.WaitsForSCToSettle && e.currentPhase == PhaseSafetyCar && now-e.phaseStartedAt < SCColdCallDelayMs {
+		return gateHold
+	}
+
+	// 10. Smart Driving Discretion: say it on a straight, or at least off the brakes and straight
+	if e.discretionHoldLocked(alertKey, urgency, waitedMs) {
 		return gateHold
 	}
 
 	// 11. Per-category chatter cooldown check
-	if !cfg.SkipCategoryCooldown && e.isChatterCooldownActive(category, isCritical) {
+	if !cfg.SkipCategoryCooldown && e.isChatterCooldownActive(e.cooldownKey(alertKey, category), isCritical) {
 		return gateHold
 	}
 
-	// 12. Global radio chatter spacing:
-	// Prevent firing directives from different categories back-to-back within GlobalChatterCooldownMs.
-	if !isCritical && e.config.GlobalChatterCooldownMs > 0 && (now-e.lastGlobalDirectiveTime) < e.config.GlobalChatterCooldownMs {
+	// 12. The radio is busy: the last call is still being said, or a critical call needs a
+	// breather after it. Urgent calls go at once; the dashboard cuts routine speech for them.
+	if !isCritical && e.config.GlobalChatterCooldownMs > 0 && now < e.radioBusyUntil {
 		return gateHold
 	}
 
@@ -1054,9 +1188,13 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	now := e.nowMs()
 	category := string(directive.Category)
 
-	e.lastDirectives[category] = now
+	e.lastDirectives[e.cooldownKey(alertKey, category)] = now
 	e.lastDirectives[alertKey] = now
-	e.lastGlobalDirectiveTime = now
+	busyUntil := now + RadioDeliveryLatencyMs + e.speechMs(alertKey) + e.config.GlobalChatterCooldownMs
+	if directive.Urgency == UrgencyCritical {
+		busyUntil += CriticalBreatherMs
+	}
+	e.radioBusyUntil = max(e.radioBusyUntil, busyUntil)
 	delete(e.pending, alertKey)
 
 	currentLapNum := 1
@@ -1079,6 +1217,9 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	directive.Type = DirectiveMessageType
 	directive.Timestamp = now
 	directive.TTLMs = e.speechTTLMs(alertKey, heldForMs)
+	if e.playerPos.known {
+		directive.lapDistance = e.playerPos.lapDistance
+	}
 	e.setBoxTimingLocked(&directive)
 	if directive.SubAlert == "" {
 		directive.SubAlert = alertKey
@@ -1104,6 +1245,9 @@ func (e *EngineerEngine) broadcastDirective(broadcaster DirectiveBroadcaster, di
 		return
 	}
 	attrs := []any{"category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message}
+	if directive.lapDistance > 0 {
+		attrs = append(attrs, "lapDistance", int(directive.lapDistance))
+	}
 	if directive.Box != "" {
 		attrs = append(attrs, "box", string(directive.Box))
 	}

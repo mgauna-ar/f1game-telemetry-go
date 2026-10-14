@@ -166,6 +166,11 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
 
     const item = queueRef.current.shift()!;
     const stream = item.stream;
+    // The next pit wall call waiting is synthesized while this one plays, so it starts without delay.
+    const upcoming = queueRef.current[0];
+    if (upcoming && !upcoming.stream) {
+      prefetchRadioSpeech(upcoming.text, speechOptions(upcoming.emotion));
+    }
     isSpeakingRef.current = true;
     speakingUrgentRef.current = item.urgent === true;
     setIsSpeaking(true);
@@ -179,6 +184,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       stream.spoken = stream.spoken ? `${stream.spoken} ${item.text}` : item.text;
       setLastResponse(stream.spoken);
     } else {
+      options.expiresAt = item.expiresAt;
       setLastResponse(item.text);
       onResponseReceivedRef.current?.(item.text);
     }
@@ -289,9 +295,19 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
 
       // Non-critical directive: if already speaking, queue it sequentially up to MAX_QUEUE_SIZE
       if (isSpeakingRef.current) {
-        const queuedCalls = queueRef.current.filter((item) => !item.stream).length;
-        if (queuedCalls < MAX_QUEUE_SIZE) {
-          queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
+        const item: SpeechQueueItem = { id: newQueueItemId(), text: cleaned, emotion, expiresAt };
+        const now = Date.now();
+        queueRef.current = queueRef.current.filter((queued) => queued.expiresAt === undefined || queued.expiresAt > now);
+        const queuedCalls = queueRef.current.filter((queued) => !queued.stream);
+        if (queuedCalls.length >= MAX_QUEUE_SIZE) {
+          // A full queue makes room by dropping its oldest routine call: the newest is what is true now.
+          const oldest = queuedCalls.find((queued) => !queued.urgent);
+          if (!oldest) return;
+          queueRef.current = queueRef.current.filter((queued) => queued !== oldest);
+        }
+        queueRef.current.push(item);
+        if (queueRef.current[0] === item) {
+          prefetchRadioSpeech(cleaned, speechOptions(emotion));
         }
         return;
       }
@@ -300,7 +316,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
       await playNext();
     },
-    [isRadioEnabled, playNext, cancelReplyStream]
+    [isRadioEnabled, playNext, cancelReplyStream, speechOptions]
   );
 
   const testTriggerAlert = useCallback(

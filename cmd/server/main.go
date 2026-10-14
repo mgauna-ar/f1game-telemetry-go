@@ -205,9 +205,9 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 	inputMgr.Start(ctx)
 
 	engineerEngine := engineer.NewEngineerEngine(engineerHub)
-	// Pit entries learned in earlier races time the calls to box from the first lap.
-	if err := engineerEngine.UsePitLaneStore(ctx, repo); err != nil {
-		slog.Warn("Could not load the learned pit lanes", "error", err)
+	// What earlier races taught about each track (pit lane, quiet stretches) is used from the first lap.
+	if err := engineerEngine.UseTrackProfileStore(ctx, repo); err != nil {
+		slog.Warn("Could not load the learned track profiles", "error", err)
 	}
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 

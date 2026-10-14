@@ -51,6 +51,8 @@ func (r *ReportsRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:              DedupScopeNone,
 			MaxDelayMs:              GapReportMaxDelayMs,
 			SkipCategoryCooldown:    true,
+			CooldownGroup:           cooldownReports,
+			SpeechMs:                LongSpeechMs,
 		},
 		"tyre_life": {
 			Category:    DirectiveCategoryTyres,
