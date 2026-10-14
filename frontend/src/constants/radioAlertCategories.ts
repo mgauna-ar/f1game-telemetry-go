@@ -16,6 +16,8 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   brake_overheat: 'brake_overheat',
   brake_overheat_rear: 'brake_overheat_rear',
   car_collision: 'car_collision',
+  car_collision_heavy: 'car_collision_heavy',
+  car_collision_light: 'car_collision_light',
   car_retirement: 'car_retirement',
   coaching_s1: 'sector_delta',
   coaching_s2: 'sector_delta',

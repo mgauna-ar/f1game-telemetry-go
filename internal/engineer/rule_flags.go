@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -22,6 +23,10 @@ type FlagsRule struct {
 	scEndingTriggered        bool
 	lastWrongWayAlert        bool
 	finalLapSaid             bool
+	// sessionSeen and lapSeen: the first session and lap data only record the counts (red flags,
+	// penalties, warnings) and the weather, so joining a session midway doesn't announce old news.
+	sessionSeen bool
+	lapSeen     bool
 }
 
 // NewFlagsRule creates a new FlagsRule.
@@ -99,7 +104,7 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		"penalties": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseFormationLap},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseFormationLap, PhaseRaceStart, PhasePitLane, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
 		},
 		"flags_drs_enabled": {
@@ -114,7 +119,7 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		"car_collision": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
 			MinRepeatMs: CollisionMinRepeatMs,
 		},
@@ -159,6 +164,8 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.scEndingTriggered = false
 		r.lastWrongWayAlert = false
 		r.finalLapSaid = false
+		r.sessionSeen = false
+		r.lapSeen = false
 	}
 }
 
@@ -170,6 +177,11 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 1. Session-based Flags (SC, Red Flag, Dynamic Weather)
 	if ctx.Session != nil && (ctx.Packet == nil || isPacketType[*packets.PacketSessionData](ctx.Packet)) {
+		if !r.sessionSeen {
+			r.sessionSeen = true
+			r.lastRedFlagCount = ctx.Session.NumRedFlagPeriods
+			r.lastLiveWeather = ctx.Session.Weather
+		}
 		if sc := r.evaluateSafetyCar(ctx); sc != nil {
 			directives = append(directives, *sc)
 		}
@@ -187,6 +199,13 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	// 2. Lap-based Flags (Track Limits warnings & penalties, the last lap)
 	playerLap := ctx.PlayerLap()
 	if playerLap != nil && (ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
+		if !r.lapSeen {
+			r.lapSeen = true
+			r.lastPenaltyTime = playerLap.Penalties
+			r.lastDriveThroughPnlCount = playerLap.NumUnservedDriveThroughPens
+			r.lastStopGoPnlCount = playerLap.NumUnservedStopGoPens
+			r.lastCornerCutWarnings = playerLap.CornerCuttingWarnings
+		}
 		if fl := r.evaluateFinalLap(ctx, playerLap); fl != nil {
 			directives = append(directives, *fl)
 		}
@@ -228,7 +247,8 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 }
 
 // evaluateFinalLap says once a race, early on the player's last lap and out of the pit lane, that
-// it is the last lap and where they are.
+// it is the last lap and where they are. A lapped player's last lap starts when the leader takes
+// the flag, wherever they are, so it is said then unless their line is near.
 func (r *FlagsRule) evaluateFinalLap(ctx *EvaluationContext, lap *packets.LapData) *Directive {
 	if !isFinalLap(ctx, lap) {
 		// A flashback to before the last lap re-drives it.
@@ -237,8 +257,12 @@ func (r *FlagsRule) evaluateFinalLap(ctx *EvaluationContext, lap *packets.LapDat
 		}
 		return nil
 	}
+	callToPct := float32(FinalLapCallToPct)
+	if int(lap.CurrentLapNum) < int(ctx.Session.TotalLaps) {
+		callToPct = FinalLapLappedCallToPct
+	}
 	if r.finalLapSaid || lap.PitStatus != packets.PitStatusNone || lap.CarPosition == 0 ||
-		ctx.CalculateLapDistancePct() > FinalLapCallToPct {
+		ctx.CalculateLapDistancePct() > callToPct {
 		return nil
 	}
 	r.finalLapSaid = true
@@ -258,10 +282,14 @@ func (r *FlagsRule) evaluateFinalLap(ctx *EvaluationContext, lap *packets.LapDat
 	}
 }
 
-// isFinalLap reports whether the player is racing the last lap of a race of more than one lap.
+// isFinalLap reports whether the player is racing their last lap of a race of more than one lap:
+// the race's last lap, or, lapped, the lap they are on once the leader has taken the flag.
 func isFinalLap(ctx *EvaluationContext, lap *packets.LapData) bool {
-	return ctx.IsRaceSession() && lap != nil && ctx.Session.TotalLaps > 1 &&
-		int(lap.CurrentLapNum) == int(ctx.Session.TotalLaps) && lap.ResultStatus == packets.ResultStatusActive
+	if !ctx.IsRaceSession() || lap == nil || ctx.Session.TotalLaps <= 1 || lap.ResultStatus != packets.ResultStatusActive {
+		return false
+	}
+	n, total := int(lap.CurrentLapNum), int(ctx.Session.TotalLaps)
+	return n == total || (ctx.ChequeredFlag && n > 0 && n < total)
 }
 
 func (r *FlagsRule) evaluateWrongWay(ctx *EvaluationContext) *Directive {
@@ -404,7 +432,7 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 		}
 
 	case packets.EventDRSEnabled:
-		if !ctx.IsRaceSession() {
+		if !ctx.IsRaceSession() || drsCallOnOverrideCar(ctx, p) {
 			return nil
 		}
 		return &Directive{
@@ -417,7 +445,7 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 		}
 
 	case packets.EventDRSDisabled:
-		if !ctx.IsRaceSession() {
+		if !ctx.IsRaceSession() || drsCallOnOverrideCar(ctx, p) {
 			return nil
 		}
 		reasonStr := "Race control has disabled DRS."
@@ -445,14 +473,7 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 	case packets.EventCollision:
 		if col, ok := p.CollisionData(); ok {
 			if int(col.Vehicle1Idx) == ctx.PlayerCarIndex || int(col.Vehicle2Idx) == ctx.PlayerCarIndex {
-				return &Directive{
-					ID:       "car_collision",
-					Category: DirectiveCategoryFlags,
-					SubAlert: "car_collision",
-					Title:    "Contact Reported",
-					Message:  "Contact reported! Check steering and front wing balance, reporting on next radio check.",
-					Urgency:  UrgencyCritical,
-				}
+				return collisionDirective(col, p.Header.PacketFormat)
 			}
 		}
 
@@ -672,4 +693,36 @@ func (r *FlagsRule) evaluateLiveWeather(ctx *EvaluationContext) *Directive {
 		}
 	}
 	return nil
+}
+
+// collisionDirective is the call for a contact the player was part of. From 2026 the game rates
+// how hard it was: a light touch is said without urgency, a heavy one as such.
+func collisionDirective(col packets.CollisionEventData, packetFormat uint16) *Directive {
+	subAlert, msg, urgency := "car_collision", "Contact reported! Check steering and front wing balance.", UrgencyCritical
+	if packetFormat >= packets.PacketFormat2026 {
+		switch col.Severity {
+		case packets.CollisionSeverityLow:
+			subAlert, msg, urgency = "car_collision_light", "Light contact. Tell us if anything feels wrong.", UrgencyHigh
+		case packets.CollisionSeverityHigh:
+			subAlert, msg = "car_collision_heavy", "Heavy contact! Check for damage: steering, front wing, tyres."
+		}
+	}
+	return &Directive{
+		ID:       "car_collision",
+		Category: DirectiveCategoryFlags,
+		SubAlert: subAlert,
+		Title:    "Contact Reported",
+		Message:  msg,
+		Urgency:  urgency,
+	}
+}
+
+// drsCallOnOverrideCar reports whether a DRS event came for a player whose car runs the 2026
+// regulations, which have no DRS: nothing is said, and the event is logged so it can be checked.
+func drsCallOnOverrideCar(ctx *EvaluationContext, p *packets.PacketEventData) bool {
+	if !ctx.Is2026() {
+		return false
+	}
+	slog.Info("DRS event on a 2026 car, not said", "event", p.EventCode())
+	return true
 }

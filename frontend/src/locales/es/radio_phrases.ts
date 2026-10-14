@@ -420,56 +420,68 @@ export const radio_phrases = {
   rival_defend: {
     colapinto: [
       'Auto de atrás a {gap}, {driver}. ¡Cerrá la puerta!',
+      'El de atrás a {gap}, te descuenta {rate} por vuelta, {driver}. ¡Cerrá la puerta!',
       'El de atrás está encima, {driver}. ¡Cerrá la puerta!',
     ],
     bono: [
-      'Auto de atrás a menos de un segundo, a {gap}, {driver}. Defiende.',
-      'Auto de atrás a menos de un segundo, {driver}. Cubre el interior.',
+      'Auto de atrás a menos de un segundo, a {gap}, {driver}. Defendé.',
+      'Auto de atrás a {gap}, te descuenta {rate} por vuelta, {driver}. Defendé.',
+      'Auto de atrás a menos de un segundo, {driver}. Cubrí el interior.',
     ],
     standard: [
-      'Auto de atrás a {gap} segundos. Defiende.',
-      'Auto de atrás a menos de un segundo, {driver}. Defiende tu línea.',
+      'Auto de atrás a {gap} segundos. Defendé.',
+      'Auto de atrás a {gap}, descontando {rate} por vuelta. Defendé.',
+      'Auto de atrás a menos de un segundo, {driver}. Defendé tu línea.',
     ],
   },
   rival_defend_drs: {
     colapinto: [
       'El de atrás tiene DRS, a {gap}, {driver}. ¡Cubrí el interior!',
+      'El de atrás tiene DRS, a {gap}, y te descuenta {rate} por vuelta, {driver}. ¡Cubrí el interior!',
       'El de atrás tiene DRS, {driver}. ¡Cubrí el interior!',
     ],
     bono: [
-      'El auto de atrás tiene DRS, a {gap} segundos, {driver}. Defiende el interior.',
-      'El auto de atrás tiene DRS, {driver}. Defiende.',
+      'El auto de atrás tiene DRS, a {gap} segundos, {driver}. Defendé el interior.',
+      'El auto de atrás tiene DRS, a {gap}, descontando {rate} por vuelta. Defendé el interior.',
+      'El auto de atrás tiene DRS, {driver}. Defendé.',
     ],
     standard: [
-      'El auto de atrás tiene DRS, a {gap} segundos. Defiende.',
-      'Auto de atrás en rango de DRS, {driver}. Defiende el interior.',
+      'El auto de atrás tiene DRS, a {gap} segundos. Defendé.',
+      'El auto de atrás tiene DRS, a {gap}, descontando {rate} por vuelta. Defendé.',
+      'Auto de atrás en rango de DRS, {driver}. Defendé el interior.',
     ],
   },
   rival_attack: {
     colapinto: [
       'Auto de adelante a {gap}, {driver}. ¡Vamos a buscarlo!',
-      'Nos acercamos al de adelante, {driver}. ¡Vamos!',
+      'El de adelante a {gap}, le descontás {rate} por vuelta, {driver}. ¡Vamos a buscarlo!',
+      'El de adelante está a menos de un segundo, {driver}. ¡Vamos!',
     ],
     bono: [
-      'Auto de adelante a {gap} segundos, {driver}. Mantén la presión.',
-      'Nos acercamos al auto de adelante. Mantén la presión.',
+      'Auto de adelante a {gap} segundos, {driver}. Mantené la presión.',
+      'Auto de adelante a {gap}, le descontamos {rate} por vuelta, {driver}. Mantené la presión.',
+      'Auto de adelante a menos de un segundo. Mantené la presión.',
     ],
     standard: [
-      'Auto de adelante a {gap} segundos. Sigue empujando.',
-      'Te acercas al auto de adelante, {driver}. Mantén la presión.',
+      'Auto de adelante a {gap} segundos. Seguí empujando.',
+      'Auto de adelante a {gap}, descontando {rate} por vuelta. Seguí empujando.',
+      'Auto de adelante a menos de un segundo, {driver}. Mantené la presión.',
     ],
   },
   rival_attack_drs: {
     colapinto: [
       '¡DRS sobre el de adelante, a {gap}, {driver}! Modo adelantamiento, ¡vamos!',
+      '¡DRS sobre el de adelante, a {gap}, y le descontás {rate} por vuelta, {driver}! ¡Vamos!',
       '¡DRS sobre el de adelante, {driver}! ¡Vamos!',
     ],
     bono: [
       'DRS sobre el auto de adelante, a {gap} segundos, {driver}. Modo adelantamiento disponible.',
-      'DRS sobre el auto de adelante. Usa el modo adelantamiento en la recta.',
+      'DRS sobre el auto de adelante, a {gap}, descontando {rate} por vuelta. Modo adelantamiento disponible.',
+      'DRS sobre el auto de adelante. Usá el modo adelantamiento en la recta.',
     ],
     standard: [
       'DRS sobre el auto de adelante, a {gap} segundos. Modo adelantamiento disponible.',
+      'DRS sobre el auto de adelante, a {gap} segundos, descontando {rate} por vuelta.',
       'En rango de DRS del auto de adelante, {driver}. Modo adelantamiento disponible.',
     ],
   },
@@ -797,31 +809,37 @@ export const radio_phrases = {
   rival_defend_override: {
     colapinto: [
       'Auto de atrás a {gap} con Override, {driver}. Cuidale la cuerda.',
-      'Auto de atrás con amenaza de Override y Boost a menos de un segundo, {driver}. Cuidale la cuerda.',
+      'El de atrás a {gap} con Override, te descuenta {rate} por vuelta, {driver}. Cuidale la cuerda.',
+      'Auto de atrás con Override a menos de un segundo, {driver}. Cuidale la cuerda.',
     ],
     bono: [
-      'Rival a {gap} segundos con amenaza de Modo Override, {driver}. Defiende el interior en recta.',
-      'Rival a menos de un segundo con amenaza de Modo Override. Defiende el interior en recta.',
+      'Rival a {gap} segundos con amenaza de Override, {driver}. Defendé el interior en la recta.',
+      'Rival a {gap} con Override, descontando {rate} por vuelta, {driver}. Defendé el interior.',
+      'Rival a menos de un segundo con amenaza de Override. Defendé el interior en la recta.',
     ],
     standard: [
-      'Rival a {gap} segundos con amenaza de Modo Override. Defiende el interior.',
-      'Rival a menos de un segundo con amenaza de Modo Override. Defiende el interior.',
-      'Presión de rival detrás con Modo Override / Boost, {driver}. Cuida la posición.',
+      'Rival a {gap} segundos con amenaza de Override. Defendé el interior.',
+      'Rival a {gap} con Override, descontando {rate} por vuelta. Defendé el interior.',
+      'Rival a menos de un segundo con amenaza de Override. Defendé el interior.',
+      'Presión del auto de atrás con Override, {driver}. Cuidá la posición.',
     ],
   },
   rival_attack_override: {
     colapinto: [
       'El de adelante está a {gap}, {driver}. Mandale Straight Mode y activá el Boost.',
+      'El de adelante a {gap}, le descontás {rate} por vuelta, {driver}. ¡Straight Mode y Boost!',
       'Estamos a tiro del de adelante, {driver}. Mandale Straight Mode y activá el Boost para buscarlo.',
     ],
     bono: [
-      'Auto de adelante a {gap} segundos, {driver}. Activa Straight Mode y prepara el Modo Override.',
-      'Estamos a tiro del monoplaza adelante. Activa Straight Mode y prepara el Modo Override.',
+      'Auto de adelante a {gap} segundos, {driver}. Activá Straight Mode y prepará el Override.',
+      'Auto de adelante a {gap}, descontando {rate} por vuelta, {driver}. Straight Mode y Override listos.',
+      'Estamos a tiro del auto de adelante. Activá Straight Mode y prepará el Override.',
     ],
     standard: [
-      'Auto de adelante a {gap} segundos. Activa Straight Mode y despliega el Boost.',
-      'Estamos a tiro del auto de adelante. Activa Straight Mode y despliega el Boost.',
-      'Oportunidad de sobrepaso, {driver}. Usa Straight Mode y Modo Override.',
+      'Auto de adelante a {gap} segundos. Activá Straight Mode y desplegá el Boost.',
+      'Auto de adelante a {gap}, descontando {rate} por vuelta. Straight Mode y Override listos.',
+      'Estamos a tiro del auto de adelante. Activá Straight Mode y desplegá el Boost.',
+      'Oportunidad de sobrepaso, {driver}. Usá Straight Mode y Override.',
     ],
   },
   race_finish: {
@@ -1109,6 +1127,34 @@ export const radio_phrases = {
     standard: [
       '¡Contacto reportado! Revisa dirección y balance del alerón delantero.',
       'Colisión detectada. Monitorea el comportamiento del monoplaza.',
+    ],
+  },
+  car_collision_light: {
+    colapinto: [
+      'Toquecito ahí, {driver}. Avisame si sentís algo raro.',
+      'Un roce, {driver}. ¿Todo bien? Avisame si el auto tira para un lado.',
+    ],
+    bono: [
+      'Contacto leve, {driver}. Avisanos si notás algo raro.',
+      'Un toque menor, {driver}. Contanos si el auto se siente distinto.',
+    ],
+    standard: [
+      'Contacto leve. Avisá si notás algo raro.',
+      'Roce menor, {driver}. Contanos cómo se siente el auto.',
+    ],
+  },
+  car_collision_heavy: {
+    colapinto: [
+      '¡Golpe fuerte, {driver}! Decime qué sentís: dirección, alerón, gomas.',
+      '¡Contacto fuerte! ¿Estás bien, {driver}? Contame cómo va el auto.',
+    ],
+    bono: [
+      'Contacto fuerte, {driver}. Revisá dirección, alerón delantero y gomas.',
+      'Fue un golpe fuerte, {driver}. Contanos cómo se siente el auto.',
+    ],
+    standard: [
+      '¡Contacto fuerte! Revisá si hay daño y avisá.',
+      'Impacto fuerte, {driver}. Revisá dirección, alerón delantero y gomas.',
     ],
   },
   car_retirement: {

@@ -25,6 +25,7 @@ const (
 	TrafficMinRepeatMs    = 3_000 // a second car on a push lap gets its own call
 	MaxSpeechTTLMs        = 15_000
 	MinSpeechTTLMs        = 2_000
+	SilenceMaxHoldMs      = 180_000 // the longest a condition call waits out radio silence (a formation lap and the start)
 
 	// Stint & Pit stop tracking heuristics
 	PitStopDetectionMaxTyreAgeLaps = 1
@@ -135,8 +136,10 @@ const (
 	VSCStopEarlyLaps = 3
 
 	// FinalLapCallToPct: the "last lap" call comes from the line to here; later, the lap is
-	// half done.
-	FinalLapCallToPct = 0.30
+	// half done. A lapped player's last lap starts when the leader takes the flag, so it is called
+	// then, up to FinalLapLappedCallToPct: later, their own line is too near.
+	FinalLapCallToPct       = 0.30
+	FinalLapLappedCallToPct = 0.80
 
 	// Gap and tyre life reports
 	DefaultGapReportLaps   = 3    // Laps between gap reports
@@ -168,6 +171,9 @@ const (
 	PodiumPositions       = 3
 	RacePointsPositions   = 10 // Places scoring points in a Grand Prix
 	SprintPointsPositions = 8  // Places scoring points in a sprint
+	// FinishClassificationWaitMs: with a time penalty, the finish call waits this long for the
+	// final classification, which applies it, before going by the track position.
+	FinishClassificationWaitMs = 60_000
 
 	// Flags & Weather thresholds
 	WeatherRainTransitionProbPct   = 50

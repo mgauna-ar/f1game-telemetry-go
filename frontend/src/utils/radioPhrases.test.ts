@@ -61,12 +61,12 @@ const CATEGORY_NUMBERS: Partial<Record<RadioAlertCategory, string[]>> = {
   pit_stop_slow: ['stop_sec'],
   penalties_incurred: ['penalty_sec'],
   track_limits_warnings: ['count'],
-  rival_defend: ['gap'],
-  rival_defend_drs: ['gap'],
-  rival_attack: ['gap'],
-  rival_attack_drs: ['gap'],
-  rival_defend_override: ['gap'],
-  rival_attack_override: ['gap'],
+  rival_defend: ['gap', 'rate'],
+  rival_defend_drs: ['gap', 'rate'],
+  rival_attack: ['gap', 'rate'],
+  rival_attack_drs: ['gap', 'rate'],
+  rival_defend_override: ['gap', 'rate'],
+  rival_attack_override: ['gap', 'rate'],
   pit_plan_next_lap: ['position'],
   pit_plan_box: ['position'],
   overcut_window: ['gap'],
@@ -496,6 +496,57 @@ describe('radioPhrases', () => {
       expect(
         getProactiveRadioSpeech('rival_defend_drs', 'en', 'custom', '', undefined, { behind: { gap_sec: 0.6 } })
       ).toBe('Car behind has DRS, 0.6 seconds. Defend.');
+    });
+
+    it('says the gap is closing only when it is', () => {
+      const battles: RadioAlertCategory[] = [
+        'rival_attack',
+        'rival_attack_drs',
+        'rival_attack_override',
+        'rival_defend',
+        'rival_defend_drs',
+        'rival_defend_override',
+      ];
+      for (const language of LOCALES) {
+        for (const category of battles) {
+          for (const template of allTemplates(language, category)) {
+            if (template.includes('{rate}')) continue;
+            expect(template, `${language}/${category}`).not.toMatch(
+              /catching|closing|gaining|closing in|acerc|descont/i
+            );
+          }
+        }
+      }
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(
+        getProactiveRadioSpeech('rival_attack', 'en', 'custom', '', undefined, {
+          ahead: { gap_sec: 0.9, trend: 'closing', per_lap_sec: 0.3 },
+        })
+      ).toBe('Car ahead at 0.9, closing 0.3 a lap. Keep pushing.');
+      expect(
+        getProactiveRadioSpeech('rival_defend', 'es', 'custom', '', undefined, {
+          behind: { gap_sec: 0.6, trend: 'closing', per_lap_sec: 0.2 },
+        })
+      ).toBe('Auto de atrás a 0,6, descontando 0,2 por vuelta. Defendé.');
+      expect(
+        getProactiveRadioSpeech('rival_attack', 'en', 'custom', '', undefined, {
+          ahead: { gap_sec: 0.9, trend: 'opening', per_lap_sec: 0.2 },
+        })
+      ).toBe('Car ahead at 0.9 seconds. Keep pushing.');
+    });
+
+    it('says how hard a contact was when the game rates it', () => {
+      for (const language of LOCALES) {
+        for (const template of allTemplates(language, 'car_collision')) {
+          expect(template, `${language}/car_collision`).not.toMatch(/heavy|big|fuerte|leve|light/i);
+        }
+        for (const template of allTemplates(language, 'car_collision_light')) {
+          expect(template, `${language}/car_collision_light`).toMatch(/light|touch|minor|leve|roce|toque/i);
+        }
+        for (const template of allTemplates(language, 'car_collision_heavy')) {
+          expect(template, `${language}/car_collision_heavy`).toMatch(/heavy|big|fuerte/i);
+        }
+      }
     });
 
     it('never calls a lapping car "the leader" or praises another car\'s fastest lap as purple', () => {

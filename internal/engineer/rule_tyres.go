@@ -67,9 +67,10 @@ func (r *TyresRule) ValidPhases() []DrivingPhase {
 func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"tyre_wear": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"tyre_puncture": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
@@ -80,9 +81,10 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_overheat": {
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"tyre_cold": {
 			ValidPhases:       []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
@@ -115,14 +117,16 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_blistering": {
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"tyre_pressure_high": {
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 	}
 }

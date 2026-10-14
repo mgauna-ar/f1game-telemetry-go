@@ -46,6 +46,13 @@ const (
 	// puncture.
 	simPuncturedPressurePSI = 15.0
 	simPuncturedDamagePct   = 85
+
+	// The start scenario: the start lights come on, then go out, and lap 1 starts from the line.
+	// The player's front wing is damaged early in lap 1, during the start's radio silence.
+	simStartLightsOnSec     = 9.0
+	simLightsOutSec         = 10.0
+	simStartWingDamageFromM = 500
+	simStartWingDamagePct   = 25
 )
 
 // The qualifying scenario (Q1, 22 cars, the player P17: in the drop zone) runs in runs of
@@ -248,6 +255,8 @@ type simState struct {
 	sessionTimeLeft uint16
 	lapDist         float32                // the player's lap distance this frame
 	pitStatus       [packets.MaxCars]uint8 // each car's pit status last frame (pit scenario)
+	lightsOn        bool                   // the start lights came on (start scenario)
+	lightsOut       bool                   // the start lights went out (start scenario)
 }
 
 func main() {
@@ -334,13 +343,15 @@ func main() {
 
 			switch cfg.Scenario {
 			case "start":
+				// The formation lap, then the crawl into the grid box. From lights out (simStartEvent
+				// puts the car on the line) lap 1 runs at the usual pace.
 				switch {
 				case st.sessionTime < 6.0:
 					lapDist = float32(500.0 + st.sessionTime*200.0)
-				case st.sessionTime < 10.0:
+				case st.sessionTime < simLightsOutSec:
 					lapDist = float32(4900.0 + (st.sessionTime-6.0)*20.0)
-				default:
-					lapDist = float32(150.0 + (st.sessionTime-10.0)*30.0)
+				case !st.lightsOut:
+					lapDist = 0 // the lights go out this frame: on the line
 				}
 			case "pit", "strategy":
 				pitStatus := simPitStatus(st.lapNum, lapDist, simPlayerPitLap)
@@ -397,6 +408,14 @@ func main() {
 				slog.Info("VSC ending", "scenario", "strategy", "lap", st.lapNum)
 				evtPkt := buildSafetyCarEvent(header, packets.SafetyCarVirtual, packets.SafetyCarEventReturning)
 				sendEventPacket(conn, &evtPkt)
+			}
+
+			if cfg.Scenario == "start" {
+				if code := simStartEvent(st); code != "" {
+					slog.Info("Start event", "scenario", "start", "event", code)
+					evtPkt := buildCodeEvent(header, code)
+					sendEventPacket(conn, &evtPkt)
+				}
 			}
 
 			// 1b. Periodic Event Packet (ID: 3)
@@ -953,12 +972,17 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 			blown = 1
 		}
 
+		frontLeftWing := uint8((i * 9) % 55)
+		if i == 0 && simStartWingDamaged(cfg, st) {
+			frontLeftWing = simStartWingDamagePct
+		}
+
 		damageCars[i] = packets.CarDamageData{
 			TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
 			TyresDamage:          tyreDamage,
 			BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
 			TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
-			FrontLeftWingDamage:  uint8((i * 9) % 55),
+			FrontLeftWingDamage:  frontLeftWing,
 			FrontRightWingDamage: uint8((i * 13) % 40),
 			RearWingDamage:       uint8((i * 5) % 30),
 			FloorDamage:          uint8((i * 7) % 35),
@@ -1061,6 +1085,36 @@ func simCarLap(leaderLap uint8, leaderLapDist, carLapDist float32) uint8 {
 		return leaderLap - 1
 	}
 	return leaderLap
+}
+
+// simStartEvent is the start event of the start scenario due this frame, once each: the start
+// lights coming on, then going out, which puts the car on the line for lap 1. "" for none.
+func simStartEvent(st *simState) string {
+	switch {
+	case !st.lightsOn && st.sessionTime >= simStartLightsOnSec:
+		st.lightsOn = true
+		return packets.EventStartLights
+	case !st.lightsOut && st.sessionTime >= simLightsOutSec:
+		st.lightsOut = true
+		st.angle, st.lapNum, st.lapTimeMs = 0, 1, 0
+		return packets.EventLightsOut
+	}
+	return ""
+}
+
+// simStartWingDamaged reports whether the player's front wing is damaged in the start scenario:
+// from simStartWingDamageFromM into lap 1, after the lights went out.
+func simStartWingDamaged(cfg SimulatorConfig, st *simState) bool {
+	return cfg.Scenario == "start" && st.lightsOut && (st.lapNum > 1 || st.lapDist >= simStartWingDamageFromM)
+}
+
+// buildCodeEvent is an event with no details of its own, by its code.
+func buildCodeEvent(header packets.PacketHeader, code string) packets.PacketEventData {
+	var evtPkt packets.PacketEventData
+	evtPkt.Header = header
+	evtPkt.Header.PacketId = packets.PacketIDEvent
+	copy(evtPkt.EventStringCode[:], code)
+	return evtPkt
 }
 
 // simPunctured reports whether the player's rear left is punctured in the pit scenario: from late

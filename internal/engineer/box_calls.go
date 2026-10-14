@@ -144,7 +144,7 @@ func (e *EngineerEngine) pitEntryReminderLocked(header packets.PacketHeader) []D
 	switch e.gateDirectiveLocked(reminder.ID, string(reminder.Category), reminder.Urgency) {
 	case gateEmit:
 		return []Directive{e.emitDirectiveLocked(header, reminder, reminder.ID, 0)}
-	case gateHold:
+	case gateHold, gateHoldSilence:
 		e.holdDirectiveLocked(reminder, reminder.ID)
 	case gateDrop:
 	}

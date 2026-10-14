@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -158,155 +159,23 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	playerPos := int(playerLap.CarPosition)
 
-	// 1. Defend: Car Behind (playerPos + 1)
-	maxDefendDist := ctx.Config.RivalGapSec * AverageRaceSpeedMetersPerSec
-	behindIdx := -1
-	for i, rival := range ctx.LapData.LapData {
-		if i == ctx.PlayerCarIndex || int(rival.CarPosition) != playerPos+1 {
-			continue
-		}
-		behindIdx = i
-		distDelta := playerLap.TotalDistance - rival.TotalDistance
-		var gapSec float32
-		var hasExactGap bool
-		if rival.DeltaToCarInFrontMSPart > 0 || rival.DeltaToCarInFrontMinutesPart > 0 {
-			exactSec := float32(uint32(rival.DeltaToCarInFrontMinutesPart)*packets.MillisPerMinute+uint32(rival.DeltaToCarInFrontMSPart)) / float32(packets.MillisPerSecond)
-			if exactSec > 0 {
-				gapSec = exactSec
-				hasExactGap = true
-			}
-		}
-		if !hasExactGap && distDelta > 0 {
-			gapSec = distDelta / AverageRaceSpeedMetersPerSec
-		}
-
-		inDefendRange := (hasExactGap && gapSec <= ctx.Config.RivalGapSec) || (!hasExactGap && distDelta > 0 && distDelta < maxDefendDist)
-		// The car can be called again once it has dropped back past the threshold.
-		if r.lastDrsWarningIndex == i && gapSec > ctx.Config.RivalGapSec+RivalRearmHysteresisSec {
-			r.lastDrsWarningIndex = -1
-		}
-		if inDefendRange && r.lastDrsWarningIndex != i {
-			r.lastDrsWarningIndex = i
-
-			var extraContext string
-			if ctx.Status != nil && i < len(ctx.Status.CarStatusData) {
-				rivalStatus := ctx.Status.CarStatusData[i]
-				playerStatus := ctx.PlayerStatus()
-				if playerStatus != nil && rivalStatus.ActualTyreCompound > 0 && playerStatus.ActualTyreCompound > 0 && rivalStatus.ActualTyreCompound != playerStatus.ActualTyreCompound {
-					rivalCompound := packets.VisualTyreCompoundName(rivalStatus.VisualTyreCompound)
-					extraContext += fmt.Sprintf(" Rival is on %s tyres (tyre age: %d laps).", rivalCompound, rivalStatus.TyresAgeLaps)
-				}
-			}
-			if ctx.Damage != nil && i < len(ctx.Damage.CarDamageData) {
-				rivalDamage := ctx.Damage.CarDamageData[i]
-				rivalWing := float32(rivalDamage.FrontLeftWingDamage + rivalDamage.FrontRightWingDamage)
-				if rivalWing > RivalDamageWingThresholdPct {
-					extraContext += " Note: Car behind has front wing damage."
-				}
-			}
-
-			// DRS is only said when the car behind can use it (2025): not on the first laps, in the
-			// wet or when race control has it off.
-			id := "rival_defend"
-			subAlert := "rival_defend"
-			title := "Defend Position"
-			defendMsg := fmt.Sprintf("Defend! Car behind (P%d) is within a second (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
-			switch {
-			case is2026:
-				id = "rival_defend_override"
-				subAlert = "rival_defend_override"
-				title = "Defend Position (Boost Threat)"
-				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within Override/Boost attack threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
-			case ctx.Status != nil && i < len(ctx.Status.CarStatusData) && ctx.Status.CarStatusData[i].DRSAllowed == 1:
-				subAlert = "rival_defend_drs"
-				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) has DRS (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
-			}
-
-			directives = append(directives, Directive{
-				ID:       id,
-				Category: DirectiveCategoryRivals,
-				SubAlert: subAlert,
-				Title:    title,
-				Message:  defendMsg,
-				Urgency:  UrgencyMedium,
-				Values:   &DirectiveValues{Behind: &GapToCar{GapSec: roundTo(float64(gapSec), 1)}},
-			})
+	// 1. Defend: the car right behind, out on track (not one pitting or out of the race).
+	behindIdx := racingCarAt(ctx, playerPos+1)
+	if behindIdx >= 0 {
+		if d, ok := r.defendCall(ctx, behindIdx, playerPos, is2026); ok {
+			directives = append(directives, d)
 		}
 	}
-
 	// A car that is no longer right behind can be called again when it is back there.
 	if r.lastDrsWarningIndex != behindIdx {
 		r.lastDrsWarningIndex = -1
 	}
 
-	// 2. Attack: Car Ahead (playerPos - 1)
-	aheadIdx := -1
-	if playerPos > 1 {
-		maxAttackDist := ctx.Config.RivalAheadGapSec * AverageRaceSpeedMetersPerSec
-		for i, rival := range ctx.LapData.LapData {
-			if i == ctx.PlayerCarIndex || int(rival.CarPosition) != playerPos-1 {
-				continue
-			}
-			aheadIdx = i
-			distDelta := rival.TotalDistance - playerLap.TotalDistance
-			var gapSec float32
-			var hasExactGap bool
-			if playerLap.DeltaToCarInFrontMSPart > 0 || playerLap.DeltaToCarInFrontMinutesPart > 0 {
-				exactSec := float32(uint32(playerLap.DeltaToCarInFrontMinutesPart)*packets.MillisPerMinute+uint32(playerLap.DeltaToCarInFrontMSPart)) / float32(packets.MillisPerSecond)
-				if exactSec > 0 {
-					gapSec = exactSec
-					hasExactGap = true
-				}
-			}
-			if !hasExactGap && distDelta > 0 {
-				gapSec = distDelta / AverageRaceSpeedMetersPerSec
-			}
-
-			inAttackRange := (hasExactGap && gapSec <= ctx.Config.RivalAheadGapSec) || (!hasExactGap && distDelta > 0 && distDelta < maxAttackDist)
-			if r.lastCarAheadWarningIndex == i && gapSec > ctx.Config.RivalAheadGapSec+RivalRearmHysteresisSec {
-				r.lastCarAheadWarningIndex = -1
-			}
-			if inAttackRange && r.lastCarAheadWarningIndex != i {
-				r.lastCarAheadWarningIndex = i
-
-				var tyreContext string
-				if ctx.Status != nil && i < len(ctx.Status.CarStatusData) {
-					rivalStatus := ctx.Status.CarStatusData[i]
-					rivalCompound := packets.VisualTyreCompoundName(rivalStatus.VisualTyreCompound)
-					tyreContext = fmt.Sprintf(" Car ahead is on %s tyres (age: %d laps).", rivalCompound, rivalStatus.TyresAgeLaps)
-				}
-
-				id := "rival_attack"
-				subAlert := "rival_attack"
-				title := "Attack Opportunity"
-				attackMsg := fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
-				playerStatus := ctx.PlayerStatus()
-				switch {
-				case is2026:
-					id = "rival_attack_override"
-					subAlert = "rival_attack_override"
-					title = "Attack Opportunity (Override Available)"
-					telemetry2 := ctx.PlayerTelemetry2()
-					var boostContext string
-					if telemetry2 != nil && telemetry2.OvertakeAvailable == 1 {
-						boostContext = " Override Boost is available!"
-					}
-					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s%s Prepare overtake using Straight Mode and Boost deployment.", playerPos-1, gapSec, tyreContext, boostContext)
-				case playerStatus != nil && playerStatus.DRSAllowed == 1:
-					subAlert = "rival_attack_drs"
-					attackMsg = fmt.Sprintf("We are catching car ahead (P%d) with DRS, gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
-				}
-
-				directives = append(directives, Directive{
-					ID:       id,
-					Category: DirectiveCategoryRivals,
-					SubAlert: subAlert,
-					Title:    title,
-					Message:  attackMsg,
-					Urgency:  UrgencyMedium,
-					Values:   &DirectiveValues{Ahead: &GapToCar{GapSec: roundTo(float64(gapSec), 1)}},
-				})
-			}
+	// 2. Attack: the car right ahead. Not the teammate while its own call covers it.
+	aheadIdx := racingCarAt(ctx, playerPos-1)
+	if aheadIdx >= 0 && (aheadIdx != ctx.TeammateCarIndex || !ctx.Config.IsAlertEnabled(string(DirectiveCategoryTeammate), "teammate_ahead")) {
+		if d, ok := r.attackCall(ctx, aheadIdx, playerPos, is2026); ok {
+			directives = append(directives, d)
 		}
 	}
 	if r.lastCarAheadWarningIndex != aheadIdx {
@@ -314,4 +183,119 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	return directives
+}
+
+// defendCall warns of car i, right behind, once it comes within RivalGapSec; the same car is
+// called again only after dropping back past the threshold. DRS is only said when the car behind
+// can use it (not on the first laps, in the wet or when race control has it off).
+func (r *RivalsRule) defendCall(ctx *EvaluationContext, i, playerPos int, is2026 bool) (Directive, bool) {
+	gapSec := raceGapSec(ctx, ctx.PlayerCarIndex, i)
+	if r.lastDrsWarningIndex == i && gapSec > float64(ctx.Config.RivalGapSec+RivalRearmHysteresisSec) {
+		r.lastDrsWarningIndex = -1
+	}
+	if gapSec <= 0 || gapSec > float64(ctx.Config.RivalGapSec) || r.lastDrsWarningIndex == i {
+		return Directive{}, false
+	}
+	r.lastDrsWarningIndex = i
+
+	extra := rivalTyreContext(ctx, i, true)
+	if ctx.Damage != nil && i < len(ctx.Damage.CarDamageData) {
+		rivalDamage := ctx.Damage.CarDamageData[i]
+		if float32(rivalDamage.FrontLeftWingDamage+rivalDamage.FrontRightWingDamage) > RivalDamageWingThresholdPct {
+			extra += " Note: Car behind has front wing damage."
+		}
+	}
+	gap := rivalGap(ctx, i, gapSec, false)
+	id, subAlert, title := "rival_defend", "rival_defend", "Defend Position"
+	msg := fmt.Sprintf("Defend! Car behind (P%d) is within a second (%.1fs gap%s).%s", playerPos+1, gap.GapSec, trendNote(gap), extra)
+	switch {
+	case is2026:
+		id, subAlert, title = "rival_defend_override", "rival_defend_override", "Defend Position (Boost Threat)"
+		msg = fmt.Sprintf("Defend! Car behind (P%d) is within Override range (%.1fs gap%s).%s", playerPos+1, gap.GapSec, trendNote(gap), extra)
+	case ctx.Status != nil && i < len(ctx.Status.CarStatusData) && ctx.Status.CarStatusData[i].DRSAllowed == 1:
+		subAlert = "rival_defend_drs"
+		msg = fmt.Sprintf("Defend! Car behind (P%d) has DRS (%.1fs gap%s).%s", playerPos+1, gap.GapSec, trendNote(gap), extra)
+	}
+	return Directive{
+		ID:       id,
+		Category: DirectiveCategoryRivals,
+		SubAlert: subAlert,
+		Title:    title,
+		Message:  msg,
+		Urgency:  UrgencyMedium,
+		Values:   &DirectiveValues{Behind: gap},
+	}, true
+}
+
+// attackCall says car i, right ahead, is within RivalAheadGapSec; the same car is called again
+// only after pulling away past the threshold. "Catching" is only said when the gap is closing.
+func (r *RivalsRule) attackCall(ctx *EvaluationContext, i, playerPos int, is2026 bool) (Directive, bool) {
+	gapSec := raceGapSec(ctx, i, ctx.PlayerCarIndex)
+	if r.lastCarAheadWarningIndex == i && gapSec > float64(ctx.Config.RivalAheadGapSec+RivalRearmHysteresisSec) {
+		r.lastCarAheadWarningIndex = -1
+	}
+	if gapSec <= 0 || gapSec > float64(ctx.Config.RivalAheadGapSec) || r.lastCarAheadWarningIndex == i {
+		return Directive{}, false
+	}
+	r.lastCarAheadWarningIndex = i
+
+	tyres := rivalTyreContext(ctx, i, false)
+	gap := rivalGap(ctx, i, gapSec, true)
+	lead := fmt.Sprintf("Car ahead (P%d) is within reach, gap %.1fs%s.", playerPos-1, gap.GapSec, trendNote(gap))
+	id, subAlert, title := "rival_attack", "rival_attack", "Attack Opportunity"
+	msg := lead + tyres
+	playerStatus := ctx.PlayerStatus()
+	switch {
+	case is2026:
+		id, subAlert, title = "rival_attack_override", "rival_attack_override", "Attack Opportunity (Override Available)"
+		var boost string
+		if tele2 := ctx.PlayerTelemetry2(); tele2 != nil && tele2.OvertakeAvailable == 1 {
+			boost = " Override is available!"
+		}
+		msg = lead + tyres + boost + " Use Straight Mode and Override to pass."
+	case playerStatus != nil && playerStatus.DRSAllowed == 1:
+		subAlert = "rival_attack_drs"
+		msg = fmt.Sprintf("DRS on the car ahead (P%d), gap %.1fs%s.%s", playerPos-1, gap.GapSec, trendNote(gap), tyres)
+	}
+	return Directive{
+		ID:       id,
+		Category: DirectiveCategoryRivals,
+		SubAlert: subAlert,
+		Title:    title,
+		Message:  msg,
+		Urgency:  UrgencyMedium,
+		Values:   &DirectiveValues{Ahead: gap},
+	}, true
+}
+
+// rivalGap is the gap to rival i for a battle call, with how it moved over the last laps.
+func rivalGap(ctx *EvaluationContext, i int, gapSec float64, ahead bool) *GapToCar {
+	if g := gapToCar(ctx.PlayerLaps, i, uint32(math.Round(gapSec*packets.MillisPerSecond)), ahead); g != nil {
+		return g
+	}
+	return &GapToCar{GapSec: roundTo(gapSec, 1)}
+}
+
+// trendNote describes a battle gap's trend for the server log: ", closing 0.3s a lap".
+func trendNote(g *GapToCar) string {
+	if g.Trend == GapClosing || g.Trend == GapOpening {
+		return fmt.Sprintf(", %s %.1fs a lap", g.Trend, g.PerLapSec)
+	}
+	return ""
+}
+
+// rivalTyreContext describes rival i's tyres for the server log: always for the car ahead, and
+// for the car behind only when they differ from the player's.
+func rivalTyreContext(ctx *EvaluationContext, i int, onlyIfDifferent bool) string {
+	if ctx.Status == nil || i >= len(ctx.Status.CarStatusData) {
+		return ""
+	}
+	rival := ctx.Status.CarStatusData[i]
+	if onlyIfDifferent {
+		player := ctx.PlayerStatus()
+		if player == nil || rival.ActualTyreCompound == 0 || player.ActualTyreCompound == 0 || rival.ActualTyreCompound == player.ActualTyreCompound {
+			return ""
+		}
+	}
+	return fmt.Sprintf(" Rival is on %s tyres (age: %d laps).", packets.VisualTyreCompoundName(rival.VisualTyreCompound), rival.TyresAgeLaps)
 }

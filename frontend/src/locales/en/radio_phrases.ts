@@ -414,56 +414,68 @@ export const radio_phrases = {
   rival_defend: {
     bono: [
       'Car behind within a second, {gap} seconds, {driver}. Defend.',
+      'Car behind at {gap}, gaining {rate} a lap, {driver}. Defend.',
       'Car behind is within a second, {driver}. Cover the inside.',
     ],
     colapinto: [
       'Car behind at {gap}, {driver}! Close the door.',
+      'Car behind at {gap}, gaining {rate} a lap, {driver}! Close the door.',
       'Car behind is right there, {driver}! Close the door.',
     ],
     standard: [
       'Car behind at {gap} seconds. Defend.',
+      'Car behind at {gap}, gaining {rate} a lap. Defend.',
       'Car behind within a second, {driver}. Defend your line.',
     ],
   },
   rival_defend_drs: {
     bono: [
       'Car behind has DRS, {gap} seconds, {driver}. Defend the inside.',
+      'Car behind has DRS at {gap}, gaining {rate} a lap. Defend the inside.',
       'Car behind has DRS, {driver}. Defend.',
     ],
     colapinto: [
       'Car behind with DRS at {gap}, {driver}! Cover the inside.',
+      'Car behind with DRS at {gap}, gaining {rate} a lap, {driver}! Cover the inside.',
       'Car behind has DRS, {driver}! Cover the inside.',
     ],
     standard: [
       'Car behind has DRS, {gap} seconds. Defend.',
+      'Car behind has DRS, {gap} seconds, gaining {rate} a lap. Defend.',
       'Car behind within DRS range, {driver}. Defend the inside.',
     ],
   },
   rival_attack: {
     bono: [
       'Car ahead at {gap} seconds, {driver}. Keep the pressure on.',
-      'We are catching the car ahead. Keep the pressure on.',
+      'Car ahead at {gap}, we\'re gaining {rate} a lap, {driver}. Keep the pressure on.',
+      'Car ahead within a second. Keep the pressure on.',
     ],
     colapinto: [
       'Car ahead at {gap}, {driver}! Go for it!',
-      'We are catching the car ahead, {driver}! Go for it!',
+      'Car ahead at {gap} and you\'re catching {rate} a lap, {driver}! Go for it!',
+      'Car ahead within a second, {driver}! Go for it!',
     ],
     standard: [
       'Car ahead at {gap} seconds. Keep pushing.',
-      'Closing on the car ahead, {driver}. Keep the pressure on.',
+      'Car ahead at {gap}, closing {rate} a lap. Keep pushing.',
+      'Car ahead within a second, {driver}. Keep the pressure on.',
     ],
   },
   rival_attack_drs: {
     bono: [
       'DRS on the car ahead, {gap} seconds, {driver}. Overtake mode is yours.',
+      'DRS on the car ahead at {gap}, gaining {rate} a lap. Overtake mode is yours.',
       'DRS on the car ahead. Use overtake mode on the straight.',
     ],
     colapinto: [
       'DRS on the car ahead at {gap}, {driver}! Overtake mode, go!',
+      'DRS on the car ahead at {gap}, catching {rate} a lap, {driver}! Go!',
       'DRS on the car ahead, {driver}! Go for it!',
     ],
     standard: [
       'DRS on the car ahead, {gap} seconds. Overtake mode available.',
+      'DRS on the car ahead, {gap} seconds, closing {rate} a lap.',
       'Within DRS of the car ahead, {driver}. Overtake mode available.',
     ],
   },
@@ -787,14 +799,17 @@ export const radio_phrases = {
   rival_defend_override: {
     bono: [
       'Car behind at {gap} seconds with Override threat, {driver}. Defend the inside line.',
+      'Car behind at {gap} with Override, gaining {rate} a lap, {driver}. Defend the inside line.',
       'Car behind within one second with Override Boost threat, {driver}. Defend the inside line.',
     ],
     colapinto: [
       'Car behind at {gap} with Override, {driver}! Protect the inside on the straight.',
+      'Car behind at {gap} with Override, gaining {rate} a lap, {driver}! Protect the inside.',
       'Car behind with Override attack threat within a second, {driver}. Protect the inside on the straight.',
     ],
     standard: [
       'Car behind at {gap} seconds with Override threat. Defend the inside line.',
+      'Car behind at {gap} with Override, gaining {rate} a lap. Defend the inside line.',
       'Car behind within one second with Override threat. Defend the inside line.',
       'Pressure from car behind with Override Boost available, {driver}. Defend position.',
     ],
@@ -802,15 +817,18 @@ export const radio_phrases = {
   rival_attack_override: {
     bono: [
       'Car ahead at {gap} seconds, {driver}. Deploy Straight Mode and prepare Override Boost.',
-      'Closing in on car ahead, {driver}. Deploy Straight Mode and prepare Override Boost.',
+      'Car ahead at {gap}, gaining {rate} a lap, {driver}. Straight Mode and Override ready.',
+      'Car ahead within reach, {driver}. Deploy Straight Mode and prepare Override Boost.',
     ],
     colapinto: [
       'Car ahead at {gap}, {driver}! Straight Mode and Boost on the straight!',
-      'We are catching the car ahead, {driver}. Switch to Straight Mode and use Boost on the straight.',
+      'Car ahead at {gap}, catching {rate} a lap, {driver}! Straight Mode and Boost!',
+      'Car ahead within reach, {driver}. Switch to Straight Mode and use Boost on the straight.',
     ],
     standard: [
       'Car ahead at {gap} seconds. Switch to Straight Mode and prepare Override deployment.',
-      'Closing in on car ahead. Switch to Straight Mode and prepare Override deployment.',
+      'Car ahead at {gap}, closing {rate} a lap. Straight Mode and Override ready.',
+      'Car ahead within a second. Switch to Straight Mode and prepare Override deployment.',
       'Overtake opportunity, {driver}. Use Straight Mode and Override Boost.',
     ],
   },
@@ -1094,11 +1112,39 @@ export const radio_phrases = {
     ],
     colapinto: [
       'Watch out, contact reported {driver}! Let me know if you feel vibrations in the steering or front wing.',
-      'Heavy contact reported! Confirm front wing balance on next straight.',
+      'Contact there! Confirm front wing balance on the next straight.',
     ],
     standard: [
-      'Contact reported! Check steering and front wing balance, reporting on next radio check.',
-      'Collision detected. Monitor telemetry and report handling changes.',
+      'Contact reported! Check steering and front wing balance.',
+      'Contact there, {driver}. Tell us if the handling has changed.',
+    ],
+  },
+  car_collision_light: {
+    bono: [
+      'Light contact there, {driver}. Tell us if anything feels wrong.',
+      'Just a touch, {driver}. Let us know if the car feels different.',
+    ],
+    colapinto: [
+      'Little touch there, {driver}! Tell me if something feels off.',
+      'Light contact, {driver}. All good? Tell me if the car pulls.',
+    ],
+    standard: [
+      'Light contact. Report anything that feels wrong.',
+      'Minor contact, {driver}. Let us know how the car feels.',
+    ],
+  },
+  car_collision_heavy: {
+    bono: [
+      'Heavy contact, {driver}! Check the car: steering, front wing, tyres.',
+      'That was a big hit, {driver}. Tell us how the car feels.',
+    ],
+    colapinto: [
+      'Big hit, {driver}! Tell me what you feel: steering, wing, tyres.',
+      'Heavy contact! Are you okay, {driver}? Tell me how the car feels.',
+    ],
+    standard: [
+      'Heavy contact! Check for damage and report.',
+      'Big impact, {driver}. Check steering, front wing and tyres.',
     ],
   },
   car_retirement: {

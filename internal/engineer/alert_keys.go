@@ -16,6 +16,8 @@ var RadioAlertKeys = []string{
 	"brake_overheat",
 	"brake_overheat_rear",
 	"car_collision",
+	"car_collision_heavy",
+	"car_collision_light",
 	"car_retirement",
 	"coaching_s1",
 	"coaching_s2",

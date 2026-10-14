@@ -181,37 +181,38 @@ func undercutCall(ctx *EvaluationContext, playerLap *packets.LapData) (Directive
 	}
 	playerPos := int(playerLap.CarPosition)
 	i := carAtPosition(ctx.LapData, playerPos+1)
-	if i < 0 || i == ctx.PlayerCarIndex || !ctx.PitEntries[i] {
+	if !pitStopFor(ctx, i) {
 		return Directive{}, false
 	}
-	distDelta := playerLap.TotalDistance - ctx.LapData.LapData[i].TotalDistance
-	if distDelta <= 0 || distDelta >= ctx.Config.UndercutGapSec*AverageRaceSpeedMetersPerSec {
+	gapSec := raceGapSec(ctx, ctx.PlayerCarIndex, i)
+	if gapSec <= 0 || gapSec >= float64(ctx.Config.UndercutGapSec) {
 		return Directive{}, false
 	}
+	gapSec = roundTo(gapSec, 1)
 	return Directive{
 		ID:       "undercut",
 		Category: DirectiveCategoryPitStrategy,
 		SubAlert: "undercut_window",
 		Title:    "Undercut Threat",
-		Message:  fmt.Sprintf("Car behind (P%d) has just pitted for the undercut! Push now to cover it.", playerPos+1),
+		Message:  fmt.Sprintf("Car behind (P%d), %.1fs back, has just pitted for the undercut! Push now to cover it.", playerPos+1, gapSec),
 		Urgency:  UrgencyCritical,
+		Values:   &DirectiveValues{Behind: &GapToCar{GapSec: gapSec}},
 	}, true
 }
 
 // overcutCall says that the car ahead has just pitted within UndercutGapSec: push in the clear air
-// to come out ahead after our own stop. Not for the teammate: their stop has its own call.
+// to come out ahead after our own stop.
 func overcutCall(ctx *EvaluationContext, playerLap *packets.LapData) (Directive, bool) {
 	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "overcut") {
 		return Directive{}, false
 	}
 	playerPos := int(playerLap.CarPosition)
 	i := carAtPosition(ctx.LapData, playerPos-1)
-	if i < 0 || i == ctx.PlayerCarIndex || i == ctx.TeammateCarIndex || !ctx.PitEntries[i] {
+	if !pitStopFor(ctx, i) {
 		return Directive{}, false
 	}
-	gapMS := deltaToCarInFrontMS(*playerLap)
-	gapSec := msToSec(gapMS)
-	if gapMS == 0 || gapSec > float64(ctx.Config.UndercutGapSec) {
+	gapSec := raceGapSec(ctx, i, ctx.PlayerCarIndex)
+	if gapSec <= 0 || gapSec > float64(ctx.Config.UndercutGapSec) {
 		return Directive{}, false
 	}
 	gapSec = roundTo(gapSec, 1)
@@ -224,4 +225,15 @@ func overcutCall(ctx *EvaluationContext, playerLap *packets.LapData) (Directive,
 		Urgency:  UrgencyHigh,
 		Values:   &DirectiveValues{Ahead: &GapToCar{GapSec: gapSec}},
 	}, true
+}
+
+// pitStopFor reports whether car i has just entered the pit lane for a tyre stop that changes the
+// battle: not the player, not the teammate (their stop has its own call), and not a car going in
+// only to serve a drive-through or stop-go penalty.
+func pitStopFor(ctx *EvaluationContext, i int) bool {
+	if i < 0 || i == ctx.PlayerCarIndex || i == ctx.TeammateCarIndex || !ctx.PitEntries[i] {
+		return false
+	}
+	l := ctx.LapData.LapData[i]
+	return l.NumUnservedDriveThroughPens == 0 && l.NumUnservedStopGoPens == 0
 }

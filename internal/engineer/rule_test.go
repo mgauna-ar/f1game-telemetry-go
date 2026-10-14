@@ -223,7 +223,7 @@ func TestDamageRule_Unit(t *testing.T) {
 }
 
 func TestFlagsRule_Unit(t *testing.T) {
-	rule := NewFlagsRule()
+	rule := seededFlagsRule()
 
 	if rule.Name() != "flags" {
 		t.Fatalf("expected Name()=flags, got %s", rule.Name())
@@ -360,7 +360,7 @@ func TestFlagsRule_Unit(t *testing.T) {
 	}
 
 	// 7. Track Limits warning fires when no penalty is incurred
-	rule.Reset(DedupScopeNone)
+	rule = seededFlagsRule()
 	lapPktWarningOnly := &packets.PacketLapData{
 		LapData: [packets.MaxCars]packets.LapData{
 			{CornerCuttingWarnings: 3, Penalties: 0},
@@ -637,8 +637,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 3, TotalDistance: 2000.0},
-					{CarPosition: 4, TotalDistance: 1960.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 4, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1960.0},
 				},
 			},
 			Status: &packets.PacketCarStatusData{
@@ -689,8 +689,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 3, TotalDistance: 1960.0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1960.0},
 				},
 			},
 			Config:         cfg,
@@ -707,8 +707,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if len(dirs) != 1 {
 			t.Fatalf("expected 1 directive, got %d", len(dirs))
 		}
-		if !strings.Contains(dirs[0].Message, "Override/Boost attack threat") {
-			t.Errorf("expected 2026 message to mention Override/Boost attack threat: %s", dirs[0].Message)
+		if !strings.Contains(dirs[0].Message, "Override range") {
+			t.Errorf("expected 2026 message to mention Override range: %s", dirs[0].Message)
 		}
 	})
 
@@ -717,13 +717,13 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 1, TotalDistance: 2050.0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 1, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2050.0},
 				},
 			},
 			Telemetry2: &packets.PacketCarTelemetry2Data{
 				CarTelemetry2Data: [packets.MaxCars]packets.CarTelemetry2Data{
-					{OvertakeAvailable: 1},
+					{OvertakeAvailable: 1, Regulations2026: 1},
 				},
 			},
 			Config:         cfg,
@@ -743,10 +743,10 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if dirs[0].SubAlert != "rival_attack_override" {
 			t.Errorf("expected rival_attack_override, got %s", dirs[0].SubAlert)
 		}
-		if !strings.Contains(dirs[0].Message, "Override Boost is available!") {
+		if !strings.Contains(dirs[0].Message, "Override is available!") {
 			t.Errorf("expected message to mention Override Boost is available: %s", dirs[0].Message)
 		}
-		if !strings.Contains(dirs[0].Message, "Straight Mode and Boost deployment") {
+		if !strings.Contains(dirs[0].Message, "Straight Mode and Override") {
 			t.Errorf("expected message to mention Straight Mode and Boost: %s", dirs[0].Message)
 		}
 	})
@@ -756,8 +756,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 3, TotalDistance: 1980.0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1980.0},
 				},
 			},
 			Config:         cfg,
@@ -778,8 +778,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 3, TotalDistance: 1900.0, DeltaToCarInFrontMSPart: 750, DeltaToCarInFrontMinutesPart: 0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1900.0, DeltaToCarInFrontMSPart: 750, DeltaToCarInFrontMinutesPart: 0},
 				},
 			},
 			Config:         cfg,
@@ -914,8 +914,8 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 10, TotalDistance: 5000.0, DriverStatus: packets.DriverStatusOnTrack},
-					{CurrentLapNum: 10, TotalDistance: 4800.0, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 10, TotalDistance: 5000.0, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+					{CurrentLapNum: 10, TotalDistance: 4800.0, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 				},
 			},
 			Config:           cfg,
@@ -934,8 +934,8 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 8, TotalDistance: 3000.0, DriverStatus: packets.DriverStatusOnTrack},
-					{CurrentLapNum: 8, TotalDistance: 3090.0, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 8, CarPosition: 4, TotalDistance: 3000.0, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+					{CurrentLapNum: 8, CarPosition: 3, TotalDistance: 3090.0, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 				},
 			},
 			Config:           cfg,
@@ -954,8 +954,8 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 15, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack},
-					{CurrentLapNum: 15, PitStatus: packets.PitStatusInPitArea, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 15, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+					{CurrentLapNum: 15, PitStatus: packets.PitStatusInPitArea, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 				},
 			},
 			Config:           cfg,
@@ -1257,7 +1257,7 @@ func TestDamageRule_EngineWear(t *testing.T) {
 }
 
 func TestFlagsRule_VSCAndPenalties(t *testing.T) {
-	rule := NewFlagsRule()
+	rule := seededFlagsRule()
 	cfg := DefaultEngineerConfig()
 
 	ctxVSC := &EvaluationContext{
@@ -1700,8 +1700,8 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 	ctxTeammateSC := &EvaluationContext{
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
-				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack}, // teammate 50m ahead
+				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive}, // teammate 50m ahead
 			},
 		},
 		Session:          sessionSC,
@@ -1718,8 +1718,8 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 	ctxTeammatePitSC := &EvaluationContext{
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
-				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting},
+				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting, ResultStatus: packets.ResultStatusActive},
 			},
 		},
 		Session:          sessionSC,
@@ -1743,7 +1743,7 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 		},
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 			},
 		},
 		Session:        sessionSC,
@@ -1771,7 +1771,7 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 		},
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 			},
 		},
 		Session:        sessionSC,
@@ -2406,6 +2406,7 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 					OvertakeAvailable:            1,
 					OvertakeActive:               0,
 					OvertakeActivationDistance:   95, // <= 100m
+					Regulations2026:              1,
 				},
 			},
 		}

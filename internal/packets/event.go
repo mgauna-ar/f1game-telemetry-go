@@ -258,8 +258,15 @@ type SafetyCarEventData struct {
 type CollisionEventData struct {
 	Vehicle1Idx uint8 `json:"Vehicle1Idx"`
 	Vehicle2Idx uint8 `json:"Vehicle2Idx"`
-	Severity    uint8 `json:"Severity"`
+	Severity    uint8 `json:"Severity"` // F1 2026 on: one of the CollisionSeverity values
 }
+
+// Collision severities (F1 2026 on).
+const (
+	CollisionSeverityLow    uint8 = 0
+	CollisionSeverityMedium uint8 = 1
+	CollisionSeverityHigh   uint8 = 2
+)
 
 type rawEventPayload struct {
 	EventStringCode [4]uint8

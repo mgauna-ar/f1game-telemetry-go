@@ -113,6 +113,14 @@ type AlertKeyConfig struct {
 	// LapBound drops the call once the player starts another lap while a passing gate holds it:
 	// what it says ("box next lap") is only true on the lap it was made for.
 	LapBound bool
+	// PitLaneCall lets the call through while the player is in the pit box or on the pit limiter:
+	// it is about the stop being made.
+	PitLaneCall bool
+	// OutlastsSilence holds the call through radio silence (the grid, the start, a flying lap) and
+	// the phases that pass with it (the formation lap) instead of dropping it: a condition of the
+	// car (damage, wear, a temperature) is still true once the radio is open. Its MaxDelayMs counts
+	// from the end of the silence, for at most SilenceMaxHoldMs in all.
+	OutlastsSilence bool
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -347,6 +355,8 @@ type EvaluationContext struct {
 	// PitEntries marks the cars whose pit status went from none to pitting on this lap data
 	// packet: each stop shows once, whatever phase the player was in.
 	PitEntries [packets.MaxCars]bool
+	// ChequeredFlag is whether the leader has taken the chequered flag in this race.
+	ChequeredFlag bool
 }
 
 // PlayerLap returns the player car's LapData if available.
@@ -438,9 +448,15 @@ func (ctx *EvaluationContext) IsPracticeSession() bool {
 	return packets.IsPracticeSession(ctx.Session.SessionType)
 }
 
-// Is2026 returns true if the packet format is F1 2026 or newer.
+// Is2026 reports whether the player's car runs the 2026 regulations (Override and Straight Mode,
+// no DRS). The 2026 packet format also carries older cars, so the car's own flag decides; until
+// it arrives, the packet format does.
 func (ctx *EvaluationContext) Is2026() bool {
-	return ctx.Header.PacketFormat >= packets.PacketFormat2026 || ctx.PacketFormat >= packets.PacketFormat2026
+	if ctx.Header.PacketFormat < packets.PacketFormat2026 && ctx.PacketFormat < packets.PacketFormat2026 {
+		return false
+	}
+	tele2 := ctx.PlayerTelemetry2()
+	return tele2 == nil || tele2.Regulations2026 == 1
 }
 
 // CalculateLapDistanceFraction estimates progress along the track [0.0, 1.0] from session and player lap data.

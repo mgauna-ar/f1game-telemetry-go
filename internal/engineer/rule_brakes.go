@@ -41,9 +41,10 @@ func (r *BrakesRule) ValidPhases() []DrivingPhase {
 func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"brake_hot": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"brake_cold": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
@@ -51,14 +52,16 @@ func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"brake_bias": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"brake_bias_ok": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 	}
 }

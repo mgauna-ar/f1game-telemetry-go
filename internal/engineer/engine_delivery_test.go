@@ -275,8 +275,10 @@ func TestRivalsRule_CallsTheSameCarAgainAfterItDropsBack(t *testing.T) {
 	rule := NewRivalsRule()
 	lapData := &packets.PacketLapData{}
 	setGapBehind := func(ms uint16) {
-		lapData.LapData[0] = packets.LapData{CurrentLapNum: 12, CarPosition: 5, TotalDistance: 60000}
-		lapData.LapData[1] = packets.LapData{CurrentLapNum: 12, CarPosition: 6, TotalDistance: 59900, DeltaToCarInFrontMSPart: ms}
+		lapData.LapData[0] = packets.LapData{CurrentLapNum: 12, CarPosition: 5, TotalDistance: 60000,
+			ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack}
+		lapData.LapData[1] = packets.LapData{CurrentLapNum: 12, CarPosition: 6, TotalDistance: 59900, DeltaToCarInFrontMSPart: ms,
+			ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack}
 	}
 	ctx := &EvaluationContext{
 		Session:        &packets.PacketSessionData{SessionType: packets.SessionRace},

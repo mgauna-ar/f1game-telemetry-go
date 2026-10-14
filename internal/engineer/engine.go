@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -54,7 +55,10 @@ type EngineerEngine struct {
 	raceStarted             bool
 	chequeredFlagReceived   bool
 	postRaceAnnounced       bool
+	finishedAt              int64 // unix ms the player was first seen finished; 0 before
 	lastGlobalDirectiveTime int64
+	// classification is the race's final classification, once the game sends it.
+	classification *packets.PacketFinalClassificationData
 
 	// Calls a passing gate (braking, radio spacing, cooldown, pause) held back, by alert key.
 	pending map[string]pendingDirective
@@ -89,6 +93,7 @@ type pendingDirective struct {
 	directive Directive
 	alertKey  string
 	heldAt    int64 // unix ms the call was first held
+	clockFrom int64 // unix ms its useful life started: when it was held, or when radio silence ended
 	expiresAt int64 // unix ms after which it is no longer worth saying
 	lap       int   // the player's lap when it was first held
 }
@@ -97,8 +102,9 @@ type pendingDirective struct {
 type gateDecision int
 
 const (
-	gateEmit gateDecision = iota
-	gateHold              // only a passing gate is in the way: braking, radio spacing, cooldown or pause
+	gateEmit        gateDecision = iota
+	gateHold                     // only a passing gate is in the way: braking, radio spacing, cooldown or pause
+	gateHoldSilence              // radio silence is in the way of a call that outlasts it (OutlastsSilence)
 	gateDrop
 )
 
@@ -211,6 +217,8 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.raceStarted = false
 	e.chequeredFlagReceived = false
 	e.postRaceAnnounced = false
+	e.finishedAt = 0
+	e.classification = nil
 	e.lastGlobalDirectiveTime = 0
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
@@ -322,6 +330,8 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		if int(p.CarIdx) < len(e.history.carHistory) {
 			e.history.carHistory[p.CarIdx] = p
 		}
+	case *packets.PacketFinalClassificationData:
+		e.classification = p
 	}
 
 	e.pitPlan.update(e.latestSession, e.getPlayerLapDataLocked())
@@ -369,6 +379,7 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		BoxDueLap:        e.boxDueLap,
 		PitPlan:          e.pitPlan.plan,
 		CarHistory:       &e.history.carHistory,
+		ChequeredFlag:    e.chequeredFlagReceived,
 	}
 	if _, ok := pkt.(*packets.PacketLapData); ok {
 		ctx.PitEntries = e.pitEntries
@@ -479,10 +490,9 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	// The chequered flag of a race: where the player finished. Qualifying and practice end with
 	// their own calls (the last lap's result).
 	if e.currentPhase == PhasePostRace && !e.postRaceAnnounced && e.isRaceSessionLocked() {
-		playerLap := e.getPlayerLapDataLocked()
-		if playerLap != nil && playerLap.ResultStatus == packets.ResultStatusFinished {
+		if pos, ok := e.finishPositionLocked(); ok {
 			e.postRaceAnnounced = true
-			prepared := e.emitDirectiveLocked(ctx.Header, e.raceFinishDirectiveLocked(int(playerLap.CarPosition)), "race_finish", 0)
+			prepared := e.emitDirectiveLocked(ctx.Header, e.raceFinishDirectiveLocked(pos), "race_finish", 0)
 			emittedDirectives = append(emittedDirectives, prepared)
 		}
 	}
@@ -519,7 +529,7 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 				}
 				prepared := e.emitDirectiveLocked(ctx.Header, d, alertKey, 0)
 				emittedDirectives = append(emittedDirectives, prepared)
-			case gateHold:
+			case gateHold, gateHoldSilence:
 				e.holdDirectiveLocked(d, alertKey)
 			case gateDrop:
 			}
@@ -529,11 +539,34 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	return append(emittedDirectives, e.pitEntryReminderLocked(ctx.Header)...)
 }
 
+// finishPositionLocked is where the player finished the race, once they have: the final
+// classification's place when it came. A time penalty only counts in the classification, so with
+// one the call waits up to FinishClassificationWaitMs for it before going by the track position.
+func (e *EngineerEngine) finishPositionLocked() (int, bool) {
+	playerLap := e.getPlayerLapDataLocked()
+	if playerLap == nil || playerLap.ResultStatus != packets.ResultStatusFinished {
+		return 0, false
+	}
+	now := e.nowMs()
+	if e.finishedAt == 0 {
+		e.finishedAt = now
+	}
+	if c := e.classification; c != nil && e.playerCarIndex < len(c.ClassificationData) {
+		if pos := int(c.ClassificationData[e.playerCarIndex].Position); pos > 0 {
+			return pos, true
+		}
+	}
+	if playerLap.Penalties > 0 && now-e.finishedAt < FinishClassificationWaitMs {
+		return 0, false
+	}
+	return int(playerLap.CarPosition), true
+}
+
 // raceFinishDirectiveLocked is the chequered flag call for a finish in position pos: a win, a
 // podium, points or none.
 func (e *EngineerEngine) raceFinishDirectiveLocked(pos int) Directive {
 	pointsPositions := RacePointsPositions
-	if e.latestSession != nil && (e.latestSession.SessionType == packets.SessionSprintRace || e.latestSession.SessionType == packets.SessionEqualSprintRace) {
+	if isSprintRace(e.latestSession) {
 		pointsPositions = SprintPointsPositions
 	}
 	subAlert := "race_finish"
@@ -572,13 +605,15 @@ func (e *EngineerEngine) holdDirectiveLocked(d Directive, alertKey string) {
 		directive: d,
 		alertKey:  alertKey,
 		heldAt:    heldAt,
+		clockFrom: now,
 		expiresAt: now + e.maxDelayMs(alertKey),
 		lap:       lap,
 	}
 }
 
 // releasePendingLocked says the held calls the gates now let through, oldest first, and forgets
-// the ones that went stale or that the gates now turn down for good (phase, switch, dedup).
+// the ones that went stale or that the gates now turn down for good (phase, switch, dedup). A call
+// waiting out radio silence doesn't age until the silence ends, for at most SilenceMaxHoldMs.
 func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader) []Directive {
 	if len(e.pending) == 0 {
 		return nil
@@ -606,7 +641,14 @@ func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader) []Dir
 			if e.waitForLineLocked(p.directive, p.alertKey) {
 				continue
 			}
-			released = append(released, e.emitDirectiveLocked(header, p.directive, p.alertKey, now-p.heldAt))
+			released = append(released, e.emitDirectiveLocked(header, p.directive, p.alertKey, now-p.clockFrom))
+		case gateHoldSilence:
+			if now-p.heldAt > SilenceMaxHoldMs {
+				delete(e.pending, p.alertKey)
+				continue
+			}
+			p.clockFrom, p.expiresAt = now, now+e.maxDelayMs(p.alertKey)
+			e.pending[p.alertKey] = p
 		case gateDrop:
 			delete(e.pending, p.alertKey)
 		case gateHold:
@@ -909,6 +951,7 @@ func (e *EngineerEngine) isChatterCooldownActive(category string, isCritical boo
 // steering, category cooldown, radio spacing) hold it so it is said once the radio is free.
 func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string) gateDecision {
 	isCritical := urgency == UrgencyCritical || urgency == UrgencyHigh
+	cfg := e.alertRules[alertKey]
 
 	// 0. Subsystem & sub-alert enable check
 	if !e.config.IsAlertEnabled(category, alertKey) {
@@ -917,10 +960,14 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 
 	// 1-2. Radio silence on the grid, at the race start and on a flying lap: only emergencies
 	// (UrgencyCritical) and the calls that must break it (BreaksRadioSilence: a yellow flag, a
-	// deleted lap, a slow car ahead).
+	// deleted lap, a slow car ahead). A condition of the car waits it out (OutlastsSilence).
+	silenced := false
 	silent := e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart || e.currentPhase == PhaseFlyingLap
-	if silent && urgency != UrgencyCritical && !e.alertRules[alertKey].BreaksRadioSilence {
-		return gateDrop
+	if silent && urgency != UrgencyCritical && !cfg.BreaksRadioSilence {
+		if !cfg.OutlastsSilence {
+			return gateDrop
+		}
+		silenced = true
 	}
 
 	// 4. Time Trial session integrity:
@@ -931,9 +978,13 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 		}
 	}
 
-	// 5. Driving phase rule validation
+	// 5. Driving phase rule validation. A condition of the car outlasts a phase that passes with
+	// the radio silence (the grid, the start, a flying lap, the formation lap).
 	if !e.isPhaseAllowed(alertKey) {
-		return gateDrop
+		if !cfg.OutlastsSilence || !passesWithSilence(e.currentPhase) || slices.Contains(cfg.ValidPhases, e.currentPhase) {
+			return gateDrop
+		}
+		silenced = true
 	}
 
 	// 6. Deduplication check
@@ -942,7 +993,7 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	}
 
 	// 6b. A stop to come is moot once the driver was told to box.
-	if e.boxDueLap != 0 && e.alertRules[alertKey].NotWhileBoxDue {
+	if e.boxDueLap != 0 && cfg.NotWhileBoxDue {
 		return gateDrop
 	}
 
@@ -952,6 +1003,9 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	if last, said := e.lastDirectives[alertKey]; said && now-last < e.minRepeatMs(alertKey) {
 		return gateDrop
 	}
+	if silenced {
+		return gateHoldSilence
+	}
 
 	// 8. Pit box & pit limiter: while stationary in the box or on the limiter, non-critical calls
 	// wait for the pit exit. Flags, weather and the pit lane's own calls (stop time, penalty) don't.
@@ -959,7 +1013,7 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	playerStatus := e.getPlayerCarStatusLocked()
 	isPitLimiterActive := playerStatus != nil && playerStatus.PitLimiterStatus == 1
 	isPitBoxActive := playerLap != nil && playerLap.PitStatus == packets.PitStatusInPitArea
-	if (isPitLimiterActive || isPitBoxActive) && urgency != UrgencyCritical && category != string(DirectiveCategoryFlags) &&
+	if (isPitLimiterActive || isPitBoxActive) && urgency != UrgencyCritical && !cfg.PitLaneCall && category != string(DirectiveCategoryFlags) &&
 		category != string(DirectiveCategoryWeather) && category != string(DirectiveCategoryPitStrategy) {
 		return gateHold
 	}
@@ -975,7 +1029,7 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	}
 
 	// 11. Per-category chatter cooldown check
-	if !e.alertRules[alertKey].SkipCategoryCooldown && e.isChatterCooldownActive(category, isCritical) {
+	if !cfg.SkipCategoryCooldown && e.isChatterCooldownActive(category, isCritical) {
 		return gateHold
 	}
 
@@ -986,6 +1040,12 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	}
 
 	return gateEmit
+}
+
+// passesWithSilence reports whether a phase passes with the radio silence around it: the
+// formation lap, the grid, the start and a flying lap.
+func passesWithSilence(phase DrivingPhase) bool {
+	return phase == PhaseFormationLap || phase == PhaseGrid || phase == PhaseRaceStart || phase == PhaseFlyingLap
 }
 
 // emitDirectiveLocked records a call as said and stamps it for the wire. heldForMs is how long a
@@ -1049,4 +1109,23 @@ func (e *EngineerEngine) broadcastDirective(broadcaster DirectiveBroadcaster, di
 	}
 	slog.Info("Proactive directive emitted", attrs...)
 	broadcaster.Broadcast(data)
+}
+
+// isSprintRace reports whether the session is a sprint. F1 25 sends no sprint session type: a
+// sprint weekend runs two races, and the sprint is the first, when the game gives the two
+// different race types. When it gives both the same, it is taken for a Grand Prix.
+func isSprintRace(s *packets.PacketSessionData) bool {
+	if s == nil {
+		return false
+	}
+	if s.SessionType == packets.SessionSprintRace || s.SessionType == packets.SessionEqualSprintRace {
+		return true
+	}
+	var races []uint8
+	for i := 0; i < int(s.NumSessionsInWeekend) && i < len(s.WeekendStructure); i++ {
+		if t := s.WeekendStructure[i]; packets.IsRaceSession(t) {
+			races = append(races, t)
+		}
+	}
+	return len(races) >= 2 && s.SessionType == races[0] && races[0] != races[len(races)-1]
 }

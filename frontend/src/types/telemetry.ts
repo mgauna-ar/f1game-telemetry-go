@@ -170,6 +170,8 @@ export type RadioAlertCategory =
   | 'race_final_lap'
   | 'race_final_lap_lead'
   | 'car_collision'
+  | 'car_collision_light'
+  | 'car_collision_heavy'
   | 'car_retirement'
   | 'formation_lap_start'
   | 'grid_approach'

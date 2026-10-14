@@ -45,22 +45,25 @@ func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		// Each step of the engine temperature is its own call, so the climb to the next one is said.
 		"engine_temp": {
-			ValidPhases: engineTempPhases,
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
-			MinRepeatMs: EngineTempMinRepeatMs,
+			ValidPhases:     engineTempPhases,
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			MinRepeatMs:     EngineTempMinRepeatMs,
+			OutlastsSilence: true,
 		},
 		"engine_temp_high": {
-			ValidPhases: engineTempPhases,
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
-			MinRepeatMs: EngineTempMinRepeatMs,
+			ValidPhases:     engineTempPhases,
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			MinRepeatMs:     EngineTempMinRepeatMs,
+			OutlastsSilence: true,
 		},
 		"engine_temp_critical": {
-			ValidPhases: engineTempPhases,
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
-			MinRepeatMs: EngineTempMinRepeatMs,
+			ValidPhases:     engineTempPhases,
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			MinRepeatMs:     EngineTempMinRepeatMs,
+			OutlastsSilence: true,
 		},
 	}
 }
@@ -108,8 +111,9 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 			})
 		}
 
-		// 1b. Per-Lap ERS Energy Clipping / Derate (Approaching 4.0MJ per-lap quota)
-		if status.ERSDeployedThisLap >= ERSClippingThresholdJoules && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
+		// 1b. Clipping: the lap's 4 MJ deploy limit is close. A pre-2026 rule: 2026 cars have no
+		// per-lap deploy limit (their packet only gives the harvest limit), so they aren't called.
+		if !ctx.Is2026() && status.ERSDeployedThisLap >= ERSClippingThresholdJoules && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
 			!isNeutralized && lapFraction < ERSClippingMaxDistanceFraction {
 			directives = append(directives, Directive{
 				ID:       "ers_clipping",

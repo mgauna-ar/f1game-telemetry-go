@@ -147,9 +147,11 @@ function callNumbers(values: DirectiveValues | undefined, language: LocaleCode):
   if (values.count) numbers.count = String(values.count);
   if (values.penalty_sec) numbers.penalty_sec = String(values.penalty_sec);
   if (values.stop_sec) numbers.stop_sec = formatTenths(values.stop_sec, language);
-  // A traffic call is about one car, ahead or behind.
+  // A traffic or battle call is about one car, ahead or behind. How fast the gap comes down is
+  // only said while it is closing: the phrases with {rate} say the driver is catching, or caught.
   const car = values.ahead ?? values.behind;
   if (car) numbers.gap = formatTenths(car.gap_sec, language);
+  if (car?.trend === 'closing' && car.per_lap_sec) numbers.rate = formatTenths(car.per_lap_sec, language);
   return numbers;
 }
 

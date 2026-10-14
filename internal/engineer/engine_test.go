@@ -466,8 +466,8 @@ func TestEngineerEngine_RivalBattles(t *testing.T) {
 	lapPkt := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 5, CarPosition: 2, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 5000},
-			{CurrentLapNum: 5, CarPosition: 3, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 4960},
+			{CurrentLapNum: 5, CarPosition: 2, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive, TotalDistance: 5000},
+			{CurrentLapNum: 5, CarPosition: 3, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive, TotalDistance: 4960},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPkt)
@@ -527,6 +527,8 @@ func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 700, 0)
 
+	// The session's first packet only records its counts; the flags come after it.
+	engine.ProcessPacket(ctx, &packets.PacketSessionData{Header: header, SessionType: packets.SessionRace})
 	sessionPkt := &packets.PacketSessionData{
 		Header:            header,
 		SessionType:       packets.SessionRace,
@@ -551,6 +553,11 @@ func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 		NumRedFlagPeriods: 0,
 	}
 	engine.ProcessPacket(ctx, racingSessionPkt)
+	quietLap := func(uid uint64) *packets.PacketLapData {
+		return &packets.PacketLapData{Header: createTestHeader(packets.PacketFormat2026, uid, 0),
+			LapData: [packets.MaxCars]packets.LapData{{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack}}}
+	}
+	engine.ProcessPacket(ctx, quietLap(701))
 
 	// 1. Penalty Priority: When penalties > 0, penalty supersedes track limits warning
 	lapPktPenalty := &packets.PacketLapData{
@@ -570,7 +577,9 @@ func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 
 	// 2. Track limits warning fires when no penalty is incurred
 	engine.Reset(702)
+	racingSessionPkt.Header = createTestHeader(packets.PacketFormat2026, 702, 0)
 	engine.ProcessPacket(ctx, racingSessionPkt)
+	engine.ProcessPacket(ctx, quietLap(702))
 	lapPktWarning := &packets.PacketLapData{
 		Header: createTestHeader(packets.PacketFormat2026, 702, 0),
 		LapData: [packets.MaxCars]packets.LapData{
