@@ -40,14 +40,16 @@ func (r *DamageRule) ValidPhases() []DrivingPhase {
 
 func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
+		// Wing and floor damage can go back down (a flashback, a new nose), so the rule's own latch,
+		// which re-arms then, says them once instead of the engine's stint dedup.
 		"damage_wing": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
+			DedupScope:  DedupScopeNone,
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_floor": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
+			DedupScope:  DedupScopeNone,
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_engine": {
@@ -122,6 +124,10 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 		maxWing = float32(dmg.FrontRightWingDamage)
 	}
 
+	// Damage that went back down (a flashback, a new wing) can be called again.
+	if maxWing+DamageRearmDropPct <= r.lastWingDamageAlert {
+		r.lastWingDamageAlert = maxWing
+	}
 	if maxWing >= ctx.Config.WingDamageCritPct && r.lastWingDamageAlert < ctx.Config.WingDamageCritPct {
 		r.lastWingDamageAlert = maxWing
 		directives = append(directives, Directive{
@@ -147,6 +153,9 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 2. Floor & Diffuser Damage
 	floorDiffDamage := float32(dmg.FloorDamage + dmg.DiffuserDamage)
+	if r.lastFloorDamageAlert && floorDiffDamage+DamageRearmDropPct <= ctx.Config.FloorDamageWarnPct {
+		r.lastFloorDamageAlert = false
+	}
 	if floorDiffDamage >= ctx.Config.FloorDamageWarnPct && !r.lastFloorDamageAlert {
 		r.lastFloorDamageAlert = true
 		directives = append(directives, Directive{

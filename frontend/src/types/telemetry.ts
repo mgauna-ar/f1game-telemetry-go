@@ -208,7 +208,13 @@ export type RadioAlertCategory =
   | 'rival_attack_drs'
   | 'safety_car_box'
   | 'vsc_box'
-  | 'vsc_ending';
+  | 'vsc_ending'
+  | 'tyre_worn_out'
+  | 'tyre_crossover_slicks'
+  | 'radiator_overheat_high'
+  | 'radiator_overheat_critical'
+  | 'brake_overheat_rear'
+  | 'brake_bias_forward';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to

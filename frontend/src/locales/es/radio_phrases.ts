@@ -93,6 +93,20 @@ export const radio_phrases = {
       'Pinchadura crítica detectada, {driver}. Cuida el auto hasta boxes.',
     ],
   },
+  tyre_worn_out: {
+    colapinto: [
+      '¡Esa goma ya no da más, {driver}! Tenemos que parar.',
+      'La goma está terminada, {driver}. Paramos.',
+    ],
+    bono: [
+      'Esa goma está terminada, {driver}. Tenemos que parar.',
+      'La goma llegó al final de su vida. Paramos.',
+    ],
+    standard: [
+      'Esa goma está gastada del todo. Tenemos que parar.',
+      'Se terminó la vida de la goma, {driver}. Paramos.',
+    ],
+  },
   tyre_wear: {
     colapinto: [
       'Las gomas empiezan a gastarse, {driver}. Cuidá la tracción a la salida de las curvas.',
@@ -213,28 +227,72 @@ export const radio_phrases = {
   },
   radiator_overheat: {
     colapinto: [
-      'El motor está levantando temperatura, {driver}. Estamos perdiendo potencia por calor, meté Lift and Coast y salí del aire sucio.',
-      'Temperatura de motor crítica. Cuidá la planta impulsora con Lift & Coast para evitar mayor pérdida de potencia.',
+      'El motor está levantando temperatura, {driver}. Levantá un poco antes y buscá aire limpio.',
+      'Ojo con la temperatura del motor, {driver}. Levantá antes de las frenadas.',
     ],
     bono: [
-      'Temperatura de motor elevada, sufriendo pérdida de potencia térmica. Sal del rebufo e introduce Lift & Coast.',
-      'Alerta de motor caliente, {driver}. Aplica Lift & Coast en frenadas para refrigerar los radiadores.',
+      'Temperatura de motor alta, {driver}. Un poco de lift and coast y salí del rebufo cuando puedas.',
+      'El motor viene caliente. Levantá un poco antes de las frenadas fuertes.',
     ],
     standard: [
-      'Temperatura de motor elevada con pérdida de potencia. Introduce Lift & Coast y busca aire limpio.',
-      'Temperaturas de motor críticas, {driver}. Busca aire limpio en las rectas y aplica Lift & Coast.',
+      'Temperatura de motor alta. Levantá antes de frenar y buscá aire limpio.',
+      'El motor está caliente, {driver}. Levantá antes de las frenadas fuertes.',
+    ],
+  },
+  radiator_overheat_high: {
+    colapinto: [
+      '¡El motor sigue calentando, {driver}! Levantá más y salí del rebufo.',
+      'Cada vez más caliente, {driver}. Buscá aire limpio.',
+    ],
+    bono: [
+      'La temperatura del motor sigue subiendo, {driver}. Levantá más y no te quedes en el rebufo.',
+      'El motor calienta más. Levantá antes y buscá aire limpio.',
+    ],
+    standard: [
+      'La temperatura del motor sigue subiendo. Levantá más y buscá aire limpio.',
+      'El motor calienta cada vez más, {driver}. Levantá antes y salí del rebufo.',
+    ],
+  },
+  radiator_overheat_critical: {
+    colapinto: [
+      '¡Motor en temperatura crítica, {driver}! Levantá y salí del rebufo ya.',
+      '¡Temperatura crítica! Enfrialo ya, {driver}.',
+    ],
+    bono: [
+      'Temperatura de motor crítica, {driver}. Levantá ya y salí del rebufo.',
+      'Motor en temperatura crítica. Enfrialo ya.',
+    ],
+    standard: [
+      'Temperatura de motor crítica. Levantá ya y buscá aire limpio.',
+      'Motor en temperatura crítica, {driver}. Enfrialo ya.',
     ],
   },
   brake_overheat: {
     colapinto: [
-      'Frenos al rojo vivo, {driver}. Tirale el reparto un toque para atrás y cuidá la entrada.',
+      '¡Los frenos delanteros están al rojo, {driver}! Reparto un punto para atrás.',
+      'Los delanteros están muy calientes, {driver}. Mové el reparto para atrás.',
     ],
     bono: [
-      'Frenos sobrecalentados. Mueve el reparto de frenada hacia atrás.',
+      'Los frenos delanteros vienen calientes, {driver}. Reparto un punto para atrás.',
+      'Se recalientan los delanteros. Reparto para atrás y cuidá las entradas.',
     ],
     standard: [
-      'Frenos sobrecalentados. Mueve el reparto de frenada hacia atrás.',
-      'Temperatura de frenos crítica, {driver}. Ajusta el reparto de frenada.',
+      'Frenos delanteros recalentados. Mové el reparto de frenada un punto para atrás.',
+      'Temperatura alta en los frenos delanteros, {driver}. Reparto para atrás.',
+    ],
+  },
+  brake_overheat_rear: {
+    colapinto: [
+      '¡Los frenos traseros están al rojo, {driver}! Reparto un punto para adelante.',
+      'Los traseros están muy calientes, {driver}. Mové el reparto para adelante.',
+    ],
+    bono: [
+      'Los frenos traseros vienen calientes, {driver}. Reparto un punto para adelante.',
+      'Se recalientan los traseros. Mové el reparto un punto para adelante.',
+    ],
+    standard: [
+      'Frenos traseros recalentados. Mové el reparto de frenada un punto para adelante.',
+      'Temperatura alta en los frenos traseros, {driver}. Reparto para adelante.',
     ],
   },
   brake_cold: {
@@ -251,16 +309,30 @@ export const radio_phrases = {
   },
   brake_bias: {
     colapinto: [
-      'Desbalance térmico en frenos, {driver}. Movete 1 o 2 puntos el reparto de frenada para emparejar los ejes.',
-      'Reparto de frenos descompensado, {driver}. Corregí el balance para cuidar las temperaturas.',
+      '¡Los frenos delanteros están mucho más calientes que los traseros, {driver}! Reparto para atrás.',
+      'Demasiado freno adelante, {driver}. Reparto para atrás.',
     ],
     bono: [
-      'Desbalance de temperatura en frenos, {driver}. Ajusta el reparto de frenada un 1 o 2 por ciento.',
-      'Diferencia térmica en los frenos. Ajusta el reparto de frenada para compensar.',
+      'Los delanteros están haciendo casi todo el trabajo, {driver}. Reparto para atrás.',
+      'Frenos delanteros mucho más calientes que los traseros. Mové el reparto para atrás.',
     ],
     standard: [
-      'Desbalance térmico de frenos detectado. Ajusta el reparto de frenada en 1-2% para equilibrar los ejes.',
-      'Diferencia térmica entre ejes de frenos, {driver}. Modifica el balance de frenos.',
+      'Los frenos delanteros van más calientes que los traseros. Mové el reparto para atrás.',
+      'La temperatura de frenos se carga adelante, {driver}. Reparto para atrás.',
+    ],
+  },
+  brake_bias_forward: {
+    colapinto: [
+      '¡Los frenos traseros están mucho más calientes que los delanteros, {driver}! Reparto para adelante.',
+      'Demasiado freno atrás, {driver}. Reparto para adelante.',
+    ],
+    bono: [
+      'Los traseros están haciendo demasiado trabajo, {driver}. Reparto para adelante.',
+      'Frenos traseros mucho más calientes que los delanteros. Mové el reparto para adelante.',
+    ],
+    standard: [
+      'Los frenos traseros van más calientes que los delanteros. Mové el reparto para adelante.',
+      'La temperatura de frenos se carga atrás, {driver}. Reparto para adelante.',
     ],
   },
   fuel_deficit: {
@@ -846,14 +918,30 @@ export const radio_phrases = {
   },
   tyre_crossover: {
     colapinto: [
-      '¡Llegamos a la ventana de cruce de neumáticos, {driver}! Toca cambiar gomas.',
+      '¡Está muy mojado para slicks, {driver}! Vamos a intermedios.',
+      'La lluvia se queda. ¡Intermedios, {driver}, intermedios!',
     ],
     bono: [
-      'Condiciones en ventana de cruce, {driver}. Toca cambio de compuesto.',
+      'Ya llueve en serio, {driver}. Muy mojado para slicks, vamos a intermedios.',
+      'La lluvia se queda, {driver}. Ponemos intermedios.',
     ],
     standard: [
-      '¡Ventana de cruce alcanzada! Toca cambio de neumáticos.',
-      'Ventana de cruce abierta, {driver}. Cambiamos neumáticos.',
+      'La pista está muy mojada para slicks. Vamos a intermedios.',
+      'La lluvia sigue, {driver}. Intermedios.',
+    ],
+  },
+  tyre_crossover_slicks: {
+    colapinto: [
+      '¡La pista se está secando, {driver}! Los slicks están listos cuando quieras.',
+      'Se está secando. Decinos y vamos a slicks, {driver}.',
+    ],
+    bono: [
+      'La pista se seca, {driver}. Los slicks son una opción, avisanos cuando los quieras.',
+      'Ya hay trazada seca. Tenemos slicks listos cuando vos digas.',
+    ],
+    standard: [
+      'La pista se está secando. Los slicks son una opción cuando quieras.',
+      'Paró la lluvia, {driver}. Podemos ir a slicks cuando quieras.',
     ],
   },
   flags_sc_in: {
@@ -1217,30 +1305,30 @@ export const radio_phrases = {
   },
   fuel_mix_neutralized: {
     colapinto: [
-      '¡Safety Car en pista! ¡Pasá a mezcla magra o Mezcla 1, {driver}, ahorrá nafta y cuidá las temperaturas!',
-      'Mezcla 1 en la perilla de combustible. Recuperá delta de nafta durante la neutralización.',
+      '¡Safety Car! Mezcla pobre, {driver}, ahorrá nafta.',
+      'Mezcla pobre, {driver}. Ahorrá nafta mientras esperamos.',
     ],
     bono: [
-      'Safety Car en pista, {driver}. Cambia a mezcla pobre, Mezcla 1 para ahorrar combustible y refrigerar.',
-      'Selecciona Mezcla 1 bajo neutralización para cuidar motor y ganar delta de combustible.',
+      'Safety Car, {driver}. Mezcla pobre, ahorrá lo que puedas.',
+      'Mezcla pobre con el Safety Car. Cuidá la nafta y el motor.',
     ],
     standard: [
-      'Safety Car en pista. Cambia el mapa de combustible a Mezcla 1 (magra) para ahorrar combustible y controlar temperaturas.',
-      'Neutralización activa. Ajusta a mezcla magra para optimizar el consumo de combustible.',
+      'Condiciones de Safety Car. Pasá la mezcla a pobre.',
+      'Mezcla pobre con el Safety Car, {driver}. Ahorrá nafta.',
     ],
   },
   fuel_mix_restart: {
     colapinto: [
-      '¡Bandera verde, se relanza! ¡Volvé a Mezcla 2 de carrera, {driver}, dale con todo!',
-      '¡Relanzamiento con verde! Poné la nafta en Mezcla 2 y acelerá a fondo.',
+      '¡Bandera verde! Volvé a la mezcla estándar, {driver}, ¡vamos!',
+      '¡Seguís en mezcla pobre, {driver}! Mezcla estándar y a fondo.',
     ],
     bono: [
-      '¡Bandera verde! Restablece el mapa de combustible a Mezcla 2 de carrera.',
-      'Pista libre, verde. Vuelve a Mezcla 2 en la perilla de combustible y empuja.',
+      'Bandera verde, {driver}. Mezcla de vuelta a estándar.',
+      'Estamos corriendo de nuevo. Seguís en pobre, volvé a la mezcla estándar.',
     ],
     standard: [
-      '¡Pista despejada, bandera verde! Restablece el mapa de combustible a Mezcla 2 de carrera.',
-      'Relanzamiento bajo bandera verde. Vuelve al modo de combustible estándar de carrera.',
+      'Bandera verde. Volvé a la mezcla estándar.',
+      'Se corre de nuevo, {driver}. Estás en pobre, volvé a la mezcla estándar.',
     ],
   },
   ers_clipping: {

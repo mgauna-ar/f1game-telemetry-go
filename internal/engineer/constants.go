@@ -29,6 +29,8 @@ const (
 	// Stint & Pit stop tracking heuristics
 	PitStopDetectionMaxTyreAgeLaps = 1
 	MinStintLapsForReset           = 3
+	StintResetMinGapMs             = 60_000 // One stop's signals (stop count, new set, tyre age) start one stint
+	MinServiceStopSec              = 1.0    // A stop shorter than this once a stop-go is taken off was only the penalty
 	PostPitSuppressionLaps         = 1
 	TyreCrossoverMinStintLaps      = 2
 
@@ -59,13 +61,27 @@ const (
 	MinQualyOutLapDistancePct      = 0.50
 
 	// Tyre & Thermal thresholds
-	PunctureWearThresholdPct   = 95.0
+	TyreWornOutPct             = 95.0 // A tyre this worn is finished: box
 	TyreDegradationTempMarginC = 5.0
 	ColdTyresMaxAgeLaps        = 2
+
+	// Puncture: a tyre whose damage jumps this much within the window, or whose pressure falls
+	// this far below the other tyre on its axle. Damage and pressure changes this big are logged
+	// so a real puncture can be checked against them.
+	PunctureDamageJumpPct    = 30.0
+	PunctureWindowMs         = 2_000
+	PuncturePressureDropPSI  = 4.0
+	PunctureLogDamageJumpPct = 10.0
+
+	// Wet/dry crossover: how long the weather must hold before the tyre change is called. Heavy
+	// rain is called at once.
+	CrossoverRainConfirmMs = 60_000
+	CrossoverDryConfirmMs  = 120_000
 
 	// Mechanical & Aero damage thresholds
 	CriticalWingDamageThresholdPct = 40.0
 	RivalDamageWingThresholdPct    = 20.0
+	DamageRearmDropPct             = 10.0 // Damage this far back down (flashback, repair) can be called again
 
 	// Power Unit & Brakes thresholds
 	EngineOverheatDefaultC            = 125.0
@@ -73,9 +89,12 @@ const (
 	EnginePowerCritTempC              = 145.0
 	BrakeOverheatDefaultC             = 900.0
 	BrakeColdDefaultC                 = 200.0
+	BrakeHotSustainMs                 = 5_000 // A brake must stay over the limit this long: one big stop isn't overheating
 	BrakeBiasOverheatThresholdC       = 800.0
 	BrakeBiasImbalanceDeltaThresholdC = 400.0
 	BrakeBiasEqualizedDeltaThresholdC = 150.0
+	BrakeZoneMinPedal                 = 0.5 // Brake pedal from which a braking zone counts for the bias check
+	BrakeBiasZones                    = 5   // Braking zones whose peak axle temperatures the bias check averages
 
 	// Fuel & Pit strategy thresholds
 	FuelDeltaDeficitDefaultLaps  = -0.5
@@ -210,6 +229,7 @@ type TyreThermalWindow struct {
 
 // CompoundThermalWindows contains the optimal operating temperature range (°C) by compound.
 var CompoundThermalWindows = map[string]TyreThermalWindow{
+	"C0":           {CompoundName: "C0", MinTemp: 95.0, MaxTemp: 115.0},
 	"C1":           {CompoundName: "C1", MinTemp: 95.0, MaxTemp: 115.0},
 	"C2":           {CompoundName: "C2", MinTemp: 85.0, MaxTemp: 115.0},
 	"C3":           {CompoundName: "C3", MinTemp: 85.0, MaxTemp: 95.0},
@@ -245,6 +265,8 @@ var EngineThermalDerateCurve = []EngineThermalStep{
 // GetTyreThermalWindow returns the optimal thermal operating window for a tyre given actual and visual compound IDs.
 func GetTyreThermalWindow(actualCompound, visualCompound uint8) TyreThermalWindow {
 	switch actualCompound {
+	case packets.ActualCompoundC0:
+		return CompoundThermalWindows["C0"]
 	case packets.ActualCompoundC1:
 		return CompoundThermalWindows["C1"]
 	case packets.ActualCompoundC2:
@@ -255,6 +277,8 @@ func GetTyreThermalWindow(actualCompound, visualCompound uint8) TyreThermalWindo
 		return CompoundThermalWindows["C4"]
 	case packets.ActualCompoundC5:
 		return CompoundThermalWindows["C5"]
+	case packets.ActualCompoundC6:
+		return CompoundThermalWindows["C6"]
 	case packets.CompoundInter:
 		return CompoundThermalWindows["INTERMEDIATE"]
 	case packets.CompoundWet:

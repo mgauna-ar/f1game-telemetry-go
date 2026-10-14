@@ -49,6 +49,7 @@ type EngineerEngine struct {
 
 	// Internal state tracking
 	lastStintLapAge         int
+	stintStartedAt          int64 // unix ms the current stint started; 0 before the first
 	startLightsActive       bool
 	raceStarted             bool
 	chequeredFlagReceived   bool
@@ -205,6 +206,7 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.teammateCarIndex = -1
 	e.playerTeamID = -1
 	e.lastStintLapAge = 0
+	e.stintStartedAt = 0
 	e.startLightsActive = false
 	e.raceStarted = false
 	e.chequeredFlagReceived = false
@@ -262,6 +264,11 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 			e.chequeredFlagReceived = true
 		case packets.EventRedFlag:
 			e.startRedFlagLocked()
+		case packets.EventFlashback:
+			// The driver went back in time: calls held or waiting for the line are about a moment
+			// that no longer happened.
+			e.pending = make(map[string]pendingDirective)
+			e.lineWait = make(map[string]lineWaitDirective)
 		}
 		e.recordRaceEventLocked(p)
 	case *packets.PacketParticipantsData:
@@ -281,6 +288,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		e.trackRedFlagCountLocked(p)
 		e.latestSession = p
 	case *packets.PacketLapData:
+		e.detectStintStartLocked(p)
 		e.recordLapTransitionsLocked(p)
 		e.pitLanes.learn(e.latestSession, e.latestLapData, p)
 		e.pitEntries = pitLaneEntries(e.latestLapData, p)
@@ -295,10 +303,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 			status := p.CarStatusData[playerIdx]
 			currentTyreAge := int(status.TyresAgeLaps)
 			if currentTyreAge <= PitStopDetectionMaxTyreAgeLaps && e.lastStintLapAge > MinStintLapsForReset {
-				e.stintKeys = make(map[string]bool)
-				for _, r := range e.rules {
-					r.Reset(DedupScopeStint)
-				}
+				e.startStintLocked("tyre age reset")
 			}
 			e.lastStintLapAge = currentTyreAge
 		}
@@ -308,6 +313,9 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		e.latestTelemetry2 = p
 	case *packets.PacketTyreSetsData:
 		if int(p.CarIdx) == e.playerCarIndex {
+			if e.latestTyreSets != nil && p.FittedIdx != e.latestTyreSets.FittedIdx {
+				e.startStintLocked("new tyre set fitted")
+			}
 			e.latestTyreSets = p
 		}
 	case *packets.PacketSessionHistoryData:
@@ -366,6 +374,38 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		ctx.PitEntries = e.pitEntries
 	}
 	return ctx
+}
+
+// detectStintStartLocked starts a stint when the player stops in the pits, or leaves the garage
+// for a new run in practice or qualifying.
+func (e *EngineerEngine) detectStintStartLocked(next *packets.PacketLapData) {
+	before := e.getPlayerLapDataLocked()
+	if before == nil || e.playerCarIndex < 0 || e.playerCarIndex >= len(next.LapData) {
+		return
+	}
+	after := next.LapData[e.playerCarIndex]
+	switch {
+	case after.NumPitStops > before.NumPitStops:
+		e.startStintLocked("pit stop")
+	case before.DriverStatus == packets.DriverStatusInGarage && after.DriverStatus != packets.DriverStatusInGarage:
+		e.startStintLocked("left the garage")
+	}
+}
+
+// startStintLocked re-arms the calls said once a stint (wear, damage, temperatures) for a new set
+// of tyres. One stop sends several signals (stop count, new set, tyre age), so a stint started
+// less than StintResetMinGapMs ago isn't started again.
+func (e *EngineerEngine) startStintLocked(reason string) {
+	now := e.nowMs()
+	if e.stintStartedAt != 0 && now-e.stintStartedAt < StintResetMinGapMs {
+		return
+	}
+	e.stintStartedAt = now
+	e.stintKeys = make(map[string]bool)
+	for _, r := range e.rules {
+		r.Reset(DedupScopeStint)
+	}
+	slog.Debug("Engineer stint started", "reason", reason)
 }
 
 // pitEntryLocked is the learned pit entry of the session's track, or 0 while unknown.

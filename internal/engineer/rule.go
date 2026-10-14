@@ -494,6 +494,24 @@ type EngineerRule interface {
 	Reset(scope DedupScope)
 }
 
+// conditionSpell is how long a condition (rain, a hot brake) has held.
+type conditionSpell struct {
+	on    bool
+	since int64 // unix ms the condition last became true
+}
+
+func (s *conditionSpell) update(on bool, now int64) {
+	if on && !s.on {
+		s.since = now
+	}
+	s.on = on
+}
+
+// heldFor reports whether the condition has lasted at least ms by now.
+func (s conditionSpell) heldFor(now, ms int64) bool {
+	return s.on && now-s.since >= ms
+}
+
 func isPacketType[T packets.Packet](p packets.Packet) bool {
 	if p == nil {
 		return false

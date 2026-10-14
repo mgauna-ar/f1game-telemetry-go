@@ -89,6 +89,20 @@ export const radio_phrases = {
       'Critical tyre puncture detected, {driver}. Nurse the car back.',
     ],
   },
+  tyre_worn_out: {
+    bono: [
+      'That tyre is finished, {driver}. We need to stop.',
+      'The tyre is at the end of its life. We stop.',
+    ],
+    colapinto: [
+      'The tyre\'s gone, {driver}! We have to stop.',
+      'That tyre is done, {driver}. We stop.',
+    ],
+    standard: [
+      'That tyre is worn out. We need to stop.',
+      'Tyre life is over, {driver}. We stop.',
+    ],
+  },
   tyre_wear: {
     bono: [
       'Tyres are starting to go off, {driver}. Look after the rears out of the slow corners.',
@@ -206,27 +220,72 @@ export const radio_phrases = {
   },
   radiator_overheat: {
     bono: [
-      'Engine temperatures running hot, {driver}. We are losing power to thermal derate, introduce Lift & Coast.',
-      'High engine core temperature. Move out of the dirty air and use Lift & Coast into heavy braking.',
+      'Engine temperature\'s high, {driver}. A bit of lift and coast, and get out of the tow when you can.',
+      'Engine running warm. Some lift and coast into the big stops.',
     ],
     colapinto: [
-      'Engine running hot, {driver}. Power unit is losing output, move out of the tow and Lift & Coast.',
+      'Engine\'s getting hot, {driver}! Lift and coast a bit and find some clean air.',
+      'Watch the engine temps, {driver}. Lift a little earlier into the braking zones.',
     ],
     standard: [
-      'Engine temperatures running hot with thermal power loss. Get out of dirty air and apply Lift & Coast.',
-      'High engine temperature warning, {driver}. Seek clean air on straights and introduce Lift & Coast.',
+      'Engine temperature is high. Use some lift and coast and look for clean air.',
+      'Engine running hot, {driver}. Lift and coast into the heavy braking zones.',
+    ],
+  },
+  radiator_overheat_high: {
+    bono: [
+      'Engine temperature still climbing, {driver}. More lift and coast, and stay out of the tow.',
+      'Engine\'s getting hotter. Lift earlier and find clean air.',
+    ],
+    colapinto: [
+      'Engine still heating up, {driver}! More lift and coast, get out of the tow.',
+      'It\'s getting hotter, {driver}. Find clean air.',
+    ],
+    standard: [
+      'Engine temperature is still rising. More lift and coast and find clean air.',
+      'Engine getting hotter, {driver}. Lift earlier and stay out of the tow.',
+    ],
+  },
+  radiator_overheat_critical: {
+    bono: [
+      'Engine temperature critical, {driver}. Lift and coast now, out of the tow.',
+      'Critical engine temps. Cool it down now.',
+    ],
+    colapinto: [
+      'Engine is critical, {driver}! Lift and coast, get out of the tow!',
+      'Critical engine temps! Cool it now, {driver}.',
+    ],
+    standard: [
+      'Critical engine temperature. Lift and coast now and get into clean air.',
+      'Engine temperature critical, {driver}. Cool it down now.',
     ],
   },
   brake_overheat: {
     bono: [
-      'Brakes running hot, {driver}. Move the brake bias rearwards and manage entry.',
+      'Front brakes are running hot, {driver}. Bias rearward a click.',
+      'Fronts are overheating. Move the bias back a click and ease the entries.',
     ],
     colapinto: [
-      'Brakes are overheating, {driver}. Move bias rearwards.',
+      'Front brakes are cooking, {driver}! Bias back a click.',
+      'Fronts are too hot, {driver}. Move the bias rearward.',
     ],
     standard: [
-      'Brakes running hot. Move the brake bias rearwards.',
-      'Brake temperature warning, {driver}. Adjust brake balance.',
+      'Front brakes overheating. Move the brake bias rearward a click.',
+      'Front brake temperatures are too high, {driver}. Bias rearward.',
+    ],
+  },
+  brake_overheat_rear: {
+    bono: [
+      'Rear brakes are running hot, {driver}. Bias forward a click.',
+      'Rears are overheating. Move the bias forward a click.',
+    ],
+    colapinto: [
+      'Rear brakes are cooking, {driver}! Bias forward a click.',
+      'Rears are too hot, {driver}. Move the bias forward.',
+    ],
+    standard: [
+      'Rear brakes overheating. Move the brake bias forward a click.',
+      'Rear brake temperatures are too high, {driver}. Bias forward.',
     ],
   },
   brake_cold: {
@@ -243,16 +302,30 @@ export const radio_phrases = {
   },
   brake_bias: {
     bono: [
-      'Brake thermal imbalance, {driver}. Adjust your brake bias by 1 to 2 percent to balance axle temperatures.',
-      'Check brake bias balance, {driver}. We have a significant thermal split between front and rear.',
+      'Fronts are doing too much of the braking, {driver}. Bias rearward.',
+      'Front brakes running much hotter than the rears. Move the bias back.',
     ],
     colapinto: [
-      'Brake temperatures are split, {driver}. Move brake bias by 1 or 2 clicks to balance them out.',
-      'Adjust brake bias, {driver}! Axle temperatures are out of balance.',
+      'Fronts much hotter than the rears, {driver}! Move the bias back.',
+      'Too much front brake, {driver}. Bias rearward.',
     ],
     standard: [
-      'Brake bias imbalance detected. Adjust brake balance by 1-2% to manage axle temperatures.',
-      'Thermal split on brake discs. Fine tune brake bias to balance front and rear temperatures.',
+      'Front brakes running hotter than the rears. Move the brake bias rearward.',
+      'Brake temperatures are split to the front, {driver}. Bias rearward.',
+    ],
+  },
+  brake_bias_forward: {
+    bono: [
+      'Rears are doing too much of the braking, {driver}. Bias forward.',
+      'Rear brakes running much hotter than the fronts. Move the bias forward.',
+    ],
+    colapinto: [
+      'Rears much hotter than the fronts, {driver}! Move the bias forward.',
+      'Too much rear brake, {driver}. Bias forward.',
+    ],
+    standard: [
+      'Rear brakes running hotter than the fronts. Move the brake bias forward.',
+      'Brake temperatures are split to the rear, {driver}. Bias forward.',
     ],
   },
   fuel_deficit: {
@@ -836,14 +909,30 @@ export const radio_phrases = {
   },
   tyre_crossover: {
     bono: [
-      'Conditions at the crossover threshold, {driver}. Time for a tyre change.',
+      'It\'s raining properly now, {driver}. Too wet for slicks, we go to Inters.',
+      'Rain is staying, {driver}. We take the Intermediates.',
     ],
     colapinto: [
-      'We are at the tyre crossover window, {driver}! Time to change tyres.',
+      'It\'s too wet for slicks, {driver}! We go to Inters.',
+      'Rain is here to stay. Inters, {driver}, Inters!',
     ],
     standard: [
-      'Tyre crossover threshold reached. Time for a compound change.',
-      'Crossover window is open, {driver}. We change tyres.',
+      'Track is too wet for slicks. We go to Intermediates.',
+      'The rain is holding, {driver}. Intermediates.',
+    ],
+  },
+  tyre_crossover_slicks: {
+    bono: [
+      'The track\'s drying, {driver}. Slicks are an option, tell us when you want them.',
+      'Dry line\'s there. We\'re ready with slicks when you are.',
+    ],
+    colapinto: [
+      'Track is drying, {driver}! Slicks are ready when you want them.',
+      'It\'s drying out. Say the word and we go to slicks, {driver}.',
+    ],
+    standard: [
+      'The track is drying. Slicks are an option when you\'re ready.',
+      'Rain has stopped, {driver}. We can go to slicks when you want.',
     ],
   },
   flags_sc_in: {
@@ -1206,30 +1295,30 @@ export const radio_phrases = {
   },
   fuel_mix_neutralized: {
     bono: [
-      'Safety Car on track, {driver}. Switch fuel mix to Lean / Mix 1 to save fuel and manage temps.',
-      'Switch to Mix 1 under the Safety Car, protect the engine and build fuel delta.',
+      'Safety Car, {driver}. Fuel mix to lean, save what you can.',
+      'Lean mix under the Safety Car. Look after the fuel and the engine.',
     ],
     colapinto: [
-      'Safety Car deployed! Switch down to Lean mix, {driver}, save fuel and protect the engine!',
-      'Mix 1 on the fuel dial, {driver}. Save as much fuel as you can under neutralization.',
+      'Safety Car out! Lean mix, {driver}, save that fuel!',
+      'Fuel mix to lean, {driver}. Save fuel while we wait.',
     ],
     standard: [
-      'Safety Car deployed. Switch fuel mix to Lean / Mix 1 to conserve fuel and manage engine temperatures.',
-      'Neutralization active. Select Lean fuel mix to recover fuel delta.',
+      'Safety Car conditions. Switch the fuel mix to lean.',
+      'Lean fuel mix under the Safety Car, {driver}. Save fuel.',
     ],
   },
   fuel_mix_restart: {
     bono: [
-      'Green flag! Restore fuel mix to Race Mix 2, race is on.',
-      'Track is green, {driver}. Back to Mix 2 on the fuel dial, push now.',
+      'Green flag, {driver}. Fuel mix back to standard.',
+      'We\'re racing again. You\'re still on lean, back to the standard mix.',
     ],
     colapinto: [
-      'Green flag, restart! Back to Race Mix 2, {driver}, give it everything!',
-      'Green flag racing! Put the fuel back to Mix 2 and hammer it!',
+      'Green flag! Back to the standard mix, {driver}, let\'s go!',
+      'You\'re still on lean, {driver}! Standard mix and push.',
     ],
     standard: [
-      'Track is green! Restore fuel mix to Race Mix 2.',
-      'Green flag restart. Switch fuel mode back to standard race mix.',
+      'Green flag. Switch the fuel mix back to standard.',
+      'Racing again, {driver}. You\'re on lean, back to the standard mix.',
     ],
   },
   ers_clipping: {

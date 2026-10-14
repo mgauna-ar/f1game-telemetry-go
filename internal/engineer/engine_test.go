@@ -138,7 +138,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 		t.Fatalf("expected tyre_wear directive to be emitted")
 	}
 
-	// 2. Critical Puncture emergency bypass (>= 95%)
+	// 2. Critical Puncture emergency bypass (tyre damage jumps)
 	header2 := createTestHeader(packets.PacketFormat2026, 112, 0)
 	sessionPkt2 := &packets.PacketSessionData{
 		Header:      header2,
@@ -153,10 +153,11 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 	engine.ProcessPacket(ctx, sessionPkt2)
 	engine.ProcessPacket(ctx, lapPkt2)
 
+	engine.ProcessPacket(ctx, &packets.PacketCarDamageData{Header: header2})
 	puncturePkt := &packets.PacketCarDamageData{
 		Header: header2,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: wheels[float32](96.0, 30.0, 25.0, 20.0)},
+			{TyresWear: wheels[float32](30.0, 30.0, 25.0, 20.0), TyresDamage: wheels[uint8](60, 0, 0, 0)},
 		},
 	}
 	engine.ProcessPacket(ctx, puncturePkt)
@@ -322,6 +323,8 @@ func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
 func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
 	engine := newTestEngineerEngine(broadcaster)
+	clock := newTestClock()
+	clock.install(engine)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 300, 0)
 
@@ -363,8 +366,13 @@ func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 		},
 	}
 	engine.ProcessPacket(ctx, telemetryPkt)
+	if _, exists := engine.lastDirectives["brake_hot"]; exists {
+		t.Fatalf("expected no brake_hot on the first hot reading")
+	}
+	clock.advance(time.Duration(BrakeHotSustainMs) * time.Millisecond)
+	engine.ProcessPacket(ctx, telemetryPkt)
 	if _, exists := engine.lastDirectives["brake_hot"]; !exists {
-		t.Fatalf("expected brake_hot directive")
+		t.Fatalf("expected brake_hot directive once the brakes stayed hot")
 	}
 }
 
@@ -1289,11 +1297,11 @@ func TestEngineerEngine_StartSilenceAndPostRaceSuppression(t *testing.T) {
 		t.Errorf("expected tyre_wear to be suppressed during PhaseGrid")
 	}
 
-	// Critical puncture (wear >= 95%) SHOULD break through even on Grid
+	// A critical puncture (tyre damage jump) SHOULD break through even on Grid
 	puncturePkt := &packets.PacketCarDamageData{
 		Header: header,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: wheels[float32](96.0, 30.0, 20.0, 20.0)},
+			{TyresWear: wheels[float32](45.0, 30.0, 20.0, 20.0), TyresDamage: wheels[uint8](70, 0, 0, 0)},
 		},
 	}
 	engine.ProcessPacket(ctx, puncturePkt)
@@ -1382,10 +1390,11 @@ func TestEngineerEngine_GlobalRadioCooldown(t *testing.T) {
 	}
 
 	// 3. Immediately, a CRITICAL directive arrives (tyre_puncture, UrgencyCritical) -> MUST PREEMPT AND EMIT!
+	engine.ProcessPacket(ctx, &packets.PacketCarDamageData{Header: header})
 	puncturePkt := &packets.PacketCarDamageData{
 		Header: header,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: wheels[float32](96.0, 20.0, 20.0, 20.0)},
+			{TyresWear: wheels[float32](20.0, 20.0, 20.0, 20.0), TyresDamage: wheels[uint8](0, 0, 55, 0)},
 		},
 	}
 	engine.ProcessPacket(ctx, puncturePkt)
@@ -1416,6 +1425,8 @@ func TestEngineerEngine_GlobalRadioCooldown(t *testing.T) {
 func TestEngineerEngine_LiveWeatherAndTyreCrossover(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
 	engine := newTestEngineerEngine(broadcaster)
+	clock := newTestClock()
+	clock.install(engine)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 8888, 0)
 
@@ -1456,7 +1467,13 @@ func TestEngineerEngine_LiveWeatherAndTyreCrossover(t *testing.T) {
 		t.Fatalf("expected flags_rain_live directive upon live rain arrival on track")
 	}
 
-	// 3. Driver still on dry slicks during rain -> Triggers urgent Tyre Crossover (Box for Inters)
+	// 3. Driver still on dry slicks once the rain has held -> Tyre Crossover (Box for Inters)
+	engine.ProcessPacket(ctx, statusSlicks)
+	if _, exists := engine.lastDirectives["tyre_crossover"]; exists {
+		t.Fatalf("expected no tyre_crossover the moment the rain starts")
+	}
+	clock.advance(time.Duration(CrossoverRainConfirmMs) * time.Millisecond)
+	engine.ProcessPacket(ctx, sessionRain)
 	engine.ProcessPacket(ctx, statusSlicks)
 	if _, exists := engine.lastDirectives["tyre_crossover"]; !exists {
 		t.Fatalf("expected tyre_crossover directive advising box for Intermediates")
@@ -1486,9 +1503,15 @@ func TestEngineerEngine_LiveWeatherAndTyreCrossover(t *testing.T) {
 		},
 	}
 	engine.ProcessPacket(ctx, statusInters)
+	if _, exists := engine.lastDirectives["tyre_crossover_slicks"]; exists {
+		t.Fatalf("expected no slicks call before the track has stayed dry")
+	}
+	clock.advance(time.Duration(CrossoverDryConfirmMs) * time.Millisecond)
+	engine.ProcessPacket(ctx, sessionDrying)
+	engine.ProcessPacket(ctx, statusInters)
 
-	if _, exists := engine.lastDirectives["tyre_crossover"]; !exists {
-		t.Fatalf("expected tyre_crossover directive advising box for slicks on drying track")
+	if _, exists := engine.lastDirectives["tyre_crossover_slicks"]; !exists {
+		t.Fatalf("expected tyre_crossover_slicks directive offering slicks on a drying track")
 	}
 }
 

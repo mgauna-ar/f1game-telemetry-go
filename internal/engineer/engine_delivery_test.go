@@ -149,13 +149,13 @@ func TestEngineerEngine_RepeatLimitAppliesToUrgentCalls(t *testing.T) {
 		e.ProcessPacket(ctx, hot)
 		clock.advance(16 * time.Millisecond)
 	}
-	if n := spoken(t, b, "radiator_overheat"); n != 1 {
+	if n := spoken(t, b, "radiator_overheat_critical"); n != 1 {
 		t.Fatalf("critical engine temperature was said %d times in half a second, want 1", n)
 	}
 
 	clock.advance(time.Duration(EngineTempMinRepeatMs) * time.Millisecond)
 	e.ProcessPacket(ctx, hot)
-	if n := spoken(t, b, "radiator_overheat"); n != 2 {
+	if n := spoken(t, b, "radiator_overheat_critical"); n != 2 {
 		t.Fatalf("critical engine temperature was said %d times after the repeat window, want 2", n)
 	}
 }

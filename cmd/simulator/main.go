@@ -37,10 +37,15 @@ const (
 	simPitBoxEndM = 150
 	simPitExitM   = 300
 	// simPlayerPitLap is the lap the player pits at the end of; a puncture comes on the lap before,
-	// just past the point a call to box that lap can still be made.
+	// just past the point a call to box that lap can still be made (a frame's distance past it, as
+	// the telemetry packet that shows it comes before the frame's lap data).
 	simPlayerPitLap  = 4
 	simPunctureLap   = 3
-	simPunctureFromM = 4460
+	simPunctureFromM = 4480
+	// The punctured rear left loses its pressure and its damage jumps, as the engineer detects a
+	// puncture.
+	simPuncturedPressurePSI = 15.0
+	simPuncturedDamagePct   = 85
 )
 
 // The qualifying scenario (Q1, 22 cars, the player P17: in the drop zone) runs in runs of
@@ -411,6 +416,9 @@ func main() {
 
 			// 3. Car Telemetry Packet (ID: 6)
 			telemetryCars := buildTelemetryCars(cfg, st.angle, speedKmh, rpm, gear, throttle, brake)
+			if cfg.Scenario == "pit" && simPunctured(st.lapNum, st.lapDist) {
+				telemetryCars[0].TyresPressure[packets.WheelRearLeft] = simPuncturedPressurePSI
+			}
 			sendTelemetryPacket(conn, header, cfg.TotalSlots, telemetryCars, cfg.PacketFormat)
 
 			// 3b. Car Telemetry 2 Packet (ID: 16) - 2026 Only
@@ -925,8 +933,9 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 		frWear := baseWear + float32((i+1)%2)*2.5
 		rlWear := baseWear * 0.95
 		rrWear := baseWear * 0.92
+		tyreDamage := [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)}
 		if i == 0 && cfg.Scenario == "pit" && simPunctured(st.lapNum, st.lapDist) {
-			rlWear = 97
+			tyreDamage[packets.WheelRearLeft] = simPuncturedDamagePct
 		}
 
 		if i == 0 && (cfg.Scenario == "wear" || cfg.Scenario == "tyre-wear") && st.frameID%100 == 0 {
@@ -946,7 +955,7 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 
 		damageCars[i] = packets.CarDamageData{
 			TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
-			TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
+			TyresDamage:          tyreDamage,
 			BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
 			TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
 			FrontLeftWingDamage:  uint8((i * 9) % 55),

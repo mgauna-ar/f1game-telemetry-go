@@ -80,19 +80,19 @@ type alertGate struct {
 }
 
 var alertGates = []alertGate{
-	{"tyreAlertsEnabled", "subTyreWear", []string{"tyre_wear"}},
+	{"tyreAlertsEnabled", "subTyreWear", []string{"tyre_wear", "tyre_worn_out"}},
 	{"tyreAlertsEnabled", "subTyrePuncture", []string{"tyre_puncture"}},
 	{"tyreAlertsEnabled", "subTyreThermal", []string{"tyre_thermal", "tyre_overheat"}},
 	{"tyreAlertsEnabled", "subTyreCold", []string{"tyre_cold"}},
 	{"tyreAlertsEnabled", "subTyreCondition", []string{"tyre_blistering", "tyre_pressure_high"}},
-	{"tyreAlertsEnabled", "subTyreCrossover", []string{"tyre_crossover", "tyre_crossover_inter", "tyre_crossover_wet"}},
+	{"tyreAlertsEnabled", "subTyreCrossover", []string{"tyre_crossover", "tyre_crossover_inter", "tyre_crossover_wet", "tyre_crossover_slicks"}},
 	{"tyreAlertsEnabled", "subTyreLife", []string{"tyre_life", "tyre_life_end"}},
 	{"damageAlertsEnabled", "", []string{"damage"}},
 	{"damageAlertsEnabled", "subDamageWing", []string{"wing_damage", "damage_wing"}},
 	{"damageAlertsEnabled", "subDamageFloor", []string{"floor_damage", "damage_floor"}},
 	{"damageAlertsEnabled", "subDamageEngine", []string{"engine_wear", "damage_engine", "damage_gearbox_wear", "damage_ice_wear", "damage_terminal_engine"}},
 	{"damageAlertsEnabled", "subDamageFaults", []string{"mechanical_fault", "damage_aero_fault", "damage_ers_fault"}},
-	{"damageAlertsEnabled", "subEngineTemp", []string{"engine_temp"}},
+	{"damageAlertsEnabled", "subEngineTemp", []string{"engine_temp", "engine_temp_high", "engine_temp_critical"}},
 	{"ersAlertsEnabled", "subErsLow", []string{"ers_low"}},
 	{"ersAlertsEnabled", "subErsClipping", []string{"ers_clipping"}},
 	{"ersAlertsEnabled", "subAeroZones", []string{"aero_straight_anticipation", "overtake_boost_anticipation"}},

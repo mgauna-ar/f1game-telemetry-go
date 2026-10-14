@@ -13,7 +13,10 @@ type FuelRule struct {
 	mu                       sync.Mutex
 	lastFuelDeltaAlertLap    int
 	fuelMixNeutralizedWarned bool
-	fuelMixRestartWarned     bool
+	// wasNeutralized is whether the last packet was under a Safety Car or VSC; restartDue is set
+	// by each one, until the restart checks the fuel mix.
+	wasNeutralized bool
+	restartDue     bool
 }
 
 // NewFuelRule creates a new FuelRule.
@@ -74,9 +77,12 @@ func (r *FuelRule) Reset(scope DedupScope) {
 	if scope == DedupScopeLap || scope == DedupScopeNone {
 		r.lastFuelDeltaAlertLap = -1
 	}
-	if scope == DedupScopePhase || scope == DedupScopeNone {
+	// The fuel mix calls span the Safety Car and the restart, two phases, so only a new session
+	// clears them; each Safety Car re-arms them (Evaluate).
+	if scope == DedupScopeNone {
 		r.fuelMixNeutralizedWarned = false
-		r.fuelMixRestartWarned = false
+		r.wasNeutralized = false
+		r.restartDue = false
 	}
 }
 
@@ -114,31 +120,37 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 2. Neutralization Fuel Mix Audit (Switch to Lean under SC, restore to Race on restart)
+	// 2. Fuel mix under a Safety Car or VSC: lean while neutralised, back to the race mix at the
+	// restart.
 	if status != nil && ctx.IsRaceSession() {
-		if isNeutralized {
+		if isNeutralized && !r.wasNeutralized {
+			r.fuelMixNeutralizedWarned = false
+			r.restartDue = true
+		}
+		r.wasNeutralized = isNeutralized
+
+		switch {
+		case isNeutralized:
 			if status.FuelMix >= packets.FuelMixStandard && !r.fuelMixNeutralizedWarned {
 				r.fuelMixNeutralizedWarned = true
-				r.fuelMixRestartWarned = false
 				directives = append(directives, Directive{
 					ID:       "fuel_mix_neutralized",
 					Category: DirectiveCategoryFuel,
 					SubAlert: "fuel_mix_neutralized",
 					Title:    "Neutralization Fuel Mix",
-					Message:  "Safety car conditions. Switch fuel mix to Lean / Mix 1 to conserve fuel and protect engine temperatures.",
+					Message:  "Safety car conditions. Switch the fuel mix to lean to save fuel and keep the engine cool.",
 					Urgency:  UrgencyMedium,
 				})
 			}
-		} else if ctx.Phase == PhaseRacing && currentLapNum > 1 {
-			if status.FuelMix == packets.FuelMixLean && !r.fuelMixRestartWarned && r.fuelMixNeutralizedWarned {
-				r.fuelMixRestartWarned = true
-				r.fuelMixNeutralizedWarned = false
+		case ctx.Phase == PhaseRacing && currentLapNum > 1 && r.restartDue:
+			r.restartDue = false
+			if status.FuelMix == packets.FuelMixLean {
 				directives = append(directives, Directive{
 					ID:       "fuel_mix_restart",
 					Category: DirectiveCategoryFuel,
 					SubAlert: "fuel_mix_restart",
 					Title:    "Race Restart Fuel Mix",
-					Message:  "Green flag racing! Restore fuel mix to Race Mix 2.",
+					Message:  "Green flag racing! Fuel mix is still lean: back to the standard race mix.",
 					Urgency:  UrgencyMedium,
 				})
 			}

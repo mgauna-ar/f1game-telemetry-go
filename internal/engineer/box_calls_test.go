@@ -334,8 +334,16 @@ func TestRules_MarkBoxCalls(t *testing.T) {
 			Config:  cfg, Phase: PhaseRacing,
 		}
 	}
-	puncture := &packets.PacketCarDamageData{}
-	puncture.CarDamageData[0].TyresWear = wheels[float32](96, 20, 20, 20)
+	// A puncture is a tyre damage jump: the call comes on the packet after the clean one.
+	punctureCalls := func() []Directive {
+		rule := NewTyresRule()
+		rule.Evaluate(&EvaluationContext{Damage: &packets.PacketCarDamageData{}, Config: cfg, Phase: PhaseRacing})
+		puncture := &packets.PacketCarDamageData{}
+		puncture.CarDamageData[0].TyresDamage = wheels[uint8](0, 80, 0, 0)
+		return rule.Evaluate(&EvaluationContext{Damage: puncture, Config: cfg, Phase: PhaseRacing})
+	}
+	wornOut := &packets.PacketCarDamageData{}
+	wornOut.CarDamageData[0].TyresWear = wheels[float32](96, 20, 20, 20)
 
 	tests := []struct {
 		name string
@@ -343,7 +351,8 @@ func TestRules_MarkBoxCalls(t *testing.T) {
 		key  string
 		want BoxCall
 	}{
-		{"puncture", NewTyresRule().Evaluate(&EvaluationContext{Damage: puncture, Config: cfg, Phase: PhaseRacing}), "tyre_puncture", BoxCallInstruction},
+		{"puncture", punctureCalls(), "tyre_puncture", BoxCallInstruction},
+		{"worn out tyre", NewTyresRule().Evaluate(&EvaluationContext{Damage: wornOut, Config: cfg, Phase: PhaseRacing}), "tyre_worn_out", BoxCallInstruction},
 		{"critical wing damage", NewDamageRule().Evaluate(damage(60)), "damage_wing", BoxCallInstruction},
 		{"light wing damage", NewDamageRule().Evaluate(damage(25)), "damage_wing", BoxCallNone},
 		{"Safety Car", optionalDirective(NewFlagsRule().evaluateSafetyCar(safetyCar(packets.SafetyCarFull))), "flags_sc", BoxCallOption},

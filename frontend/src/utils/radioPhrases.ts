@@ -56,6 +56,7 @@ const BOX_OPTION_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAler
   'safety_car',
   'vsc',
   'pit_clean_air',
+  'tyre_crossover_slicks',
 ]);
 
 /** The phrases `persona` can say for `category` in `language`, falling back to the standard pool. */
