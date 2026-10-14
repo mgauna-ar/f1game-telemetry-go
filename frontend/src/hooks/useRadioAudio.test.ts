@@ -11,7 +11,7 @@ import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { SESSION_TYPES } from '../constants/f1';
 import type { SessionData } from '../types/telemetry';
 import { makeLiveSession } from '../test/wireFactories';
-import { getExchangeSpeech } from '../utils/radioPhrases';
+import { addressDriver, EXCHANGE_PHRASES } from '../utils/radioPhrases';
 import type { ExchangeLine, PTTTraceRequest } from '../types/telemetry';
 
 class FakeSpeechRecognition {
@@ -186,10 +186,12 @@ describe('useRadioAudio hook', () => {
 
     const spoken = () => vi.mocked(radioAudio.speakRadioResponse).mock.calls.map((call) => call[0]);
 
-    /** What the engineer says for this line with the default settings, given Math.random is 0. */
+    /** Any of the ways the engineer says this line with the default settings. */
     function exchangeLine(line: ExchangeLine) {
       const { persona, driverCallsign } = useRadioSettingsStore.getState();
-      return getExchangeSpeech(line, 'en', persona, driverCallsign);
+      const pool = EXCHANGE_PHRASES.en[line];
+      const said = (persona === 'bono' ? pool.bono : persona === 'colapinto' ? pool.colapinto : undefined) ?? pool.standard;
+      return expect.toBeOneOf(said.map((template) => addressDriver(template, driverCallsign)));
     }
 
     /** The push-to-talk traces sent to the app log. */

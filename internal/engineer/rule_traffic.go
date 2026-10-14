@@ -154,8 +154,10 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 				r.penaltyReminderFired = true
 				r.penaltyHoldSec = playerLap.Penalties
 				var pnlMsg string
+				var values *DirectiveValues
 				if playerLap.Penalties > 0 {
 					pnlMsg = fmt.Sprintf("Hold for %d-second penalty before tyres are changed. Do not work on the car until served.", playerLap.Penalties)
+					values = &DirectiveValues{PenaltySec: int(playerLap.Penalties)}
 				} else {
 					pnlMsg = "Serve penalty first. Car must remain stationary before mechanics touch the tyres."
 				}
@@ -166,6 +168,7 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Serve Penalty in Box",
 					Message:  pnlMsg,
 					Urgency:  UrgencyCritical,
+					Values:   values,
 				})
 			}
 		}

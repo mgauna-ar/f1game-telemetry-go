@@ -164,11 +164,13 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 	dmg := ctx.PlayerDamage()
 	if dmg != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarDamageData](ctx.Packet)) {
 		var maxWear float32
-		for _, w := range dmg.TyresWear {
+		wornWheel := 0
+		for i, w := range dmg.TyresWear {
 			if w > maxWear {
-				maxWear = w
+				maxWear, wornWheel = w, i
 			}
 		}
+		wear := &DirectiveValues{Wheel: wheelAt[wornWheel], Pct: int(math.Round(float64(maxWear)))}
 
 		directives = append(directives, r.damagePunctures(ctx, dmg)...)
 
@@ -183,6 +185,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Message:  fmt.Sprintf("Tyre wear is at %d%%, the tyre is finished. Box now.", int(math.Round(float64(maxWear)))),
 				Urgency:  UrgencyCritical,
 				BoxCall:  BoxCallInstruction,
+				Values:   wear,
 			})
 		case maxWear < TyreWornOutPct:
 			// Wear warning / critical thresholds
@@ -210,6 +213,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Wear Alert",
 					Message:  fmt.Sprintf("Tyre wear reached %d%% (stint age: %d laps).", int(math.Round(float64(maxWear))), currentTyreAge),
 					Urgency:  urgency,
+					Values:   wear,
 				})
 				break
 			}
@@ -227,6 +231,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Tyre Blistering Detected",
 						Message:  fmt.Sprintf("Tyre blistering detected on the %s tyre (%d%% blister)! Back off lateral loads and avoid aggressive curb strikes.", wheelLongNames[wIdx], blister),
 						Urgency:  UrgencyMedium,
+						Values:   &DirectiveValues{Wheel: wheelAt[wIdx], Pct: int(blister)},
 					})
 					break
 				}
@@ -302,31 +307,28 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 			rrPress := tele.TyresPressure[packets.WheelRearRight]
 
 			var maxPress float32
-			var maxPressWheel string
+			maxPressWheel := -1
 			switch {
 			case flPress >= TyrePressureMaxFrontPSI:
-				maxPress = flPress
-				maxPressWheel = wheelLongNames[packets.WheelFrontLeft]
+				maxPress, maxPressWheel = flPress, packets.WheelFrontLeft
 			case frPress >= TyrePressureMaxFrontPSI:
-				maxPress = frPress
-				maxPressWheel = wheelLongNames[packets.WheelFrontRight]
+				maxPress, maxPressWheel = frPress, packets.WheelFrontRight
 			case rlPress >= TyrePressureMaxRearPSI:
-				maxPress = rlPress
-				maxPressWheel = wheelLongNames[packets.WheelRearLeft]
+				maxPress, maxPressWheel = rlPress, packets.WheelRearLeft
 			case rrPress >= TyrePressureMaxRearPSI:
-				maxPress = rrPress
-				maxPressWheel = wheelLongNames[packets.WheelRearRight]
+				maxPress, maxPressWheel = rrPress, packets.WheelRearRight
 			}
 
-			if maxPress > 0 {
+			if maxPressWheel >= 0 {
 				r.pressureAlertFired = true
 				directives = append(directives, Directive{
 					ID:       "tyre_pressure_high",
 					Category: DirectiveCategoryTyres,
 					SubAlert: "tyre_pressure_high",
 					Title:    "High Tyre Pressure",
-					Message:  fmt.Sprintf("%s tyre pressure is spiking (%.1f PSI)! Manage corner entry scrub to prevent crowning the contact patch.", maxPressWheel, maxPress),
+					Message:  fmt.Sprintf("%s tyre pressure is spiking (%.1f PSI)! Manage corner entry scrub to prevent crowning the contact patch.", wheelLongNames[maxPressWheel], maxPress),
 					Urgency:  UrgencyMedium,
+					Values:   &DirectiveValues{Wheel: wheelAt[maxPressWheel]},
 				})
 			} else {
 				frontDiff := float32(math.Abs(float64(flPress - frPress)))
@@ -340,6 +342,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Tyre Pressure Imbalance",
 						Message:  fmt.Sprintf("Front axle tyre pressure disparity is high (%.1f vs %.1f PSI). Balance cornering load.", flPress, frPress),
 						Urgency:  UrgencyLow,
+						Values:   &DirectiveValues{Axle: AxleFront},
 					})
 				} else if rearDiff >= TyrePressureAsymmetryDeltaPSI {
 					r.pressureAlertFired = true
@@ -350,6 +353,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Tyre Pressure Imbalance",
 						Message:  fmt.Sprintf("Rear axle tyre pressure disparity is high (%.1f vs %.1f PSI). Balance traction load.", rlPress, rrPress),
 						Urgency:  UrgencyLow,
+						Values:   &DirectiveValues{Axle: AxleRear},
 					})
 				}
 			}
@@ -389,13 +393,14 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				}
 
 				var advMsg string
+				var values *DirectiveValues
 				switch {
 				case freshHard > 0:
-					advMsg = "Pit window approaching. Fresh set of Hard tyres ready in the box."
+					advMsg, values = "Pit window approaching. Fresh set of Hard tyres ready in the box.", &DirectiveValues{Compound: TyreHard}
 				case freshMedium > 0:
-					advMsg = "Pit window approaching. Fresh set of Medium tyres ready in the box."
+					advMsg, values = "Pit window approaching. Fresh set of Medium tyres ready in the box.", &DirectiveValues{Compound: TyreMedium}
 				case freshSoft > 0:
-					advMsg = "Pit window approaching. Fresh set of Soft tyres ready in the box."
+					advMsg, values = "Pit window approaching. Fresh set of Soft tyres ready in the box.", &DirectiveValues{Compound: TyreSoft}
 				default:
 					advMsg = "Pit window approaching. Scrubbed set prepared in the pit box."
 				}
@@ -407,6 +412,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Set Advisory",
 					Message:  advMsg,
 					Urgency:  UrgencyLow,
+					Values:   values,
 				})
 			}
 		}
@@ -489,6 +495,7 @@ func punctureDirective(wheel int, evidence string) Directive {
 		Message:  fmt.Sprintf("Puncture on the %s tyre (%s). Box now.", wheelLongNames[wheel], evidence),
 		Urgency:  UrgencyCritical,
 		BoxCall:  BoxCallInstruction,
+		Values:   &DirectiveValues{Wheel: wheelAt[wheel]},
 	}
 }
 
@@ -546,6 +553,7 @@ func (r *TyresRule) crossover(ctx *EvaluationContext) []Directive {
 			Message:  "It's raining and the forecast keeps it wet: too wet for slicks. Box for Intermediates.",
 			Urgency:  urgency,
 			BoxCall:  BoxCallInstruction,
+			Values:   &DirectiveValues{Compound: TyreInter},
 		}}
 	case isInter && r.lastCrossoverTarget != "WET" &&
 		(weather >= packets.WeatherStorm || (r.heavyRain.heldFor(now, CrossoverRainConfirmMs) && nextHeavy)):
@@ -558,6 +566,7 @@ func (r *TyresRule) crossover(ctx *EvaluationContext) []Directive {
 			Message:  "Heavy rain is holding, standing water and aquaplaning risk. Box for Full Wets.",
 			Urgency:  UrgencyCritical,
 			BoxCall:  BoxCallInstruction,
+			Values:   &DirectiveValues{Compound: TyreWet},
 		}}
 	case isWet && settled && r.lastCrossoverTarget != "INTER_DRYING" &&
 		r.notHeavyRain.heldFor(now, CrossoverRainConfirmMs) && nextEasing:
@@ -570,6 +579,7 @@ func (r *TyresRule) crossover(ctx *EvaluationContext) []Directive {
 			Message:  "The rain has eased and the standing water is clearing. Intermediates are faster now, box for Inters.",
 			Urgency:  UrgencyHigh,
 			BoxCall:  BoxCallInstruction,
+			Values:   &DirectiveValues{Compound: TyreInter},
 		}}
 	case (isInter || isWet) && settled && r.lastCrossoverTarget != "SLICKS" &&
 		r.dry.heldFor(now, CrossoverDryConfirmMs) && nextDry:

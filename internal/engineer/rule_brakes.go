@@ -121,6 +121,7 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Brake Disc Overheating",
 			Message:  fmt.Sprintf("The %s brake has been over %d°C for a while (%d°C now). %s", wheelLongNames[hotWheel], int(ctx.Config.BrakeOverheatC), tele.BrakesTemperature[hotWheel], advice),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Wheel: wheelAt[hotWheel]},
 		})
 	case maxBrakeTemp > 0 && maxBrakeTemp <= ctx.Config.BrakeColdC:
 		directives = append(directives, Directive{
@@ -193,6 +194,7 @@ func (r *BrakesRule) biasCall(tele *packets.CarTelemetryData) (Directive, bool) 
 			Title:    "Brake Bias Imbalance",
 			Message:  fmt.Sprintf("Front brakes peak much hotter than the rears over the last braking zones (%d°C vs %d°C). Move the brake bias rearward.", int(front), int(rear)),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Axle: AxleFront},
 		}, true
 	case rear >= BrakeBiasOverheatThresholdC && rear-front >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "rear":
 		r.lastBrakeBiasAlert = "rear"
@@ -203,6 +205,7 @@ func (r *BrakesRule) biasCall(tele *packets.CarTelemetryData) (Directive, bool) 
 			Title:    "Brake Bias Imbalance",
 			Message:  fmt.Sprintf("Rear brakes peak much hotter than the fronts over the last braking zones (%d°C vs %d°C). Move the brake bias forward.", int(rear), int(front)),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Axle: AxleRear},
 		}, true
 	}
 	return Directive{}, false

@@ -695,6 +695,11 @@ export const RADIO_CONVERSATION_LIMITS = {
   STAND_BY_AFTER_MS: 2000,
 } as const;
 
+export const RADIO_PHRASE_CONSTANTS = {
+  /** A routine call says the driver's callsign once every this many routine calls; an urgent one always does. */
+  CALLSIGN_ROUTINE_EVERY: 4,
+} as const;
+
 export const RADIO_PTT_MODES = {
   HOLD: 'hold',
   TOGGLE: 'toggle',

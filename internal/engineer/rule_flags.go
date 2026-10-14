@@ -609,6 +609,7 @@ func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
 		Title:    "Weather Transition",
 		Message:  fmt.Sprintf("Weather radar confirms %d%% chance of rain in the next %d minutes.", soonest.RainPercentage, soonest.TimeOffset),
 		Urgency:  UrgencyHigh,
+		Values:   &DirectiveValues{RainPct: int(soonest.RainPercentage), Minutes: int(soonest.TimeOffset)},
 	}
 }
 

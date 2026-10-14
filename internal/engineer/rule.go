@@ -274,7 +274,8 @@ type EngineerDirective struct {
 	lapDistance float32
 }
 
-// DirectiveValues are the numbers a report call says. Only the fields of its report are set.
+// DirectiveValues are the facts a call says: its numbers, and which wheel, axle or tyre it is
+// about. Only the fields of its call are set.
 type DirectiveValues struct {
 	// Position is the player's position (gap report, elimination danger, lap result, finish).
 	Position int `json:"position,omitempty"`
@@ -284,7 +285,8 @@ type DirectiveValues struct {
 	Behind *GapToCar `json:"behind,omitempty"`
 	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).
 	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
-	// Minutes is how many minutes are left in the session, rounded up (session clock).
+	// Minutes is how many minutes are left in the session, rounded up (session clock), or how
+	// soon the forecast has rain (rain forecast).
 	Minutes int `json:"minutes,omitempty"`
 	// PoleGapSec is how far a qualifying lap is off P1's best, or, on provisional pole, how far
 	// ahead of P2's, to a thousandth; 0 while unknown (lap result).
@@ -298,7 +300,72 @@ type DirectiveValues struct {
 	PenaltySec int `json:"penalty_sec,omitempty"`
 	// StopSec is how long the car stood in the pit box, to a tenth (pit stop time).
 	StopSec float64 `json:"stop_sec,omitempty"`
+	// Sector is the sector a coaching call is about, 1 to 3, and DeltaSec how much slower than the
+	// player's best it was, to a hundredth.
+	Sector   int     `json:"sector,omitempty"`
+	DeltaSec float64 `json:"delta_sec,omitempty"`
+	// ReactionSec is the player's reaction time at the start, to a hundredth.
+	ReactionSec float64 `json:"reaction_sec,omitempty"`
+	// Wheel is the tyre or brake a call is about (puncture, wear, blisters, pressure, hot brake).
+	Wheel WheelPosition `json:"wheel,omitempty" tstype:"EngineerWheel"`
+	// Axle is the axle a call is about (brake bias, tyre pressure split).
+	Axle AxlePosition `json:"axle,omitempty" tstype:"EngineerAxle"`
+	// Compound is the tyre a call is about: the one to fit (wet crossover, fresh set in the box).
+	Compound TyreCompound `json:"compound,omitempty" tstype:"EngineerCompound"`
+	// Pct is the percentage a call says: tyre wear or blistering, damage or wear of a part, the
+	// battery's charge.
+	Pct int `json:"pct,omitempty"`
+	// RainPct is the forecast's chance of rain, with Minutes how soon (rain forecast).
+	RainPct int `json:"rain_pct,omitempty"`
+	// FuelDeltaLaps is the fuel target delta, in laps to a tenth: negative is short (fuel).
+	FuelDeltaLaps float64 `json:"fuel_delta_laps,omitempty"`
 }
+
+// WheelPosition names a wheel.
+type WheelPosition string
+
+const (
+	WheelFrontLeft  WheelPosition = "front_left"
+	WheelFrontRight WheelPosition = "front_right"
+	WheelRearLeft   WheelPosition = "rear_left"
+	WheelRearRight  WheelPosition = "rear_right"
+)
+
+// WheelPositions lists every WheelPosition, for the generated TypeScript union.
+var WheelPositions = []string{string(WheelFrontLeft), string(WheelFrontRight), string(WheelRearLeft), string(WheelRearRight)}
+
+// wheelAt is the WheelPosition of each packet wheel index.
+var wheelAt = [4]WheelPosition{
+	packets.WheelRearLeft:   WheelRearLeft,
+	packets.WheelRearRight:  WheelRearRight,
+	packets.WheelFrontLeft:  WheelFrontLeft,
+	packets.WheelFrontRight: WheelFrontRight,
+}
+
+// AxlePosition names an axle.
+type AxlePosition string
+
+const (
+	AxleFront AxlePosition = "front"
+	AxleRear  AxlePosition = "rear"
+)
+
+// AxlePositions lists every AxlePosition, for the generated TypeScript union.
+var AxlePositions = []string{string(AxleFront), string(AxleRear)}
+
+// TyreCompound names a tyre as the driver sees it.
+type TyreCompound string
+
+const (
+	TyreSoft   TyreCompound = "soft"
+	TyreMedium TyreCompound = "medium"
+	TyreHard   TyreCompound = "hard"
+	TyreInter  TyreCompound = "inter"
+	TyreWet    TyreCompound = "wet"
+)
+
+// TyreCompounds lists every TyreCompound, for the generated TypeScript union.
+var TyreCompounds = []string{string(TyreSoft), string(TyreMedium), string(TyreHard), string(TyreInter), string(TyreWet)}
 
 // EliminationStatus is where a qualifying position stands against the cut line.
 type EliminationStatus string

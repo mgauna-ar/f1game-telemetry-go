@@ -268,23 +268,24 @@ func (r *ReportsRule) tyreLifeCall(ctx *EvaluationContext, lap *packets.LapData)
 		}, true
 	case life.LapsToLimit <= TyreLifeLastLaps && !r.tyreLastSaid:
 		r.tyreLastSaid, r.tyreWarned = true, true
-		return tyreLifeDirective(life, wheel, UrgencyMedium), true
+		return tyreLifeDirective(life, UrgencyMedium), true
 	case life.LapsToLimit <= TyreLifeWarnLaps && !r.tyreWarned:
 		r.tyreWarned = true
-		return tyreLifeDirective(life, wheel, UrgencyLow), true
+		return tyreLifeDirective(life, UrgencyLow), true
 	}
 	return Directive{}, false
 }
 
-func tyreLifeDirective(life tyreLife, wheel, urgency string) Directive {
+// tyreLifeDirective says about how many laps the tyres have left, and which one wears out first.
+func tyreLifeDirective(life tyreLife, urgency string) Directive {
 	laps := max(1, int(math.Round(life.LapsToLimit)))
 	return Directive{
 		ID:       "tyre_life",
 		Category: DirectiveCategoryTyres,
 		SubAlert: "tyre_life",
 		Title:    "Tyre Life",
-		Message:  fmt.Sprintf("About %d laps left on these tyres: the %s wears %.1f%% a lap.", laps, wheel, life.WearPerLapPct),
+		Message:  fmt.Sprintf("About %d laps left on these tyres: the %s wears %.1f%% a lap.", laps, wheelNames[life.Corner], life.WearPerLapPct),
 		Urgency:  urgency,
-		Values:   &DirectiveValues{TyreLapsLeft: laps},
+		Values:   &DirectiveValues{TyreLapsLeft: laps, Wheel: wheelAt[life.Corner]},
 	}
 }

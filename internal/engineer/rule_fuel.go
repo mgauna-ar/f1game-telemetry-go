@@ -118,6 +118,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Fuel Target Deficit",
 				Message:  fmt.Sprintf("Fuel target delta is negative (%.1f laps). Introduce Lift & Coast into Turn 1 and heavy braking zones.", status.FuelRemainingLaps),
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{FuelDeltaLaps: roundTo(float64(status.FuelRemainingLaps), 1)},
 			})
 		}
 	}

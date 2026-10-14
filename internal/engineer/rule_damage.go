@@ -142,6 +142,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Critical Wing Damage",
 			Message:  fmt.Sprintf("Severe front wing damage detected (%d%% loss)! Massive aero loss on front axle. Box for front wing replacement.", int(math.Round(float64(maxWing)))),
 			Urgency:  UrgencyCritical,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(maxWing)))},
 			BoxCall:  BoxCallInstruction,
 		})
 	} else if maxWing >= ctx.Config.WingDamageWarnPct && r.lastWingDamageAlert < ctx.Config.WingDamageWarnPct {
@@ -153,6 +154,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Front Wing Damage",
 			Message:  fmt.Sprintf("Front wing endplate/flap damage detected (%d%%). Expect understeer in medium-to-high speed corners.", int(math.Round(float64(maxWing)))),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(maxWing)))},
 		})
 	}
 
@@ -170,6 +172,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Floor Aero Damage",
 			Message:  fmt.Sprintf("Underfloor/diffuser aerodynamic damage confirmed (%d%%). Downforce levels and high-speed stability are compromised.", int(math.Round(float64(floorDiffDamage)))),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(floorDiffDamage)))},
 		})
 	}
 
@@ -183,6 +186,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Gearbox Wear Critical",
 			Message:  fmt.Sprintf("Gearbox damage reached %d%%! Expect delayed gear shifts and torque sync dropouts.", dmg.GearBoxDamage),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(dmg.GearBoxDamage)},
 		})
 	}
 
@@ -195,6 +199,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Engine ICE Wear Critical",
 			Message:  fmt.Sprintf("Internal Combustion Engine (ICE) wear at %d%%! Expect top-end power loss on the straights.", dmg.EngineICEWear),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(dmg.EngineICEWear)},
 		})
 	}
 
@@ -216,6 +221,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Engine Component Wear",
 			Message:  fmt.Sprintf("Power unit component wear reached %d%%!", int(math.Round(float64(maxEngineWear)))),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(maxEngineWear)))},
 		})
 	}
 

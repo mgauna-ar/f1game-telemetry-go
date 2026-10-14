@@ -884,6 +884,9 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 	if len(dirsS1) != 1 || dirsS1[0].SubAlert != "sector_delta" || dirsS1[0].ID != "coaching_s1" {
 		t.Fatalf("expected coaching_s1 directive, got %+v", dirsS1)
 	}
+	if v := dirsS1[0].Values; v == nil || v.Sector != 1 || v.DeltaSec != 0.5 {
+		t.Errorf("sector 1 values = %+v, want sector 1, 0.5 s", v)
+	}
 
 	// Lap 2, Sector 2: S2 time was 27600ms (+0.60s delta vs 27000ms >= 0.35s threshold)
 	ctxLap2S2 := &EvaluationContext{
@@ -907,6 +910,9 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 	dirsS2 := rule.Evaluate(ctxLap2S2)
 	if len(dirsS2) != 1 || dirsS2[0].SubAlert != "sector_delta" || dirsS2[0].ID != "coaching_s2" {
 		t.Fatalf("expected coaching_s2 directive, got %+v", dirsS2)
+	}
+	if v := dirsS2[0].Values; v == nil || v.Sector != 2 || v.DeltaSec != 0.6 {
+		t.Errorf("sector 2 values = %+v, want sector 2, 0.6 s", v)
 	}
 
 	// Reset clears baseline
@@ -1900,6 +1906,9 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 		if len(dirsSlow) != 1 || dirsSlow[0].SubAlert != "start_reaction_slow" {
 			t.Fatalf("expected slow start reaction alert, got %+v", dirsSlow)
 		}
+		if v := dirsSlow[0].Values; v == nil || v.ReactionSec != 0.45 {
+			t.Errorf("slow start values = %+v, want the 0.45 s reaction", v)
+		}
 	})
 
 	// 3. Pit Stop Procedures (penalty serving, box timer, limiter exit)
@@ -1930,14 +1939,12 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 
 		// Initial evaluation: pit_serve_penalty
 		dirsEntry := rule.Evaluate(ctxPitEntry)
-		var hasServePen bool
-		for _, d := range dirsEntry {
-			if d.ID == "pit_serve_penalty" {
-				hasServePen = true
-			}
-		}
-		if !hasServePen {
+		servePen := directiveFor(dirsEntry, "pit_serve_penalty")
+		if servePen == nil {
 			t.Fatalf("expected pit_serve_penalty alert on pit entry, got %+v", dirsEntry)
+		}
+		if v := servePen.Values; v == nil || v.PenaltySec != 5 {
+			t.Errorf("serve penalty values = %+v, want the 5 s hold", v)
 		}
 
 		// In pit box stationary: PitStatus = InPitArea, PitStopTimerInMS = 2400
@@ -2154,6 +2161,9 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		if len(dirs) != 1 || dirs[0].ID != "tyre_set_advisory" || !strings.Contains(dirs[0].Message, "Hard") {
 			t.Fatalf("expected tyre_set_advisory with Hard tyres, got %+v", dirs)
 		}
+		if v := dirs[0].Values; v == nil || v.Compound != TyreHard {
+			t.Errorf("advisory values = %+v, want the fresh hards", v)
+		}
 		ctx.Config = cfg
 		if dirs := NewTyresRule().Evaluate(ctx); len(dirs) != 0 {
 			t.Fatalf("expected no tyre_set_advisory with the plan's heads-up on, got %+v", dirs)
@@ -2192,6 +2202,9 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		dirs1 := zone(850, 850, 400, 400)
 		if len(dirs1) != 1 || dirs1[0].ID != "brake_bias" || dirs1[0].SubAlert != "brake_bias" {
 			t.Fatalf("expected brake_bias alert (fronts hot), got %+v", dirs1)
+		}
+		if v := dirs1[0].Values; v == nil || v.Axle != AxleFront {
+			t.Errorf("bias values = %+v, want the hot front axle", v)
 		}
 
 		// Balanced zones (delta 50) bring the average under 150
@@ -2398,6 +2411,9 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		dirsS3 := rule.Evaluate(ctxL4Roll)
 		if len(dirsS3) != 1 || dirsS3[0].ID != "coaching_s3" || !strings.Contains(dirsS3[0].Message, "Sector 3") {
 			t.Fatalf("expected coaching_s3 directive, got %+v", dirsS3)
+		}
+		if v := dirsS3[0].Values; v == nil || v.Sector != 3 || v.DeltaSec != 0.8 {
+			t.Errorf("sector 3 values = %+v, want sector 3, 0.8 s", v)
 		}
 	})
 }

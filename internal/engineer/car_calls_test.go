@@ -105,15 +105,17 @@ func TestTyresRule_CrossoverWaitsForTheWeather(t *testing.T) {
 		heldMs   int64
 		wantID   string // "" for no call
 		wantBox  BoxCall
+		wantTyre TyreCompound
 	}{
-		{"forecast rain alone", packets.CompoundMedium, packets.WeatherOvercast, wetSoon, CrossoverRainConfirmMs, "", BoxCallNone},
-		{"rain just started", packets.CompoundMedium, packets.WeatherLightRain, wetSoon, CrossoverRainConfirmMs - 1, "", BoxCallNone},
-		{"rain held, still wet ahead", packets.CompoundMedium, packets.WeatherLightRain, wetSoon, CrossoverRainConfirmMs, "tyre_crossover", BoxCallInstruction},
-		{"rain held, drying ahead", packets.CompoundMedium, packets.WeatherLightRain, drySoon, CrossoverRainConfirmMs, "", BoxCallNone},
-		{"heavy rain is called at once", packets.CompoundSoft, packets.WeatherHeavyRain, nil, 0, "tyre_crossover", BoxCallInstruction},
-		{"dry track not long enough", packets.CompoundInter, packets.WeatherLightCloud, drySoon, CrossoverDryConfirmMs - 1, "", BoxCallNone},
-		{"dry track held: slicks are an option", packets.CompoundInter, packets.WeatherLightCloud, drySoon, CrossoverDryConfirmMs, "tyre_crossover_slicks", BoxCallOption},
-		{"dry now but rain ahead", packets.CompoundInter, packets.WeatherLightCloud, wetSoon, CrossoverDryConfirmMs, "", BoxCallNone},
+		{"forecast rain alone", packets.CompoundMedium, packets.WeatherOvercast, wetSoon, CrossoverRainConfirmMs, "", BoxCallNone, ""},
+		{"rain just started", packets.CompoundMedium, packets.WeatherLightRain, wetSoon, CrossoverRainConfirmMs - 1, "", BoxCallNone, ""},
+		{"rain held, still wet ahead", packets.CompoundMedium, packets.WeatherLightRain, wetSoon, CrossoverRainConfirmMs, "tyre_crossover", BoxCallInstruction, TyreInter},
+		{"rain held, drying ahead", packets.CompoundMedium, packets.WeatherLightRain, drySoon, CrossoverRainConfirmMs, "", BoxCallNone, ""},
+		{"heavy rain is called at once", packets.CompoundSoft, packets.WeatherHeavyRain, nil, 0, "tyre_crossover", BoxCallInstruction, TyreInter},
+		{"storm on inters: full wets", packets.CompoundInter, packets.WeatherStorm, nil, 0, "tyre_crossover_wet", BoxCallInstruction, TyreWet},
+		{"dry track not long enough", packets.CompoundInter, packets.WeatherLightCloud, drySoon, CrossoverDryConfirmMs - 1, "", BoxCallNone, ""},
+		{"dry track held: slicks are an option", packets.CompoundInter, packets.WeatherLightCloud, drySoon, CrossoverDryConfirmMs, "tyre_crossover_slicks", BoxCallOption, ""},
+		{"dry now but rain ahead", packets.CompoundInter, packets.WeatherLightCloud, wetSoon, CrossoverDryConfirmMs, "", BoxCallNone, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -125,6 +127,13 @@ func TestTyresRule_CrossoverWaitsForTheWeather(t *testing.T) {
 				t.Fatalf("expected %s, got none", tt.wantID)
 			case ok && (d.ID != tt.wantID || d.BoxCall != tt.wantBox):
 				t.Fatalf("got %s (box %v), want %s (box %v)", d.ID, d.BoxCall, tt.wantID, tt.wantBox)
+			}
+			var tyre TyreCompound
+			if ok && d.Values != nil {
+				tyre = d.Values.Compound
+			}
+			if ok && tyre != tt.wantTyre {
+				t.Errorf("tyre to fit = %q, want %q", tyre, tt.wantTyre)
 			}
 		})
 	}

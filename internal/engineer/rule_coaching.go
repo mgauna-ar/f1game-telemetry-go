@@ -192,6 +192,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Launch Reaction Time",
 					Message:  msg,
 					Urgency:  UrgencyMedium,
+					Values:   &DirectiveValues{ReactionSec: roundTo(float64(rt), 2)},
 				})
 			}
 		}
@@ -300,6 +301,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 							Title:    "Sector 3 Delta",
 							Message:  fmt.Sprintf("Time lost in Sector 3 (+%.2fs vs personal best). Prioritize throttle application onto the start-finish straight.", deltaS3),
 							Urgency:  UrgencyMedium,
+							Values:   &DirectiveValues{Sector: 3, DeltaSec: roundTo(deltaS3, 2)},
 						})
 					}
 				}
@@ -324,6 +326,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Sector 1 Delta",
 				Message:  fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{Sector: 1, DeltaSec: roundTo(deltaS1, 2)},
 			})
 		}
 	}
@@ -338,6 +341,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Sector 2 Delta",
 				Message:  fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{Sector: 2, DeltaSec: roundTo(deltaS2, 2)},
 			})
 		}
 	}

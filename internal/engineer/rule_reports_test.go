@@ -292,6 +292,9 @@ func TestReportsRule_TyreLife(t *testing.T) {
 		if len(calls) != 1 || calls[0].SubAlert != "tyre_life" || calls[0].Values.TyreLapsLeft != 7 || calls[0].Urgency != UrgencyLow {
 			t.Fatalf("got %+v, want tyre_life with 7 laps left", calls)
 		}
+		if w := calls[0].Values.Wheel; w != WheelFrontRight {
+			t.Errorf("tyre life wheel = %q, want the worn front right", w)
+		}
 		if calls := tyreCalls(rule, newReportsRace(8).withWearHistory(3, 40, 5)); len(calls) > 0 {
 			t.Errorf("same lap again: got %+v", calls)
 		}

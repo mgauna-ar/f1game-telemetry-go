@@ -118,6 +118,7 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Low ERS Battery",
 				Message:  ersMsg,
 				Urgency:  UrgencyLow,
+				Values:   &DirectiveValues{Pct: int(math.Round(float64(ersPct)))},
 			})
 		}
 

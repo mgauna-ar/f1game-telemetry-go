@@ -1,16 +1,18 @@
-import type { RadioPersona } from '../constants/f1';
+import { RADIO_PHRASE_CONSTANTS, type RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
 import {
   box_timing_phrases as enBox,
   exchange_phrases as enExchange,
   radio_phrases as en,
   report_phrases as enReport,
+  value_words as enWords,
 } from '../locales/en/radio_phrases';
 import {
   box_timing_phrases as esBox,
   exchange_phrases as esExchange,
   radio_phrases as es,
   report_phrases as esReport,
+  value_words as esWords,
 } from '../locales/es/radio_phrases';
 import type {
   BoxCallKind,
@@ -20,6 +22,7 @@ import type {
   GapToCar,
   RadioAlertCategory,
   RadioPhrasePool,
+  RadioValueWords,
   ReportPhrase,
 } from '../types/telemetry';
 
@@ -27,9 +30,9 @@ export type { RadioAlertCategory };
 
 /**
  * The spoken wording of every proactive radio call, per language. The engine only sends an alert
- * key; this catalog is the one place its words come from. Only the Live tab speaks them, so they
- * load with it rather than with the UI dictionaries. Both languages: the radio's language is its
- * own setting, not the UI's.
+ * key and the call's values; this catalog is the one place its words come from. Only the Live tab
+ * speaks them, so they load with it rather than with the UI dictionaries. Both languages: the
+ * radio's language is its own setting, not the UI's.
  */
 export const RADIO_PHRASE_CATALOG: Record<LocaleCode, Record<RadioAlertCategory, RadioPhrasePool>> = { en, es };
 
@@ -47,6 +50,9 @@ export const EXCHANGE_PHRASES: Record<LocaleCode, Record<ExchangeLine, RadioPhra
   en: enExchange,
   es: esExchange,
 };
+
+/** The words a call's wheel, axle and tyre are said with, per language. */
+export const RADIO_VALUE_WORDS: Record<LocaleCode, RadioValueWords> = { en: enWords, es: esWords };
 
 /**
  * The calls that offer a stop rather than order one; every other call that comes with a box timing
@@ -68,103 +74,72 @@ export function radioPhrasePool(
   return personaPhrases(RADIO_PHRASE_CATALOG[language][category], persona);
 }
 
+/** The phrases `persona` can say about when to pit, after a call of `category` with this box timing. */
+export function boxTimingPool(
+  category: RadioAlertCategory,
+  box: EngineerBoxTiming,
+  language: LocaleCode,
+  persona: RadioPersona
+): readonly string[] {
+  const kind: BoxCallKind = BOX_OPTION_CATEGORIES.has(category) ? 'option' : 'instruction';
+  return personaPhrases(BOX_TIMING_PHRASES[language][kind][box], persona);
+}
+
 function personaPhrases(catPool: RadioPhrasePool, persona: RadioPersona): readonly string[] {
   const personaPool = persona === 'bono' ? catPool.bono : persona === 'colapinto' ? catPool.colapinto : undefined;
   return personaPool && personaPool.length > 0 ? personaPool : catPool.standard;
 }
 
-const pick = (pool: readonly string[]): string => pool[Math.floor(Math.random() * pool.length)] ?? pool[0] ?? '';
+/** The placeholders a phrase can fill from its call's values; `{driver}` is the callsign. */
+const VALUE_PLACEHOLDER =
+  /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec|sector|delta|reaction|wheel|axle|compound|pct|rain_pct|fuel_laps)}/g;
 
 /**
- * What `persona` says, addressed to the driver's callsign, in a push-to-talk exchange besides the
- * answer: ask again, say the radio isn't working, ask to stand by, or say there is no answer.
+ * What a call's values say, written the listener's way, by placeholder: numbers as digits, and
+ * the wheel, axle and tyre in the language's words. A value the call doesn't have is left out.
  */
-export function getExchangeSpeech(
-  line: ExchangeLine,
-  language: LocaleCode,
-  persona: RadioPersona,
-  driverCallsign?: string
-): string {
-  return interpolateCallsign(pick(personaPhrases(EXCHANGE_PHRASES[language][line], persona)), driverCallsign);
-}
-
-/** What `persona` says about when to pit, after a call of `category` with this box timing. */
-export function boxTimingPhrase(
-  category: RadioAlertCategory,
-  box: EngineerBoxTiming,
-  language: LocaleCode,
-  persona: RadioPersona
-): string {
-  const kind: BoxCallKind = BOX_OPTION_CATEGORIES.has(category) ? 'option' : 'instruction';
-  return pick(personaPhrases(BOX_TIMING_PHRASES[language][kind][box], persona));
-}
-
-/**
- * Returns a random phrase for a proactive radio call, in the listener's language and the
- * engineer's persona, addressed to the driver's callsign. A phrase can say the call's numbers
- * (`values`) through placeholders; the most informative phrase whose numbers are known is said.
- * A call to pit ends with when to (`box`), a qualifying lap result with where it stands against
- * the cut line. A call none of whose phrases can be said (a report without its numbers) is left
- * unsaid ('').
- */
-export function getProactiveRadioSpeech(
-  category: RadioAlertCategory,
-  language: LocaleCode = 'es',
-  persona: RadioPersona = 'bono',
-  driverCallsign?: string,
-  box?: EngineerBoxTiming,
-  values?: DirectiveValues
-): string {
-  if (category === 'gap_report') {
-    const body = values ? gapReportBody(values, language, persona) : '';
-    const opener = interpolateCallsign(pick(radioPhrasePool(category, language, persona)), driverCallsign);
-    return body ? `${opener} ${body}` : '';
+export function callFacts(values: DirectiveValues | undefined, language: LocaleCode): Record<string, string> {
+  const facts: Record<string, string> = {};
+  if (!values) return facts;
+  const words = RADIO_VALUE_WORDS[language];
+  if (values.position) facts.position = String(values.position);
+  // The phrases say "minutes": one minute is said without the number.
+  if (values.minutes && values.minutes > 1) facts.minutes = String(values.minutes);
+  if (values.tyre_laps_left) facts.laps = String(values.tyre_laps_left);
+  if (values.pole_gap_sec) facts.pole_gap = formatThousandths(values.pole_gap_sec, language);
+  if (values.count) facts.count = String(values.count);
+  if (values.penalty_sec) facts.penalty_sec = String(values.penalty_sec);
+  if (values.stop_sec) facts.stop_sec = formatTenths(values.stop_sec, language);
+  if (values.sector) facts.sector = String(values.sector);
+  if (values.delta_sec) facts.delta = formatTenths(values.delta_sec, language);
+  if (values.reaction_sec) facts.reaction = formatHundredths(values.reaction_sec, language);
+  if (values.wheel) facts.wheel = words.wheel[values.wheel];
+  if (values.axle) facts.axle = words.axle[values.axle];
+  if (values.compound) facts.compound = words.compound[values.compound];
+  if (values.pct) facts.pct = String(values.pct);
+  if (values.rain_pct) facts.rain_pct = String(values.rain_pct);
+  // Fuel short is said as how many laps short; a delta that rounds to nothing isn't.
+  if (values.fuel_delta_laps && Math.abs(values.fuel_delta_laps) >= 0.05) {
+    facts.fuel_laps = formatTenths(Math.abs(values.fuel_delta_laps), language);
   }
-  const pool =
-    category === 'tyre_life' && values?.tyre_laps_left === 1
-      ? personaPhrases(REPORT_PHRASES[language].tyre_life_one_lap, persona)
-      : radioPhrasePool(category, language, persona);
-  const phrase = pickPhrase(pool, callNumbers(values, language));
-  if (!phrase) return '';
-  const parts = [interpolateCallsign(phrase, driverCallsign)];
-  if (values?.elimination) parts.push(reportPhrase(`elimination_${values.elimination}`, language, persona));
-  if (box) parts.push(boxTimingPhrase(category, box, language, persona));
-  return parts.filter(Boolean).join(' ');
-}
-
-/** The number placeholders a phrase can use; `{driver}` is the callsign. */
-const NUMBER_PLACEHOLDER = /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec)}/g;
-
-/** The numbers a call says, written the listener's way, by placeholder. */
-function callNumbers(values: DirectiveValues | undefined, language: LocaleCode): Record<string, string> {
-  const numbers: Record<string, string> = {};
-  if (!values) return numbers;
-  if (values.position) numbers.position = String(values.position);
-  // The phrases say "minutes": one minute left is said without the number.
-  if (values.minutes && values.minutes > 1) numbers.minutes = String(values.minutes);
-  if (values.tyre_laps_left) numbers.laps = String(values.tyre_laps_left);
-  if (values.pole_gap_sec) numbers.pole_gap = formatThousandths(values.pole_gap_sec, language);
-  if (values.count) numbers.count = String(values.count);
-  if (values.penalty_sec) numbers.penalty_sec = String(values.penalty_sec);
-  if (values.stop_sec) numbers.stop_sec = formatTenths(values.stop_sec, language);
   // A traffic or battle call is about one car, ahead or behind. How fast the gap comes down is
   // only said while it is closing: the phrases with {rate} say the driver is catching, or caught.
   const car = values.ahead ?? values.behind;
-  if (car) numbers.gap = formatTenths(car.gap_sec, language);
-  if (car?.trend === 'closing' && car.per_lap_sec) numbers.rate = formatTenths(car.per_lap_sec, language);
-  return numbers;
+  if (car) facts.gap = formatTenths(car.gap_sec, language);
+  if (car?.trend === 'closing' && car.per_lap_sec) facts.rate = formatTenths(car.per_lap_sec, language);
+  return facts;
 }
 
 /**
- * Picks a phrase saying as many of the call's numbers as it can: among the phrases whose numbers
- * are all known, one that says the most of them. '' when none can be said.
+ * The phrases of a pool that say the most of a call's values: among the phrases whose values are
+ * all known, the ones with the most of them. Empty when none can be said.
  */
-function pickPhrase(pool: readonly string[], numbers: Record<string, string>): string {
+export function mostInformative(pool: readonly string[], facts: Record<string, string>): string[] {
   let best: string[] = [];
   let bestCount = -1;
   for (const template of pool) {
-    const keys = new Set([...template.matchAll(NUMBER_PLACEHOLDER)].map((m) => m[1]));
-    if (![...keys].every((key) => numbers[key] !== undefined)) continue;
+    const keys = new Set([...template.matchAll(VALUE_PLACEHOLDER)].map((m) => m[1]));
+    if (![...keys].every((key) => facts[key] !== undefined)) continue;
     if (keys.size > bestCount) {
       best = [template];
       bestCount = keys.size;
@@ -172,7 +147,7 @@ function pickPhrase(pool: readonly string[], numbers: Record<string, string>): s
       best.push(template);
     }
   }
-  return best.length > 0 ? fillNumbers(pick(best), numbers) : '';
+  return best;
 }
 
 /** A number with one decimal, written the listener's way ("1.4", "1,4"). */
@@ -180,71 +155,200 @@ export function formatTenths(value: number, language: LocaleCode): string {
   return new Intl.NumberFormat(language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 }
 
+/** A start reaction time, to the hundredth, written the listener's way ("0.21", "0,21"). */
+export function formatHundredths(value: number, language: LocaleCode): string {
+  return new Intl.NumberFormat(language, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+}
+
 /** A qualifying gap, to the thousandth, written the listener's way ("0.088", "0,088"). */
 export function formatThousandths(value: number, language: LocaleCode): string {
   return new Intl.NumberFormat(language, { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(value);
 }
 
-function reportPhrase(
-  key: ReportPhrase,
-  language: LocaleCode,
-  persona: RadioPersona,
-  numbers: Record<string, string> = {}
-): string {
-  return fillNumbers(pick(personaPhrases(REPORT_PHRASES[language][key], persona)), numbers);
+function fillValues(template: string, facts: Record<string, string>): string {
+  return template.replace(VALUE_PLACEHOLDER, (match, key: string) => facts[key] ?? match);
 }
 
-function fillNumbers(template: string, numbers: Record<string, string>): string {
-  return template.replace(NUMBER_PLACEHOLDER, (match, key: string) => numbers[key] ?? match);
+/** How a proactive call is said. */
+export interface ProactiveSpeechOptions {
+  language?: LocaleCode;
+  persona?: RadioPersona;
+  /** The driver's callsign: always said on an urgent call, now and then on a routine one. */
+  callsign?: string;
+  /** When the driver can pit, on a call that asks them to. */
+  box?: EngineerBoxTiming;
+  /** The call's numbers and the wheel, axle or tyre it is about. */
+  values?: DirectiveValues;
+  /** An urgent call (critical or high) always says the callsign. */
+  urgent?: boolean;
 }
 
-/** The position and the gaps around the driver, after the gap report's opening phrase. */
-function gapReportBody(values: DirectiveValues, language: LocaleCode, persona: RadioPersona): string {
-  if (!values.position) return '';
-  const parts = [
-    values.position === 1
-      ? reportPhrase('leading', language, persona)
-      : reportPhrase('position', language, persona, { position: String(values.position) }),
-  ];
-  const side = (where: 'ahead' | 'behind', gap?: GapToCar) => {
-    if (!gap) return;
-    // A gap that moves too little to say how much is said without its trend.
-    let key: ReportPhrase = where;
-    if (gap.trend === 'stable' || (gap.trend && gap.per_lap_sec)) key = `${where}_${gap.trend}`;
-    parts.push(
-      reportPhrase(key, language, persona, {
-        gap: formatTenths(gap.gap_sec, language),
-        rate: formatTenths(gap.per_lap_sec ?? 0, language),
-      })
-    );
-  };
-  side('ahead', values.ahead);
-  side('behind', values.behind);
-  if (!values.ahead && !values.behind) {
-    parts.push(reportPhrase('nobody_close', language, persona));
-  }
-  return parts.join(' ');
+/** Picks the radio's words, without saying the same line twice in a row. */
+export interface RadioPhrasePicker {
+  /**
+   * A proactive radio call, in the listener's language and the engineer's persona. A phrase can
+   * say the call's values through placeholders; among the phrases that say the most of them, the
+   * lines go round in a shuffled order, so none comes back before the others were said. A call to
+   * pit ends with when to (`box`), a qualifying lap result with where it stands against the cut
+   * line. A call none of whose phrases can be said (a report without its numbers) is left unsaid ('').
+   */
+  proactive(category: RadioAlertCategory, options?: ProactiveSpeechOptions): string;
+  /**
+   * What `persona` says, addressed to the driver's callsign, in a push-to-talk exchange besides the
+   * answer: ask again, say the radio isn't working, ask to stand by, or say there is no answer.
+   */
+  exchange(line: ExchangeLine, language: LocaleCode, persona: RadioPersona, callsign?: string): string;
 }
 
-function interpolateCallsign(template: string, driverCallsign?: string): string {
-  const callsign = driverCallsign?.trim() || '';
+/**
+ * A phrase picker drawing from `random` (Math.random by default). Each pool is a shuffled bag: its
+ * lines are said in a random order, each once, then the bag is refilled, never starting with the
+ * line just said.
+ */
+export function createRadioPhrasePicker(random: () => number = () => Math.random()): RadioPhrasePicker {
+  const bags = new Map<string, { left: string[]; last: string }>();
+  let routineCalls = 0;
 
-  if (template.includes('{driver}')) {
-    if (callsign) {
-      return template.replace(/{driver}/g, callsign);
+  const draw = (key: string, candidates: readonly string[]): string => {
+    if (candidates.length <= 1) return candidates[0] ?? '';
+    const bag = bags.get(key);
+    let left = bag ? bag.left.filter((line) => candidates.includes(line)) : [];
+    if (left.length === 0) {
+      left = shuffle(candidates, random);
+      // Lines are drawn from the end: a refill doesn't start with the line just said.
+      if (left[left.length - 1] === bag?.last) [left[0], left[left.length - 1]] = [left[left.length - 1], left[0]];
     }
-    // Remove {driver} with trailing or leading comma cleanly
+    const line = left.pop() ?? '';
+    bags.set(key, { left, last: line });
+    return line;
+  };
+
+  const reportPart = (
+    key: ReportPhrase,
+    language: LocaleCode,
+    persona: RadioPersona,
+    facts: Record<string, string> = {}
+  ): string =>
+    fillValues(
+      draw(`report|${language}|${persona}|${key}`, personaPhrases(REPORT_PHRASES[language][key], persona)),
+      facts
+    );
+
+  /** The position and the gaps around the driver, after the gap report's opening phrase. */
+  const gapReportBody = (values: DirectiveValues, language: LocaleCode, persona: RadioPersona): string => {
+    if (!values.position) return '';
+    const parts = [
+      values.position === 1
+        ? reportPart('leading', language, persona)
+        : reportPart('position', language, persona, { position: String(values.position) }),
+    ];
+    const side = (where: 'ahead' | 'behind', gap?: GapToCar) => {
+      if (!gap) return;
+      // A gap that moves too little to say how much is said without its trend.
+      let key: ReportPhrase = where;
+      if (gap.trend === 'stable' || (gap.trend && gap.per_lap_sec)) key = `${where}_${gap.trend}`;
+      parts.push(
+        reportPart(key, language, persona, {
+          gap: formatTenths(gap.gap_sec, language),
+          rate: formatTenths(gap.per_lap_sec ?? 0, language),
+        })
+      );
+    };
+    side('ahead', values.ahead);
+    side('behind', values.behind);
+    if (!values.ahead && !values.behind) parts.push(reportPart('nobody_close', language, persona));
+    return parts.join(' ');
+  };
+
+  return {
+    proactive(category, { language = 'es', persona = 'bono', callsign, box, values, urgent = false } = {}) {
+      const key = `call|${language}|${persona}|${category}`;
+      let parts: string[];
+      if (category === 'gap_report') {
+        const body = values ? gapReportBody(values, language, persona) : '';
+        if (!body) return '';
+        parts = [draw(key, radioPhrasePool(category, language, persona)), body];
+      } else {
+        const pool =
+          category === 'tyre_life' && values?.tyre_laps_left === 1
+            ? personaPhrases(REPORT_PHRASES[language].tyre_life_one_lap, persona)
+            : radioPhrasePool(category, language, persona);
+        const facts = callFacts(values, language);
+        const phrase = draw(key, mostInformative(pool, facts));
+        if (!phrase) return '';
+        parts = [fillValues(phrase, facts)];
+        if (values?.elimination) parts.push(reportPart(`elimination_${values.elimination}`, language, persona));
+        if (box) {
+          parts.push(
+            draw(`box|${language}|${persona}|${category}|${box}`, boxTimingPool(category, box, language, persona))
+          );
+        }
+      }
+      // An urgent call always gets the driver's attention; a routine one says the callsign now and then.
+      const sayCallsign = urgent || routineCalls++ % RADIO_PHRASE_CONSTANTS.CALLSIGN_ROUTINE_EVERY === 0;
+      parts[0] = addressDriver(parts[0], sayCallsign ? callsign : undefined);
+      return parts.filter(Boolean).join(' ');
+    },
+
+    exchange(line, language, persona, callsign) {
+      const pool = personaPhrases(EXCHANGE_PHRASES[language][line], persona);
+      return addressDriver(draw(`exchange|${language}|${persona}|${line}`, pool), callsign);
+    },
+  };
+}
+
+/** A shuffled copy of `items` (Fisher-Yates). */
+function shuffle<T>(items: readonly T[], random: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.min(i, Math.floor(random() * (i + 1)));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/** Words a line can start with that keep their capital after the callsign: names, not sentence starts. */
+const CAPITALISED_WORDS = /^(I|Safety|Virtual|Straight|Override|Inters?|Intermediates?)$/;
+
+/**
+ * Says `template` to the driver: `{driver}` becomes the callsign, or goes away cleanly without
+ * one (a line that started with it then starts with a capital); a phrase without `{driver}`
+ * starts with the callsign when there is one, its first word in lower case unless it is a name.
+ */
+export function addressDriver(template: string, callsign?: string): string {
+  const name = callsign?.trim() || '';
+  if (template.includes('{driver}')) {
+    if (name) return template.replace(/{driver}/g, name);
     return template
       .replace(/,\s*{driver}/g, '')
       .replace(/{driver},\s*/g, '')
       .replace(/{driver}/g, '')
-      .trim();
+      .trim()
+      .replace(/^([¡¿]?)(\p{Ll})/u, (_, mark: string, letter: string) => mark + letter.toUpperCase());
   }
+  if (!name) return template;
+  // A word like "VSC" or "P5" isn't all lower case after its first letter, so it stays as it is.
+  const opening = template.replace(
+    /^([¡¿]?)(\p{Lu})(\p{Ll}*)(?!\p{L}|\p{N})/u,
+    (match, mark: string, first: string, rest: string) =>
+      CAPITALISED_WORDS.test(first + rest) ? match : mark + first.toLowerCase() + rest
+  );
+  return `${name}, ${opening}`;
+}
 
-  // If callsign is provided and template has no placeholder, prepend callsign
-  if (callsign) {
-    return `${callsign}, ${template}`;
-  }
+const radio = createRadioPhrasePicker();
 
-  return template;
+/** A proactive radio call's words, from the dashboard's picker (see RadioPhrasePicker.proactive). */
+export function getProactiveRadioSpeech(category: RadioAlertCategory, options?: ProactiveSpeechOptions): string {
+  return radio.proactive(category, options);
+}
+
+/** A push-to-talk exchange line, from the dashboard's picker (see RadioPhrasePicker.exchange). */
+export function getExchangeSpeech(
+  line: ExchangeLine,
+  language: LocaleCode,
+  persona: RadioPersona,
+  driverCallsign?: string
+): string {
+  return radio.exchange(line, language, persona, driverCallsign);
 }

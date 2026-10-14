@@ -61,14 +61,23 @@ export interface TelemetrySample extends LiveCarTelemetry {
 export type {
   DirectiveValues,
   EngineerAlertKey,
+  EngineerAxle,
   EngineerBoxTiming,
+  EngineerCompound,
   EngineerDirective,
   EngineerDirectiveCategory,
   EngineerGapTrend,
   EngineerUrgency,
+  EngineerWheel,
   GapToCar,
 } from './generated/engineer';
-import type { DirectiveValues, EngineerBoxTiming } from './generated/engineer';
+import type {
+  DirectiveValues,
+  EngineerAxle,
+  EngineerBoxTiming,
+  EngineerCompound,
+  EngineerWheel,
+} from './generated/engineer';
 
 /** How a call that mentions pitting puts it: an order to box, or a stop the team offers. */
 export type BoxCallKind = 'instruction' | 'option';
@@ -89,6 +98,16 @@ export type ReportPhrase =
   | 'tyre_life_one_lap'
   | 'elimination_drop_zone'
   | 'elimination_last_through';
+
+/**
+ * The words a call's wheel, axle and tyre are said with (each locale's `value_words`), for the
+ * `{wheel}`, `{axle}` and `{compound}` placeholders.
+ */
+export interface RadioValueWords {
+  wheel: Record<EngineerWheel, string>;
+  axle: Record<EngineerAxle, string>;
+  compound: Record<EngineerCompound, string>;
+}
 
 /** The engineer's own lines in a push-to-talk exchange, besides the answer (each locale's `exchange_phrases`). */
 export type ExchangeLine = 'say_again' | 'radio_fault' | 'stand_by' | 'answer_failed';
@@ -221,7 +240,8 @@ export type RadioAlertCategory =
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to
  * `standard` when their pool is missing or empty, and the custom persona always uses it.
- * `{driver}` is replaced by the driver's callsign.
+ * `{driver}` is where the driver's callsign goes when it is said; the other placeholders are the
+ * call's values (see `radioPhrases.ts`).
  */
 export interface RadioPhrasePool {
   bono?: string[];
