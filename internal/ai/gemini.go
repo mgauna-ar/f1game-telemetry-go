@@ -17,6 +17,22 @@ const geminiAPIKeyHeader = "x-goog-api-key"
 // geminiTemperature keeps radio answers factual while still sounding natural.
 const geminiTemperature = 0.35
 
+// geminiMinimalThinking is the lowest thinking level of Gemini 3 and later.
+const geminiMinimalThinking = "minimal"
+
+// geminiQuickThinking returns the thinking config for a quick answer: no thinking budget on
+// Gemini 1 and 2, the minimal level on later Gemini models, and none for other models.
+func geminiQuickThinking(model string) map[string]any {
+	name := strings.ToLower(model)
+	switch {
+	case strings.HasPrefix(name, "gemini-1"), strings.HasPrefix(name, "gemini-2"):
+		return map[string]any{"thinkingBudget": 0}
+	case strings.HasPrefix(name, "gemini-"):
+		return map[string]any{"thinkingLevel": geminiMinimalThinking}
+	}
+	return nil
+}
+
 // Gemini content roles and function calling modes.
 const (
 	geminiRoleUser         = "user"
@@ -105,6 +121,7 @@ func geminiTools(defs []ToolDefinition) []geminiTool {
 // geminiChat is a conversation with the Google Gemini API.
 type geminiChat struct {
 	url     string
+	model   string
 	headers map[string]string
 	body    geminiRequest
 	// lastTurn is the model's latest answer, replayed before its function responses.
@@ -118,16 +135,31 @@ func newGeminiChat(conn connection, model, systemPrompt string, messages []AICha
 	}
 	return &geminiChat{
 		url:     fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse", geminiAPIBaseURL, modelClean),
+		model:   modelClean,
 		headers: map[string]string{geminiAPIKeyHeader: conn.apiKey},
 		body: geminiRequest{
 			SystemInstruction: &geminiContent{Parts: []json.RawMessage{geminiTextPart(systemPrompt)}},
 			Contents:          geminiContents(messages),
-			GenerationConfig:  map[string]any{"temperature": geminiTemperature},
 		},
 	}
 }
 
-func (c *geminiChat) streamTurn(ctx context.Context, turn chatTurn, out sseWriter) ([]toolCall, error) {
+// applyStyle sets the generation config for the turn's answer style.
+func (c *geminiChat) applyStyle(style chatStyle) {
+	config := map[string]any{"temperature": geminiTemperature}
+	if style.quick {
+		if thinking := geminiQuickThinking(c.model); thinking != nil {
+			config["thinkingConfig"] = thinking
+		}
+		if style.maxTokens > 0 {
+			config["maxOutputTokens"] = style.maxTokens
+		}
+	}
+	c.body.GenerationConfig = config
+}
+
+func (c *geminiChat) streamTurn(ctx context.Context, turn chatTurn, out textSink) ([]toolCall, error) {
+	c.applyStyle(turn.style)
 	c.body.Tools, c.body.ToolConfig = nil, nil
 	if turn.tools != nil {
 		c.body.Tools = geminiTools(turn.tools)

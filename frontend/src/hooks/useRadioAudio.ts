@@ -393,11 +393,12 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       };
 
       const body: AIChatRequest = {
-        // Provider, model and API key come from the server's saved AI settings.
+        // Provider, radio model and API key come from the server's saved AI settings.
         persona: personaRef.current,
         language: effectiveLanguageRef.current,
         messages: [...conversationRef.current.turns, driverTurn],
         context: { context_mode: 'live' },
+        channel: 'radio',
       };
       const response = await api.stream('/api/ai/chat', body, abortController.signal);
 

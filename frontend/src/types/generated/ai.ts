@@ -16,6 +16,7 @@ export interface AIChatRequest {
   language?: string;
   messages: AIChatMessage[];
   context?: ChatContextRequest;
+  channel?: ChatChannel;
 }
 
 /** Go: ai.AIErrorPayload */
@@ -38,6 +39,8 @@ export interface AIModelItem {
   display_name: string;
   description?: string;
 }
+
+export type ChatChannel = 'chat' | 'radio';
 
 export type ChatContextMode = 'comparator' | 'session_debrief' | 'live' | 'general';
 

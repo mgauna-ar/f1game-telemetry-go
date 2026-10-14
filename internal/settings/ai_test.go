@@ -24,10 +24,18 @@ func (failingStore) SetSetting(context.Context, string, string) error { return e
 
 func testDefaultModel(provider string) string { return "default-" + provider }
 
+// testDefaultRadioModel has a radio model for every provider but the custom one.
+func testDefaultRadioModel(provider string) string {
+	if provider == ProviderCustom {
+		return ""
+	}
+	return "radio-" + provider
+}
+
 func strPtr(s string) *string { return &s }
 
 func TestResolveAI_BuiltInDefaultsWhenNothingIsSet(t *testing.T) {
-	eff := ResolveAI(AI{}, AIEnv{}, testDefaultModel)
+	eff := ResolveAI(AI{}, AIEnv{}, testDefaultModel, testDefaultRadioModel)
 
 	if eff.Provider != ProviderGemini {
 		t.Errorf("provider = %q, want %q", eff.Provider, ProviderGemini)
@@ -36,6 +44,13 @@ func TestResolveAI_BuiltInDefaultsWhenNothingIsSet(t *testing.T) {
 		if got := eff.Models[p]; got != "default-"+p {
 			t.Errorf("model for %s = %q, want the built-in default", p, got)
 		}
+		wantRadio := "radio-" + p
+		if p == ProviderCustom {
+			wantRadio = "default-" + p
+		}
+		if got := eff.RadioModels[p]; got != wantRadio {
+			t.Errorf("radio model for %s = %q, want %q", p, got, wantRadio)
+		}
 		if eff.HasKey(p) || eff.SavedKeys[p] || eff.EnvKeys[p] {
 			t.Errorf("%s reports a key although none is set", p)
 		}
@@ -43,7 +58,7 @@ func TestResolveAI_BuiltInDefaultsWhenNothingIsSet(t *testing.T) {
 }
 
 func TestResolveAI_PicksTheFirstProviderWithAKey(t *testing.T) {
-	eff := ResolveAI(AI{}, AIEnv{APIKeys: map[string]string{ProviderClaude: "sk-ant"}}, testDefaultModel)
+	eff := ResolveAI(AI{}, AIEnv{APIKeys: map[string]string{ProviderClaude: "sk-ant"}}, testDefaultModel, testDefaultRadioModel)
 	if eff.Provider != ProviderClaude {
 		t.Errorf("provider = %q, want %q (the only provider with a key)", eff.Provider, ProviderClaude)
 	}
@@ -59,7 +74,7 @@ func TestResolveAI_EnvProviderAndModelApplyUntilTheDashboardSavesAChoice(t *test
 		APIKeys:  map[string]string{ProviderGemini: "g-env", ProviderOpenAI: "o-env"},
 	}
 
-	eff := ResolveAI(AI{}, env, testDefaultModel)
+	eff := ResolveAI(AI{}, env, testDefaultModel, testDefaultRadioModel)
 	if eff.Provider != ProviderOpenAI {
 		t.Errorf("provider = %q, want LLM_PROVIDER %q", eff.Provider, ProviderOpenAI)
 	}
@@ -75,7 +90,7 @@ func TestResolveAI_EnvProviderAndModelApplyUntilTheDashboardSavesAChoice(t *test
 		Models:   map[string]string{ProviderOpenAI: "gpt-saved"},
 		APIKeys:  map[string]string{ProviderOpenAI: "o-saved"},
 	}
-	eff = ResolveAI(saved, env, testDefaultModel)
+	eff = ResolveAI(saved, env, testDefaultModel, testDefaultRadioModel)
 	if eff.Provider != ProviderGemini {
 		t.Errorf("provider = %q, the saved choice must win over LLM_PROVIDER", eff.Provider)
 	}
@@ -93,16 +108,36 @@ func TestResolveAI_EnvProviderAndModelApplyUntilTheDashboardSavesAChoice(t *test
 
 func TestResolveAI_EnvModelWithoutEnvProviderAppliesToTheDefaultProvider(t *testing.T) {
 	env := AIEnv{Model: "gpt-env", APIKeys: map[string]string{ProviderOpenAI: "o-env"}}
-	eff := ResolveAI(AI{}, env, testDefaultModel)
+	eff := ResolveAI(AI{}, env, testDefaultModel, testDefaultRadioModel)
 	if eff.Provider != ProviderOpenAI || eff.Models[ProviderOpenAI] != "gpt-env" {
 		t.Errorf("got provider %q model %q, want openai with LLM_MODEL", eff.Provider, eff.Models[ProviderOpenAI])
 	}
 }
 
 func TestResolveAI_IgnoresUnknownProviders(t *testing.T) {
-	eff := ResolveAI(AI{Provider: "skynet"}, AIEnv{Provider: "hal"}, testDefaultModel)
+	eff := ResolveAI(AI{Provider: "skynet"}, AIEnv{Provider: "hal"}, testDefaultModel, testDefaultRadioModel)
 	if eff.Provider != ProviderGemini {
 		t.Errorf("provider = %q, want the default for unknown names", eff.Provider)
+	}
+}
+
+func TestResolveAI_RadioModels(t *testing.T) {
+	saved := AI{
+		Models:      map[string]string{ProviderCustom: "llama3", ProviderClaude: "claude-opus-5-5"},
+		RadioModels: map[string]string{ProviderGemini: " gemini-flash-latest "},
+	}
+	eff := ResolveAI(saved, AIEnv{}, testDefaultModel, testDefaultRadioModel)
+
+	want := map[string]string{
+		ProviderGemini: "gemini-flash-latest", // the saved radio model, trimmed
+		ProviderClaude: "radio-claude",        // the built-in radio model, not the saved chat model
+		ProviderOpenAI: "radio-openai",
+		ProviderCustom: "llama3", // no built-in radio model: the custom chat model answers
+	}
+	for p, model := range want {
+		if got := eff.RadioModels[p]; got != model {
+			t.Errorf("radio model for %s = %q, want %q", p, got, model)
+		}
 	}
 }
 
@@ -114,10 +149,13 @@ func TestAIApply(t *testing.T) {
 		APIKeys:  map[string]string{ProviderGemini: "g-key", ProviderCustom: "c-key"},
 	}
 
+	base.RadioModels = map[string]string{ProviderOpenAI: "gpt-radio"}
+
 	got, err := base.Apply(AIUpdate{
-		Provider: strPtr(" Claude "),
-		Models:   map[string]string{ProviderClaude: "claude-x", ProviderGemini: ""},
-		APIKeys:  map[string]string{ProviderClaude: " sk-ant ", ProviderGemini: ""},
+		Provider:    strPtr(" Claude "),
+		Models:      map[string]string{ProviderClaude: "claude-x", ProviderGemini: ""},
+		RadioModels: map[string]string{ProviderClaude: " claude-fast ", ProviderOpenAI: ""},
+		APIKeys:     map[string]string{ProviderClaude: " sk-ant ", ProviderGemini: ""},
 	})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -131,6 +169,12 @@ func TestAIApply(t *testing.T) {
 	if _, ok := got.Models[ProviderGemini]; ok {
 		t.Error("an empty model must remove the saved one")
 	}
+	if got.RadioModels[ProviderClaude] != "claude-fast" {
+		t.Errorf("claude radio model = %q, want it trimmed", got.RadioModels[ProviderClaude])
+	}
+	if _, ok := got.RadioModels[ProviderOpenAI]; ok {
+		t.Error("an empty radio model must remove the saved one")
+	}
 	if got.APIKeys[ProviderClaude] != "sk-ant" {
 		t.Errorf("claude key = %q, want it trimmed", got.APIKeys[ProviderClaude])
 	}
@@ -140,7 +184,7 @@ func TestAIApply(t *testing.T) {
 	if got.APIKeys[ProviderCustom] != "c-key" || got.BaseURL != base.BaseURL {
 		t.Error("fields absent from the update must keep their saved values")
 	}
-	if base.APIKeys[ProviderGemini] != "g-key" || base.Models[ProviderGemini] != "g-1" {
+	if base.APIKeys[ProviderGemini] != "g-key" || base.Models[ProviderGemini] != "g-1" || base.RadioModels[ProviderOpenAI] != "gpt-radio" {
 		t.Error("Apply must not modify the receiver's maps")
 	}
 }
@@ -181,6 +225,7 @@ func TestAIApply_RejectsBadInput(t *testing.T) {
 		"unknown provider":       {Provider: strPtr("skynet")},
 		"unknown model provider": {Models: map[string]string{"skynet": "t-800"}},
 		"unknown key provider":   {APIKeys: map[string]string{"skynet": "key"}},
+		"unknown radio provider": {RadioModels: map[string]string{"skynet": "t-1000"}},
 		"file base URL":          {BaseURL: strPtr("file:///etc/passwd")},
 		"base URL without host":  {BaseURL: strPtr("http://")},
 	}
@@ -198,7 +243,7 @@ func TestEffectiveAIFill(t *testing.T) {
 		BaseURL:  "http://localhost:11434/v1",
 		APIKeys:  map[string]string{ProviderCustom: "c-key", ProviderOpenAI: "o-key"},
 	}
-	eff := ResolveAI(saved, AIEnv{APIKeys: map[string]string{ProviderGemini: "g-env"}}, testDefaultModel)
+	eff := ResolveAI(saved, AIEnv{APIKeys: map[string]string{ProviderGemini: "g-env"}}, testDefaultModel, testDefaultRadioModel)
 
 	tests := []struct {
 		name string
@@ -229,6 +274,21 @@ func TestEffectiveAIFill(t *testing.T) {
 			name: "custom key is not sent to a different custom base URL",
 			req:  AIRequest{Provider: ProviderCustom, BaseURL: "https://attacker.example/v1"},
 			want: AIRequest{Provider: ProviderCustom, Model: "llama3", BaseURL: "https://attacker.example/v1"},
+		},
+		{
+			name: "radio request gets the radio model",
+			req:  AIRequest{Provider: ProviderClaude, Radio: true},
+			want: AIRequest{Provider: ProviderClaude, Model: "radio-claude", Radio: true},
+		},
+		{
+			name: "radio request on the custom provider gets its chat model",
+			req:  AIRequest{Radio: true},
+			want: AIRequest{Provider: ProviderCustom, Model: "llama3", APIKey: "c-key", BaseURL: "http://localhost:11434/v1", Radio: true},
+		},
+		{
+			name: "radio request keeps its own model",
+			req:  AIRequest{Provider: ProviderClaude, Model: "claude-x", Radio: true},
+			want: AIRequest{Provider: ProviderClaude, Model: "claude-x", Radio: true},
 		},
 		{
 			name: "custom key is sent to the saved custom base URL",

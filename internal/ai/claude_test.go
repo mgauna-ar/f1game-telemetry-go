@@ -189,6 +189,123 @@ func TestClaudeChat_RefusalIsAnError(t *testing.T) {
 	}
 }
 
+// claudeQuickFields returns the thinking type, effort and max_tokens a Claude request sent.
+func claudeQuickFields(t *testing.T, body map[string]any) (thinking, effort string, maxTokens float64) {
+	t.Helper()
+	if v, ok := body["thinking"]; ok {
+		thinking = jsonString(t, v, "type")
+	}
+	if v, ok := body["output_config"]; ok {
+		effort = jsonString(t, v, "effort")
+	}
+	maxTokens, _ = body["max_tokens"].(float64)
+	return thinking, effort, maxTokens
+}
+
+func TestClaudeChat_QuickAnswerPerModelFamily(t *testing.T) {
+	quick, capped, uncapped := radioAnswerStyle, float64(RadioAnswerMaxTokens), float64(claudeMaxTokens)
+	cases := []struct {
+		model        string
+		style        chatStyle
+		wantThinking string
+		wantEffort   string
+		wantMax      float64
+	}{
+		{"claude-haiku-5-5", quick, "disabled", "low", capped},
+		{"claude-opus-5-5", quick, "", "low", uncapped},
+		{"claude-sonnet-5-5", quick, "", "low", uncapped},
+		{"claude-fable-5-1", quick, "", "low", uncapped},
+		{"claude-opus-5", quick, "", "low", uncapped},
+		{"claude-sonnet-5", quick, "", "low", uncapped},
+		{"claude-opus-4-8", quick, "", "low", capped},
+		{"claude-sonnet-4-6", quick, "", "low", capped},
+		{"claude-sonnet-4-5-20250929", quick, "", "", capped},
+		{"claude-haiku-4-5-20251001", quick, "", "", capped},
+		{"claude-haiku-5-5", chatStyle{}, "", "", uncapped},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s quick=%v", tc.model, tc.style.quick), func(t *testing.T) {
+			up, url := startUpstream(t, claudeTextAnswer(t, "Copy."))
+			useClaudeBaseURL(t, url)
+			rec := httptest.NewRecorder()
+
+			if err := chatWithStyle(ProviderClaude, connection{apiKey: "key"}, tc.model, &fakeTools{}, tc.style, rec); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			thinking, effort, maxTokens := claudeQuickFields(t, up.requests()[0])
+			if thinking != tc.wantThinking || effort != tc.wantEffort || maxTokens != tc.wantMax {
+				t.Fatalf("got thinking %q effort %q max_tokens %v, want %q %q %v", thinking, effort, maxTokens, tc.wantThinking, tc.wantEffort, tc.wantMax)
+			}
+		})
+	}
+}
+
+func TestClaudeChat_RetriesWithoutQuickSettingsWhenRejected(t *testing.T) {
+	up, url := startUpstream(t,
+		claudeErrorReply(http.StatusBadRequest, "invalid_request_error", "output_config.effort: Extra inputs are not permitted"),
+		claudeToolCallAnswer(t),
+		claudeTextAnswer(t, "Norris is P4."),
+	)
+	useClaudeBaseURL(t, url)
+	rec := httptest.NewRecorder()
+
+	if err := chatWithStyle(ProviderClaude, connection{apiKey: "key"}, "claude-haiku-5-5", &fakeTools{}, radioAnswerStyle, rec); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	reqs := up.requests()
+	if len(reqs) != 3 {
+		t.Fatalf("expected the rejected request, its retry and the tool round, got %d requests", len(reqs))
+	}
+	if thinking, effort, _ := claudeQuickFields(t, reqs[0]); thinking != "disabled" || effort != "low" {
+		t.Fatalf("expected the first request to ask for a quick answer, got thinking %q effort %q", thinking, effort)
+	}
+	for i, req := range reqs[1:] {
+		if thinking, effort, maxTokens := claudeQuickFields(t, req); thinking != "" || effort != "" || maxTokens != claudeMaxTokens {
+			t.Fatalf("request %d: expected no quick settings after the rejection, got thinking %q effort %q max_tokens %v", i+1, thinking, effort, maxTokens)
+		}
+		if _, ok := req["tools"]; !ok {
+			t.Fatalf("request %d: expected the tools to stay offered", i+1)
+		}
+	}
+	if text, done := clientText(t, rec); text != "Checking. Norris is P4." || done != 1 {
+		t.Fatalf("expected the whole answer and one [DONE], got %q with %d [DONE]", text, done)
+	}
+}
+
+func TestStreamChat_RadioChannelUsesTheRadioModel(t *testing.T) {
+	live := &ChatContextRequest{ContextMode: ContextModeLive}
+	cases := []struct {
+		name       string
+		req        AIChatRequest
+		wantModel  string
+		wantEffort string
+	}{
+		{"radio", AIChatRequest{Channel: ChatChannelRadio, Context: live}, DefaultClaudeRadioModel, "low"},
+		{"radio with a model of its own", AIChatRequest{Channel: ChatChannelRadio, Context: live, Model: "claude-sonnet-5-5"}, "claude-sonnet-5-5", "low"},
+		{"chat", AIChatRequest{Context: live}, DefaultClaudeModel, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			up, url := startUpstream(t, claudeTextAnswer(t, "Copy."))
+			useClaudeBaseURL(t, url)
+			rec := httptest.NewRecorder()
+			req := tc.req
+			req.Provider, req.Messages = ProviderClaude, driverMessages
+
+			if err := StreamChat(context.Background(), req, nil, ServerKeys{Claude: "key"}, ChatOptions{}, rec, rec); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			body := up.requests()[0]
+			if _, effort, _ := claudeQuickFields(t, body); body["model"] != tc.wantModel || effort != tc.wantEffort {
+				t.Fatalf("got model %v effort %q, want %s %q", body["model"], effort, tc.wantModel, tc.wantEffort)
+			}
+			if text, done := clientText(t, rec); text != "Copy." || done != 1 {
+				t.Fatalf("expected the answer and one [DONE], got %q with %d [DONE]", text, done)
+			}
+		})
+	}
+}
+
 func TestClaudeChat_ClassifiesAPIErrors(t *testing.T) {
 	cases := []struct {
 		status       int
@@ -207,7 +324,8 @@ func TestClaudeChat_ClassifiesAPIErrors(t *testing.T) {
 			useClaudeBaseURL(t, url)
 			rec := httptest.NewRecorder()
 
-			err := chatWith(ProviderClaude, connection{apiKey: "key"}, "claude-opus-5", &fakeTools{}, rec)
+			// A quick answer is only asked again when the request itself was rejected.
+			err := chatWithStyle(ProviderClaude, connection{apiKey: "key"}, "claude-opus-5", &fakeTools{}, radioAnswerStyle, rec)
 			var streamErr *AIStreamError
 			if !errors.As(err, &streamErr) || streamErr.Code != tc.wantCode || streamErr.RawMessage != tc.msg {
 				t.Fatalf("expected %s carrying the API message, got %#v", tc.wantCode, err)

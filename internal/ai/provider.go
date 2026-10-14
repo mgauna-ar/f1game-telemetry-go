@@ -22,6 +22,14 @@ const (
 	DefaultClaudeModel = "claude-opus-5"
 )
 
+// Default radio models: fast models for the answers spoken over the radio. The custom provider
+// has none, so its chat model answers the radio too.
+const (
+	DefaultGeminiRadioModel = "gemini-flash-lite-latest"
+	DefaultOpenAIRadioModel = "gpt-4o-mini"
+	DefaultClaudeRadioModel = "claude-haiku-5-5"
+)
+
 const defaultOpenAIBaseURL = "https://api.openai.com/v1"
 
 // ServerKeys are the API keys configured on the server. A key sent with the request takes priority.
@@ -42,6 +50,8 @@ type connection struct {
 // to list its models and hold a chat with it.
 type provider struct {
 	defaultModel string
+	// defaultRadioModel answers the radio, or "" to use the chat model.
+	defaultRadioModel string
 	// serverKey picks the provider's key from the server's keys. Nil means only a key sent
 	// with the request is used, and none is required.
 	serverKey func(ServerKeys) string
@@ -53,22 +63,25 @@ type provider struct {
 
 var providers = map[string]provider{
 	ProviderGemini: {
-		defaultModel: DefaultGeminiModel,
-		serverKey:    func(k ServerKeys) string { return k.Gemini },
-		listModels:   fetchGeminiModels,
-		newChat:      newGeminiChat,
+		defaultModel:      DefaultGeminiModel,
+		defaultRadioModel: DefaultGeminiRadioModel,
+		serverKey:         func(k ServerKeys) string { return k.Gemini },
+		listModels:        fetchGeminiModels,
+		newChat:           newGeminiChat,
 	},
 	ProviderOpenAI: {
-		defaultModel: DefaultOpenAIModel,
-		serverKey:    func(k ServerKeys) string { return k.OpenAI },
-		listModels:   fetchOpenAIModels,
-		newChat:      newOpenAIChat,
+		defaultModel:      DefaultOpenAIModel,
+		defaultRadioModel: DefaultOpenAIRadioModel,
+		serverKey:         func(k ServerKeys) string { return k.OpenAI },
+		listModels:        fetchOpenAIModels,
+		newChat:           newOpenAIChat,
 	},
 	ProviderClaude: {
-		defaultModel: DefaultClaudeModel,
-		serverKey:    func(k ServerKeys) string { return k.Claude },
-		listModels:   fetchClaudeModels,
-		newChat:      newClaudeChat,
+		defaultModel:      DefaultClaudeModel,
+		defaultRadioModel: DefaultClaudeRadioModel,
+		serverKey:         func(k ServerKeys) string { return k.Claude },
+		listModels:        fetchClaudeModels,
+		newChat:           newClaudeChat,
 	},
 	ProviderCustom: {
 		defaultModel:  DefaultOpenAIModel,
@@ -98,6 +111,26 @@ func DefaultModel(providerID string) string {
 // ResolveDefaultModel returns the requested model or the default model for the provider.
 func ResolveDefaultModel(providerID, reqModel string) string {
 	if model := strings.TrimSpace(reqModel); model != "" {
+		return model
+	}
+	return DefaultModel(providerID)
+}
+
+// DefaultRadioModel returns the fast model for the provider's radio answers, or "" when the
+// provider has none and its chat model answers the radio.
+func DefaultRadioModel(providerID string) string {
+	if p, ok := providers[ResolveProvider(providerID)]; ok {
+		return p.defaultRadioModel
+	}
+	return DefaultGeminiRadioModel
+}
+
+// ResolveRadioModel returns the requested model, else the provider's radio model, else its chat model.
+func ResolveRadioModel(providerID, reqModel string) string {
+	if model := strings.TrimSpace(reqModel); model != "" {
+		return model
+	}
+	if model := DefaultRadioModel(providerID); model != "" {
 		return model
 	}
 	return DefaultModel(providerID)

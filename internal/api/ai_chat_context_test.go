@@ -16,14 +16,16 @@ import (
 )
 
 // captureUpstream is an OpenAI-compatible server that answers "Copy." and keeps the system
-// prompt of each request.
+// prompt and the model of each request.
 type captureUpstream struct {
 	mu      sync.Mutex
 	prompts []string
+	models  []string
 }
 
 func (u *captureUpstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var body struct {
+		Model    string `json:"model"`
 		Messages []struct {
 			Role    string `json:"role"`
 			Content string `json:"content"`
@@ -31,11 +33,12 @@ func (u *captureUpstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, _ := io.ReadAll(r.Body)
 	_ = json.Unmarshal(raw, &body)
+	u.mu.Lock()
+	u.models = append(u.models, body.Model)
 	if len(body.Messages) > 0 && body.Messages[0].Role == "system" {
-		u.mu.Lock()
 		u.prompts = append(u.prompts, body.Messages[0].Content)
-		u.mu.Unlock()
 	}
+	u.mu.Unlock()
 	w.Header().Set("Content-Type", "text/event-stream")
 	_, _ = io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Copy.\"}}]}\n\ndata: [DONE]\n\n")
 }
@@ -91,16 +94,23 @@ func TestAIChat_RejectsUnknownContextBeforeStreaming(t *testing.T) {
 	tests := []struct {
 		name    string
 		context map[string]any
+		channel string
 		status  int
 	}{
-		{"unknown session", map[string]any{"context_mode": "session_debrief", "session_id": 9999}, http.StatusNotFound},
-		{"unknown lap", map[string]any{"context_mode": "comparator", "lap_a_id": 9998, "lap_b_id": 9999}, http.StatusNotFound},
-		{"unknown mode", map[string]any{"context_mode": "telepathy"}, http.StatusBadRequest},
-		{"debrief without a session", map[string]any{"context_mode": "session_debrief"}, http.StatusBadRequest},
+		{"unknown session", map[string]any{"context_mode": "session_debrief", "session_id": 9999}, "", http.StatusNotFound},
+		{"unknown lap", map[string]any{"context_mode": "comparator", "lap_a_id": 9998, "lap_b_id": 9999}, "", http.StatusNotFound},
+		{"unknown mode", map[string]any{"context_mode": "telepathy"}, "", http.StatusBadRequest},
+		{"debrief without a session", map[string]any{"context_mode": "session_debrief"}, "", http.StatusBadRequest},
+		{"radio about a recorded session", map[string]any{"context_mode": "session_debrief", "session_id": 1}, ai.ChatChannelRadio, http.StatusBadRequest},
+		{"unknown channel", map[string]any{"context_mode": "live"}, "tv", http.StatusBadRequest},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doJSON(t, server, http.MethodPost, "/api/ai/chat", chatRequest(srv.URL, tt.context))
+			req := chatRequest(srv.URL, tt.context)
+			if tt.channel != "" {
+				req["channel"] = tt.channel
+			}
+			rec := doJSON(t, server, http.MethodPost, "/api/ai/chat", req)
 			if rec.Code != tt.status {
 				t.Fatalf("status = %d, want %d (body %q)", rec.Code, tt.status, rec.Body.String())
 			}
@@ -115,6 +125,37 @@ func TestAIChat_RejectsUnknownContextBeforeStreaming(t *testing.T) {
 	}
 	if len(up.prompts) != 0 {
 		t.Fatalf("expected no provider request, got %d", len(up.prompts))
+	}
+}
+
+func TestAIChat_RadioChannelGetsTheRadioModel(t *testing.T) {
+	server, _ := newSettingsTestServer(t, ServerConfig{})
+	up := &captureUpstream{}
+	srv := httptest.NewServer(up)
+	defer srv.Close()
+
+	rec := doJSON(t, server, http.MethodPut, "/api/settings/ai", map[string]any{
+		"provider":     "custom",
+		"base_url":     srv.URL,
+		"models":       map[string]string{"custom": "local-chat"},
+		"radio_models": map[string]string{"custom": "local-radio"},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("save AI settings: status %d body %q", rec.Code, rec.Body.String())
+	}
+
+	for _, channel := range []string{ai.ChatChannelRadio, ai.ChatChannelChat} {
+		rec := doJSON(t, server, http.MethodPost, "/api/ai/chat", map[string]any{
+			"channel":  channel,
+			"messages": []map[string]string{{"role": "user", "content": "Gap to Norris?"}},
+			"context":  map[string]any{"context_mode": "live"},
+		})
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Copy.") {
+			t.Fatalf("%s: status = %d body = %q, want a streamed answer", channel, rec.Code, rec.Body.String())
+		}
+	}
+	if len(up.models) != 2 || up.models[0] != "local-radio" || up.models[1] != "local-chat" {
+		t.Fatalf("models = %v, want the radio model for the radio and the chat model for the chat", up.models)
 	}
 }
 

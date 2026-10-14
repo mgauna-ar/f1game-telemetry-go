@@ -19,6 +19,44 @@ var claudeAPIBaseURL = "https://api.anthropic.com"
 // sentences, so this only has to leave the model room to think first.
 const claudeMaxTokens = 16000
 
+// claudeQuick is what a Claude model family accepts for a quick answer.
+type claudeQuick struct {
+	// effort is true when the model takes output_config.effort.
+	effort bool
+	// thinkingOff is true when the model takes thinking disabled at low effort.
+	thinkingOff bool
+	// thinks is true when the model still thinks in a quick answer, so its tokens stay uncapped.
+	thinks bool
+}
+
+// claudeQuickByFamily lists the Claude families by model name prefix, first match wins. Haiku
+// 5.5 can stop thinking; Opus 5.5, Sonnet 5.5 and Fable always think, and turning thinking
+// off on Opus 5 and Sonnet 5 makes their tool calls less reliable, so newer models only lower
+// the effort. The 4.x models only think when asked, and the oldest have no effort setting.
+var claudeQuickByFamily = []struct {
+	prefix string
+	quick  claudeQuick
+}{
+	{"claude-haiku-5", claudeQuick{effort: true, thinkingOff: true}},
+	{"claude-haiku-4", claudeQuick{}},
+	{"claude-sonnet-4-6", claudeQuick{effort: true}},
+	{"claude-sonnet-4", claudeQuick{}},
+	{"claude-opus-4", claudeQuick{effort: true}},
+	{"claude-3", claudeQuick{}},
+}
+
+// claudeQuickFor returns what the model accepts for a quick answer. Unknown models are taken
+// to be newer ones that think and take an effort.
+func claudeQuickFor(model string) claudeQuick {
+	name := strings.ToLower(strings.TrimSpace(model))
+	for _, family := range claudeQuickByFamily {
+		if strings.HasPrefix(name, family.prefix) {
+			return family.quick
+		}
+	}
+	return claudeQuick{effort: true, thinks: true}
+}
+
 // claudeRefusalMessage is shown when Claude declines to answer.
 const claudeRefusalMessage = "Claude declined to answer this request. Try rephrasing it or pick another model in Settings."
 
@@ -114,7 +152,28 @@ func newClaudeChat(conn connection, model, systemPrompt string, messages []AICha
 	}
 }
 
-func (c *claudeChat) streamTurn(ctx context.Context, turn chatTurn, out sseWriter) ([]toolCall, error) {
+// applyStyle sets the thinking, effort and token cap for the turn's answer style.
+func (c *claudeChat) applyStyle(style chatStyle) {
+	c.params.MaxTokens = claudeMaxTokens
+	c.params.Thinking, c.params.OutputConfig = anthropic.ThinkingConfigParamUnion{}, anthropic.OutputConfigParam{}
+	if !style.quick {
+		return
+	}
+	quick := claudeQuickFor(c.params.Model)
+	if quick.effort {
+		c.params.OutputConfig.Effort = anthropic.OutputConfigEffortLow
+	}
+	if quick.thinkingOff {
+		disabled := anthropic.NewThinkingConfigDisabledParam()
+		c.params.Thinking = anthropic.ThinkingConfigParamUnion{OfDisabled: &disabled}
+	}
+	if !quick.thinks && style.maxTokens > 0 {
+		c.params.MaxTokens = style.maxTokens
+	}
+}
+
+func (c *claudeChat) streamTurn(ctx context.Context, turn chatTurn, out textSink) ([]toolCall, error) {
+	c.applyStyle(turn.style)
 	c.params.Tools, c.params.ToolChoice = nil, anthropic.ToolChoiceUnionParam{}
 	if turn.tools != nil {
 		c.params.Tools = claudeTools(turn.tools)

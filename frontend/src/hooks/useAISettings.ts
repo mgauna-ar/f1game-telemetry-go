@@ -20,9 +20,10 @@ export type { AISettingsResponse };
 
 /** A partial change for PUT /api/settings/ai. An empty model or key removes the saved one. */
 export type AISettingsUpdate = Narrows<
-  Omit<AIUpdate, 'provider' | 'models' | 'api_keys'> & {
+  Omit<AIUpdate, 'provider' | 'models' | 'radio_models' | 'api_keys'> & {
     provider?: AIProvider;
     models?: Partial<Record<AIProvider, string>>;
+    radio_models?: Partial<Record<AIProvider, string>>;
     api_keys?: Partial<Record<AIProvider, string>>;
   },
   AIUpdate
@@ -47,15 +48,23 @@ export function fromSettingsResponse(res: AISettingsResponse): {
 } {
   const provider = isAIProvider(res.provider) ? res.provider : DEFAULT_CONFIG.provider;
   const providerModels = { ...DEFAULT_CONFIG.providerModels };
+  const providerRadioModels = { ...DEFAULT_CONFIG.providerRadioModels };
   const keyStatus = { ...NO_AI_KEYS };
   for (const p of AI_PROVIDERS) {
     const status = res.providers?.[p];
     if (!status) continue;
     providerModels[p] = status.model || '';
+    providerRadioModels[p] = status.radio_model || '';
     keyStatus[p] = { hasSavedKey: !!status.has_saved_key, hasEnvKey: !!status.has_env_key };
   }
   return {
-    config: { provider, model: providerModels[provider], baseUrl: res.base_url || '', providerModels },
+    config: {
+      provider,
+      model: providerModels[provider],
+      baseUrl: res.base_url || '',
+      providerModels,
+      providerRadioModels,
+    },
     keyStatus,
   };
 }
@@ -111,10 +120,13 @@ function configChanges(prev: AIConfig, next: AIConfig): AISettingsUpdate {
   const update: AISettingsUpdate = {};
   if (next.provider !== prev.provider) update.provider = next.provider;
   const models: Partial<Record<AIProvider, string>> = {};
+  const radioModels: Partial<Record<AIProvider, string>> = {};
   for (const p of AI_PROVIDERS) {
     if (next.providerModels[p] !== prev.providerModels[p]) models[p] = next.providerModels[p];
+    if (next.providerRadioModels[p] !== prev.providerRadioModels[p]) radioModels[p] = next.providerRadioModels[p];
   }
   if (Object.keys(models).length > 0) update.models = models;
+  if (Object.keys(radioModels).length > 0) update.radio_models = radioModels;
   if (next.baseUrl !== prev.baseUrl) update.base_url = next.baseUrl;
   return update;
 }

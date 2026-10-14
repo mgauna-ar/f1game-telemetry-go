@@ -6,6 +6,7 @@ import type { Comparator, Engineer, PTT, Voice } from './settings';
 /** Go: api.AIProviderStatus */
 export interface AIProviderStatus {
   model: string;
+  radio_model: string;
   has_saved_key: boolean;
   has_env_key: boolean;
 }

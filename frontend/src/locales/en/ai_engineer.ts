@@ -14,6 +14,7 @@ export const ai_engineer = {
   provider: 'Provider',
   apiKey: 'API key',
   model: 'Model',
+  radioModel: 'Radio model',
   saveSettings: 'Save Configuration',
   close: 'Close',
   welcomeMessage:
@@ -130,6 +131,7 @@ export const ai_engineer = {
     useModel: 'Use "{model}"',
     currentModelNotListed: '"{model}" is in use but not in this list.',
     modelTypeHint: 'Type the name of the model to use.',
+    radioModelAbout: 'Answers your push-to-talk questions. A fast model answers sooner; the chat keeps the model above.',
     modelsNeedKey: "Save a key to pick from this provider's models, or type a name.",
     modelsNeedAddress: 'Enter the server address to see its models.',
     autosaveNote: 'Changes save as you make them.',

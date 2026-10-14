@@ -30,6 +30,8 @@ export interface AiSettingsFieldsProps {
   isLoadingModels: boolean;
   modelsError: string | null;
   fetchAvailableModels: (cfg?: AIConfig) => Promise<void>;
+  /** Also pick the model that answers push-to-talk questions. */
+  showRadioModel?: boolean;
 }
 
 export interface ChatSettingsDrawerProps extends AiSettingsFieldsProps {
@@ -40,8 +42,8 @@ export interface ChatSettingsDrawerProps extends AiSettingsFieldsProps {
 /**
  * The AI settings fields. Pick a provider, then only that provider's fields show: a key and where
  * to get one for cloud providers, a server address (with presets) and an optional key for
- * OpenAI-compatible servers, and the provider's own model list. Every change saves at once to
- * the server, so all devices share it.
+ * OpenAI-compatible servers, and the provider's own model list, for the chat and, when asked,
+ * for push-to-talk answers. Every change saves at once to the server, so all devices share it.
  */
 export const AiSettingsFields: React.FC<AiSettingsFieldsProps> = ({
   config,
@@ -52,6 +54,7 @@ export const AiSettingsFields: React.FC<AiSettingsFieldsProps> = ({
   isLoadingModels,
   modelsError,
   fetchAvailableModels,
+  showRadioModel = false,
 }) => {
   const { t } = useI18n();
   const provider = config.provider;
@@ -124,6 +127,22 @@ export const AiSettingsFields: React.FC<AiSettingsFieldsProps> = ({
           onModelChange={(model) => saveConfig({ ...config, model })}
           onRefreshModels={() => fetchAvailableModels()}
         />
+
+        {showRadioModel && (
+          <ModelPicker
+            label={t('ai_engineer.radioModel')}
+            about={t('ai_engineer.setup.radioModelAbout')}
+            currentModel={config.providerRadioModels[provider]}
+            availableModels={availableModels}
+            isLoadingModels={isLoadingModels}
+            modelsError={null}
+            unavailableReason={modelsUnavailable}
+            onModelChange={(model) =>
+              saveConfig({ ...config, providerRadioModels: { ...config.providerRadioModels, [provider]: model } })
+            }
+            onRefreshModels={() => fetchAvailableModels()}
+          />
+        )}
       </section>
     </>
   );

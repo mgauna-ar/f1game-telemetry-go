@@ -201,7 +201,7 @@ describe('useRadioAudio hook', () => {
         .mock.calls.filter(([path]) => path === '/api/ai/ptt/trace')
         .map(([, body]) => body as PTTTraceRequest);
 
-    it('sends only the live context mode; the server builds the race briefing and phase', async () => {
+    it('sends only the live context mode on the radio channel; the server builds the briefing and picks the model', async () => {
       vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
       const { result } = renderHook(() => useRadioAudio());
 
@@ -209,6 +209,8 @@ describe('useRadioAudio hook', () => {
 
       const body = requestBody(0);
       expect(body.context).toEqual({ context_mode: 'live' });
+      expect(body.channel).toBe('radio');
+      expect(body).not.toHaveProperty('model');
       expect(body.language).toBe('en');
       expect(body).not.toHaveProperty('provider');
     });

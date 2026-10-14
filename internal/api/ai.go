@@ -50,14 +50,22 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleAIChat streams an AI chat answer. The request names what the chat is about (a live
-// session, a recorded session or two laps) and the server builds the prompt data from it.
+// session, a recorded session or two laps) and the server builds the prompt data from it. A
+// push-to-talk answer comes on the radio channel and gets the provider's radio model.
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONErrorCode(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest, ai.AIErrorInvalidRequest)
 		return
 	}
-	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL})
+	if err := req.CheckChannel(); err != nil {
+		writeChatContextError(w, err)
+		return
+	}
+	filled := s.fillAIRequest(r.Context(), settings.AIRequest{
+		Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL,
+		Radio: req.Channel == ai.ChatChannelRadio,
+	})
 	req.Provider, req.Model, req.APIKey, req.BaseURL = filled.Provider, filled.Model, filled.APIKey, filled.BaseURL
 
 	provider := ai.ResolveProvider(req.Provider)

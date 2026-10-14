@@ -7,7 +7,7 @@ import {
 import { AiSettingsFields } from '../ai_engineer/ChatSettingsDrawer';
 import styles from './SettingsPage.module.css';
 
-/** The AI chat's provider, key and model; the same fields as the chat's own settings layer. */
+/** The AI provider, key and models: the chat's own settings fields plus the radio model. */
 export const AiSettingsSection: React.FC = () => {
   const { config, keyStatus, availableModels, isLoadingModels, modelsError } = useRaceEngineerState();
   const { saveConfig, saveApiKey, fetchAvailableModels } = useRaceEngineerActions();
@@ -32,6 +32,7 @@ export const AiSettingsSection: React.FC = () => {
         isLoadingModels={isLoadingModels}
         modelsError={modelsError}
         fetchAvailableModels={fetchAvailableModels}
+        showRadioModel
       />
     </div>
   );

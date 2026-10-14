@@ -57,6 +57,18 @@ type ChatZoomRange struct {
 	EndMeters   float64 `json:"end_meters"`
 }
 
+// Chat channels: how an answer reaches the driver.
+const (
+	// ChatChannelChat is the docked chat, read on screen.
+	ChatChannelChat = "chat"
+	// ChatChannelRadio is a push-to-talk answer, spoken over the radio. It uses the provider's
+	// fast radio model and is only about the live session.
+	ChatChannelRadio = "radio"
+)
+
+// ChatChannels lists every chat channel; it builds the ChatChannel union for the frontend.
+var ChatChannels = []string{ChatChannelChat, ChatChannelRadio}
+
 // AIChatRequest represents the incoming chat request from the frontend.
 type AIChatRequest struct {
 	Provider string              `json:"provider,omitempty"` // "gemini", "openai", "claude", or "custom"
@@ -67,6 +79,8 @@ type AIChatRequest struct {
 	Language string              `json:"language,omitempty"` // "es", "en"
 	Messages []AIChatMessage     `json:"messages"`
 	Context  *ChatContextRequest `json:"context,omitempty"`
+	// Channel is how the answer reaches the driver; empty means the chat.
+	Channel string `json:"channel,omitempty" tstype:"ChatChannel"`
 }
 
 // TelemetryAnalysisContext is the prompt data the server built for one chat. At most one of

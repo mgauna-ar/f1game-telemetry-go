@@ -5,6 +5,7 @@ import type { Tuning } from './engineer';
 export interface AIUpdate {
   provider?: string;
   models?: Record<string, string>;
+  radio_models?: Record<string, string>;
   base_url?: string;
   api_keys?: Record<string, string>;
 }

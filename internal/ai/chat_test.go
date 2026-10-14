@@ -166,9 +166,19 @@ var driverMessages = []AIChatMessage{{Role: "user", Content: "Where is Norris?"}
 
 // chatWith runs one chat with the provider the way StreamChat does once the provider is resolved.
 func chatWith(providerID string, conn connection, model string, tools ToolExecutor, rec *httptest.ResponseRecorder) error {
+	return chatWithStyle(providerID, conn, model, tools, chatStyle{}, rec)
+}
+
+// chatWithStyle runs one chat answered in the given style.
+func chatWithStyle(providerID string, conn connection, model string, tools ToolExecutor, style chatStyle, rec *httptest.ResponseRecorder) error {
 	conn.provider = providerID
 	chat := providers[providerID].newChat(conn, model, "system", driverMessages)
-	return runChat(context.Background(), providerID, model, chat, tools, sseWriter{w: rec, flusher: rec})
+	out := sseWriter{w: rec, flusher: rec}
+	if err := runChat(context.Background(), providerID, model, chat, tools, style, out); err != nil {
+		return err
+	}
+	out.done()
+	return nil
 }
 
 func TestStreamGemini_CallsToolsThenAnswers(t *testing.T) {
@@ -425,5 +435,131 @@ func TestStreamChat_OffersToolsOnlyWithFreshTelemetry(t *testing.T) {
 				t.Fatalf("expected tools offered=%v, got tools=%v prompt:\n%s", tc.wantTools, hasTools, system)
 			}
 		})
+	}
+}
+
+func TestStreamGemini_QuickAnswerSettings(t *testing.T) {
+	cases := []struct {
+		model        string
+		style        chatStyle
+		wantThinking string
+		wantMax      any
+	}{
+		{"gemini-2.5-flash", radioAnswerStyle, `{"thinkingBudget":0}`, float64(RadioAnswerMaxTokens)},
+		{"gemini-flash-lite-latest", radioAnswerStyle, `{"thinkingLevel":"minimal"}`, float64(RadioAnswerMaxTokens)},
+		{"models/gemini-3-flash-preview", radioAnswerStyle, `{"thinkingLevel":"minimal"}`, float64(RadioAnswerMaxTokens)},
+		{"gemma-3", radioAnswerStyle, "", float64(RadioAnswerMaxTokens)},
+		{"gemini-flash-lite-latest", chatStyle{}, "", nil},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s quick=%v", tc.model, tc.style.quick), func(t *testing.T) {
+			up, url := startUpstream(t, sseReply(`{"candidates":[{"content":{"parts":[{"text":"Copy."}]}}]}`))
+			useGeminiBaseURL(t, url)
+			rec := httptest.NewRecorder()
+
+			if err := chatWithStyle(ProviderGemini, connection{apiKey: "key"}, tc.model, nil, tc.style, rec); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			config, _ := up.requests()[0]["generationConfig"].(map[string]any)
+			thinking := ""
+			if v, ok := config["thinkingConfig"]; ok {
+				b, _ := json.Marshal(v)
+				thinking = string(b)
+			}
+			if thinking != tc.wantThinking || config["maxOutputTokens"] != tc.wantMax || config["temperature"] != geminiTemperature {
+				t.Fatalf("got generation config %v, want thinking %s and max tokens %v", config, tc.wantThinking, tc.wantMax)
+			}
+		})
+	}
+}
+
+func TestStreamOpenAI_QuickAnswerSettings(t *testing.T) {
+	cases := []struct {
+		model      string
+		style      chatStyle
+		wantMax    any
+		wantEffort any
+	}{
+		{"gpt-4o-mini", radioAnswerStyle, float64(RadioAnswerMaxTokens), nil},
+		{"gpt-5-mini", radioAnswerStyle, nil, "low"},
+		{"o4-mini", radioAnswerStyle, nil, "low"},
+		{"gpt-4o-mini", chatStyle{}, nil, nil},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s quick=%v", tc.model, tc.style.quick), func(t *testing.T) {
+			up, url := startUpstream(t, sseReply(`{"choices":[{"delta":{"content":"Copy."}}]}`, `[DONE]`))
+			rec := httptest.NewRecorder()
+
+			if err := chatWithStyle(ProviderCustom, connection{baseURL: url}, tc.model, nil, tc.style, rec); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			body := up.requests()[0]
+			if body["max_tokens"] != tc.wantMax || body["reasoning_effort"] != tc.wantEffort {
+				t.Fatalf("got max_tokens %v reasoning_effort %v, want %v %v", body["max_tokens"], body["reasoning_effort"], tc.wantMax, tc.wantEffort)
+			}
+		})
+	}
+}
+
+func TestStreamOpenAI_QuickAnswerAndToolsBothRejected(t *testing.T) {
+	up, url := startUpstream(t,
+		errorReply(http.StatusBadRequest, `{"error":{"message":"unsupported parameter: max_tokens","type":"api_error"}}`),
+		errorReply(http.StatusBadRequest, `{"error":{"message":"registry.ollama.ai/library/llama3:latest does not support tools","type":"api_error"}}`),
+		sseReply(`{"choices":[{"delta":{"content":"Copy."}}]}`, `[DONE]`),
+	)
+	rec := httptest.NewRecorder()
+
+	if err := chatWithStyle(ProviderCustom, connection{baseURL: url}, "llama3", &fakeTools{}, radioAnswerStyle, rec); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	reqs := up.requests()
+	if len(reqs) != 3 {
+		t.Fatalf("expected the quick request, one without quick settings and one without tools, got %d", len(reqs))
+	}
+	_, quickTools := reqs[0]["tools"]
+	_, retryTools := reqs[1]["tools"]
+	_, lastTools := reqs[2]["tools"]
+	if reqs[0]["max_tokens"] == nil || !quickTools || reqs[1]["max_tokens"] != nil || !retryTools || reqs[2]["max_tokens"] != nil || lastTools {
+		t.Fatalf("unexpected retry order: %v", reqs)
+	}
+	if text, done := clientText(t, rec); text != "Copy." || done != 1 {
+		t.Fatalf("expected the answer and one [DONE], got %q with %d [DONE]", text, done)
+	}
+}
+
+func TestCheckChannel(t *testing.T) {
+	live := &ChatContextRequest{ContextMode: ContextModeLive}
+	cases := []struct {
+		name    string
+		req     AIChatRequest
+		wantErr bool
+	}{
+		{"no channel", AIChatRequest{}, false},
+		{"chat", AIChatRequest{Channel: ChatChannelChat, Context: &ChatContextRequest{ContextMode: ContextModeComparator}}, false},
+		{"radio about the live session", AIChatRequest{Channel: ChatChannelRadio, Context: live}, false},
+		{"radio without a context", AIChatRequest{Channel: ChatChannelRadio}, true},
+		{"radio about a recorded session", AIChatRequest{Channel: ChatChannelRadio, Context: &ChatContextRequest{ContextMode: ContextModeSessionDebrief, SessionID: 1}}, true},
+		{"unknown channel", AIChatRequest{Channel: "tv", Context: live}, true},
+	}
+	for _, tc := range cases {
+		err := tc.req.CheckChannel()
+		if (err != nil) != tc.wantErr || (err != nil && !errors.Is(err, ErrInvalidChatContext)) {
+			t.Errorf("%s: got %v, want error %v", tc.name, err, tc.wantErr)
+		}
+	}
+}
+
+func TestResolveRadioModel(t *testing.T) {
+	cases := []struct{ provider, model, want string }{
+		{ProviderClaude, "", DefaultClaudeRadioModel},
+		{ProviderGemini, " ", DefaultGeminiRadioModel},
+		{ProviderOpenAI, "", DefaultOpenAIRadioModel},
+		{ProviderCustom, "", DefaultModel(ProviderCustom)},
+		{ProviderClaude, "claude-sonnet-5-5", "claude-sonnet-5-5"},
+	}
+	for _, tc := range cases {
+		if got := ResolveRadioModel(tc.provider, tc.model); got != tc.want {
+			t.Errorf("ResolveRadioModel(%q, %q) = %q, want %q", tc.provider, tc.model, got, tc.want)
+		}
 	}
 }

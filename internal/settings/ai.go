@@ -37,17 +37,21 @@ func IsProvider(p string) bool {
 type AI struct {
 	Provider string            `json:"provider,omitempty"`
 	Models   map[string]string `json:"models,omitempty"`
-	BaseURL  string            `json:"base_url,omitempty"`
-	APIKeys  map[string]string `json:"api_keys,omitempty"`
+	// RadioModels answer the driver's push-to-talk questions; a fast model answers sooner.
+	RadioModels map[string]string `json:"radio_models,omitempty"`
+	BaseURL     string            `json:"base_url,omitempty"`
+	APIKeys     map[string]string `json:"api_keys,omitempty"`
 }
 
 // AIUpdate changes part of the saved AI settings. Absent fields keep their saved value. An empty
-// model or API key removes the saved one, so the .env value or the built-in default applies again.
+// model, radio model or API key removes the saved one, so the .env value or the built-in default
+// applies again.
 type AIUpdate struct {
-	Provider *string           `json:"provider,omitempty"`
-	Models   map[string]string `json:"models,omitempty"`
-	BaseURL  *string           `json:"base_url,omitempty"`
-	APIKeys  map[string]string `json:"api_keys,omitempty"`
+	Provider    *string           `json:"provider,omitempty"`
+	Models      map[string]string `json:"models,omitempty"`
+	RadioModels map[string]string `json:"radio_models,omitempty"`
+	BaseURL     *string           `json:"base_url,omitempty"`
+	APIKeys     map[string]string `json:"api_keys,omitempty"`
 }
 
 // LoadAI returns the saved AI settings, and false when none were saved yet.
@@ -66,10 +70,11 @@ func SaveAI(ctx context.Context, store Store, a AI) error {
 // key, so a key is only ever sent to the endpoint it was entered for.
 func (a AI) Apply(u AIUpdate) (AI, error) {
 	out := AI{
-		Provider: a.Provider,
-		Models:   maps.Clone(a.Models),
-		BaseURL:  a.BaseURL,
-		APIKeys:  maps.Clone(a.APIKeys),
+		Provider:    a.Provider,
+		Models:      maps.Clone(a.Models),
+		RadioModels: maps.Clone(a.RadioModels),
+		BaseURL:     a.BaseURL,
+		APIKeys:     maps.Clone(a.APIKeys),
 	}
 
 	if u.Provider != nil {
@@ -93,6 +98,9 @@ func (a AI) Apply(u AIUpdate) (AI, error) {
 
 	var err error
 	if out.Models, err = mergeByProvider(out.Models, u.Models); err != nil {
+		return AI{}, err
+	}
+	if out.RadioModels, err = mergeByProvider(out.RadioModels, u.RadioModels); err != nil {
 		return AI{}, err
 	}
 	if out.APIKeys, err = mergeByProvider(out.APIKeys, u.APIKeys); err != nil {
@@ -146,23 +154,26 @@ type AIEnv struct {
 // EffectiveAI is the AI setup in force after layering the saved settings over env vars and the
 // built-in defaults.
 type EffectiveAI struct {
-	Provider  string
-	BaseURL   string
-	Models    map[string]string // the model each known provider uses
-	SavedKeys map[string]bool   // providers with a key saved from the dashboard
-	EnvKeys   map[string]bool   // providers with a key from an env var
-	keys      map[string]string
+	Provider    string
+	BaseURL     string
+	Models      map[string]string // the model each known provider uses
+	RadioModels map[string]string // the model each known provider answers the radio with
+	SavedKeys   map[string]bool   // providers with a key saved from the dashboard
+	EnvKeys     map[string]bool   // providers with a key from an env var
+	keys        map[string]string
 }
 
 // ResolveAI layers saved settings over env vars over built-in defaults. defaultModel returns the
-// built-in model for a provider; the ai package owns those names.
-func ResolveAI(saved AI, env AIEnv, defaultModel func(provider string) string) EffectiveAI {
+// built-in model for a provider, and defaultRadioModel its built-in radio model or "" for none,
+// in which case the provider's chat model answers the radio; the ai package owns those names.
+func ResolveAI(saved AI, env AIEnv, defaultModel, defaultRadioModel func(provider string) string) EffectiveAI {
 	eff := EffectiveAI{
-		BaseURL:   saved.BaseURL,
-		Models:    make(map[string]string, len(Providers)),
-		SavedKeys: make(map[string]bool, len(Providers)),
-		EnvKeys:   make(map[string]bool, len(Providers)),
-		keys:      make(map[string]string, len(Providers)),
+		BaseURL:     saved.BaseURL,
+		Models:      make(map[string]string, len(Providers)),
+		RadioModels: make(map[string]string, len(Providers)),
+		SavedKeys:   make(map[string]bool, len(Providers)),
+		EnvKeys:     make(map[string]bool, len(Providers)),
+		keys:        make(map[string]string, len(Providers)),
 	}
 
 	autoProvider := ""
@@ -205,6 +216,15 @@ func ResolveAI(saved AI, env AIEnv, defaultModel func(provider string) string) E
 			model = defaultModel(p)
 		}
 		eff.Models[p] = model
+
+		radioModel := strings.TrimSpace(saved.RadioModels[p])
+		if radioModel == "" {
+			radioModel = defaultRadioModel(p)
+		}
+		if radioModel == "" {
+			radioModel = model
+		}
+		eff.RadioModels[p] = radioModel
 	}
 	return eff
 }
@@ -220,6 +240,8 @@ type AIRequest struct {
 	Model    string
 	APIKey   string
 	BaseURL  string
+	// Radio is a push-to-talk answer, which gets the provider's radio model.
+	Radio bool
 }
 
 // Fill completes what a request left empty. A saved or env API key is only added when the request
@@ -233,6 +255,9 @@ func (e EffectiveAI) Fill(r AIRequest) AIRequest {
 	}
 	if strings.TrimSpace(out.Model) == "" {
 		out.Model = e.Models[out.Provider]
+		if r.Radio {
+			out.Model = e.RadioModels[out.Provider]
+		}
 	}
 
 	requestBaseURL := strings.TrimSpace(r.BaseURL)

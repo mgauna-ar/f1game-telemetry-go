@@ -17,10 +17,15 @@ const serverSettings = (overrides: Partial<AISettingsResponse> = {}): AISettings
   provider: 'gemini',
   base_url: '',
   providers: {
-    gemini: { model: 'gemini-flash-latest', has_saved_key: false, has_env_key: true },
-    openai: { model: 'gpt-4o-mini', has_saved_key: false, has_env_key: false },
-    claude: { model: 'claude-default', has_saved_key: false, has_env_key: false },
-    custom: { model: 'gpt-4o-mini', has_saved_key: false, has_env_key: false },
+    gemini: {
+      model: 'gemini-flash-latest',
+      radio_model: 'gemini-flash-lite-latest',
+      has_saved_key: false,
+      has_env_key: true,
+    },
+    openai: { model: 'gpt-4o-mini', radio_model: 'gpt-4o-mini', has_saved_key: false, has_env_key: false },
+    claude: { model: 'claude-default', radio_model: 'claude-fast', has_saved_key: false, has_env_key: false },
+    custom: { model: 'gpt-4o-mini', radio_model: 'gpt-4o-mini', has_saved_key: false, has_env_key: false },
   },
   ...overrides,
 });
@@ -31,6 +36,7 @@ describe('fromSettingsResponse', () => {
     expect(config.provider).toBe('claude');
     expect(config.model).toBe('claude-default');
     expect(config.providerModels.openai).toBe('gpt-4o-mini');
+    expect(config.providerRadioModels.claude).toBe('claude-fast');
     expect(keyStatus.gemini).toEqual({ hasSavedKey: false, hasEnvKey: true });
     expect(keyStatus.claude).toEqual({ hasSavedKey: false, hasEnvKey: false });
   });
@@ -61,7 +67,12 @@ describe('legacyConfigUpdate', () => {
 
   it('only fills in missing keys once the server has saved settings', () => {
     const saved = serverSettings({ saved: true });
-    saved.providers.gemini = { model: 'gemini-flash-latest', has_saved_key: true, has_env_key: false };
+    saved.providers.gemini = {
+      model: 'gemini-flash-latest',
+      radio_model: 'gemini-flash-lite-latest',
+      has_saved_key: true,
+      has_env_key: false,
+    };
     expect(legacyConfigUpdate(legacy, saved)).toEqual({ api_keys: { custom: 'c-key' } });
   });
 
@@ -130,6 +141,19 @@ describe('useAISettings', () => {
       result.current.saveConfig({ ...result.current.config, model: 'gemini-pro-latest' });
     });
     expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ai', { models: { gemini: 'gemini-pro-latest' } }, withClientId);
+
+    act(() => {
+      const config = result.current.config;
+      result.current.saveConfig({
+        ...config,
+        providerRadioModels: { ...config.providerRadioModels, claude: 'claude-haiku-5-5' },
+      });
+    });
+    expect(putSpy).toHaveBeenLastCalledWith(
+      '/api/settings/ai',
+      { radio_models: { claude: 'claude-haiku-5-5' } },
+      withClientId
+    );
 
     await act(async () => {
       await result.current.saveApiKey('claude', '  sk-ant  ');

@@ -39,6 +39,8 @@ export interface AIConfig {
   /** Endpoint of the OpenAI-compatible custom provider. */
   baseUrl: string;
   providerModels: Record<AIProvider, string>;
+  /** Model each provider answers push-to-talk questions with; a fast one answers sooner. */
+  providerRadioModels: Record<AIProvider, string>;
 }
 
 /** Whether the server has an API key for a provider, saved from the dashboard or from .env. */
@@ -124,6 +126,7 @@ export const DEFAULT_CONFIG: AIConfig = {
   model: '',
   baseUrl: '',
   providerModels: { gemini: '', openai: '', claude: '', custom: '' },
+  providerRadioModels: { gemini: '', openai: '', claude: '', custom: '' },
 };
 
 export const NO_AI_KEYS: AIKeyStatusByProvider = {
