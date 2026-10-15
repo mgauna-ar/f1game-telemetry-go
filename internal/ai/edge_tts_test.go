@@ -3,6 +3,7 @@ package ai
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestResolveVoice(t *testing.T) {
@@ -141,11 +142,24 @@ func TestAudioCache(t *testing.T) {
 
 func TestGenerateSecMsGec(t *testing.T) {
 	token := generateSecMsGec()
-	if len(token) != 64 {
-		t.Errorf("expected 64-char sha256 hex string, got %d chars: %s", len(token), token)
+	// v2 token format: <16 hex CS64>-<64 hex SHA256> = 81 characters
+	if len(token) != 81 {
+		t.Errorf("expected 81-char v2 token (<16 hex>-<64 hex>), got %d chars: %s", len(token), token)
 	}
-	if token != strings.ToUpper(token) {
-		t.Errorf("expected uppercase hex token, got %s", token)
+	parts := strings.Split(token, "-")
+	if len(parts) != 2 || len(parts[0]) != 16 || len(parts[1]) != 64 {
+		t.Fatalf("unexpected token format: %s", token)
+	}
+	if parts[0] != strings.ToUpper(parts[0]) || parts[1] != strings.ToUpper(parts[1]) {
+		t.Errorf("expected uppercase hex token parts, got %s", token)
+	}
+
+	// Verify exact reference vector
+	fixed := time.Unix(1728900000, 0)
+	expected := "92C8D7882125BC88-81B24303C1D417D273CFA2F2169A7659C747B85AD526EAB202B6C611A24E2950"
+	got := generateSecMsGecV2FromTime(fixed)
+	if got != expected {
+		t.Errorf("v2 token mismatch for fixed timestamp:\nexpected: %s\ngot:      %s", expected, got)
 	}
 }
 
