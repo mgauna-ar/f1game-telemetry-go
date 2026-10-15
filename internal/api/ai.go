@@ -50,14 +50,22 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleAIChat streams an AI chat answer. The request names what the chat is about (a live
-// session, a recorded session or two laps) and the server builds the prompt data from it.
+// session, a recorded session or two laps) and the server builds the prompt data from it. A
+// push-to-talk answer comes on the radio channel and gets the provider's radio model.
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONErrorCode(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest, ai.AIErrorInvalidRequest)
 		return
 	}
-	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL})
+	if err := req.CheckChannel(); err != nil {
+		writeChatContextError(w, err)
+		return
+	}
+	filled := s.fillAIRequest(r.Context(), settings.AIRequest{
+		Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL,
+		Radio: req.Channel == ai.ChatChannelRadio,
+	})
 	req.Provider, req.Model, req.APIKey, req.BaseURL = filled.Provider, filled.Model, filled.APIKey, filled.BaseURL
 
 	provider := ai.ResolveProvider(req.Provider)
@@ -87,6 +95,59 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		errPayload, _ := json.Marshal(aiErrorPayload(err, provider))
 		fmt.Fprintf(w, "data: %s\n\n", string(errPayload))
 		flusher.Flush()
+	}
+}
+
+// handleAIRadioLine words a routine radio call afresh with the provider's radio model. The
+// dashboard asks for it when a call comes Wordable, and says its catalogue line (the baseline)
+// when the answer is slow or an error.
+func (s *Server) handleAIRadioLine(w http.ResponseWriter, r *http.Request) {
+	var req ai.RadioLineRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONErrorCode(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest, ai.AIErrorInvalidRequest)
+		return
+	}
+	req.Baseline = strings.TrimSpace(req.Baseline)
+	if req.DirectiveID == "" || req.Baseline == "" {
+		writeJSONErrorCode(w, "directive_id and baseline are required", http.StatusBadRequest, ai.AIErrorInvalidRequest)
+		return
+	}
+	if s.engineerEngine == nil {
+		writeJSONErrorCode(w, ai.ErrRadioCallNotFound.Error(), http.StatusNotFound, ai.AIErrorInvalidRequest)
+		return
+	}
+
+	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Radio: true})
+	setup := ai.RadioLineSetup{
+		Provider: filled.Provider, Model: filled.Model, APIKey: filled.APIKey, BaseURL: filled.BaseURL,
+		Keys: s.aiKeys(),
+	}
+	if s.repo != nil {
+		voice, _, err := settings.LoadVoice(r.Context(), s.repo)
+		if err != nil {
+			slog.Error("Failed to load voice settings for a radio line", "error", err)
+		}
+		setup.CustomPersonaPrompt = voice.CustomPrompt
+	}
+
+	text, err := s.radioLines.Word(r.Context(), req, s.engineerEngine, setup)
+	var rejected *ai.RadioLineRejectedError
+	switch {
+	case err == nil:
+		writeJSON(w, http.StatusOK, ai.RadioLineResponse{Text: text})
+	case errors.Is(err, ai.ErrRadioCallNotFound):
+		writeJSONErrorCode(w, err.Error(), http.StatusNotFound, ai.AIErrorInvalidRequest)
+	case errors.As(err, &rejected):
+		writeJSONErrorCode(w, err.Error(), http.StatusUnprocessableEntity, ai.AIErrorRadioLineRejected)
+	default:
+		status := http.StatusBadGateway
+		var aiErr *ai.AIStreamError
+		if errors.As(err, &aiErr) && aiErr.StatusCode > 0 {
+			status = aiErr.StatusCode
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			status = http.StatusGatewayTimeout
+		}
+		writeJSON(w, status, aiErrorPayload(err, filled.Provider))
 	}
 }
 

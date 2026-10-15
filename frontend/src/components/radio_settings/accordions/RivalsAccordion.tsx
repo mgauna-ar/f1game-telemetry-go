@@ -26,6 +26,10 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
   const setSubRivalAttack = useRadioSettingsStore((s) => s.setSubRivalAttack);
   const subGapReport = useRadioSettingsStore((s) => s.subGapReport);
   const setSubGapReport = useRadioSettingsStore((s) => s.setSubGapReport);
+  const subRivalClosing = useRadioSettingsStore((s) => s.subRivalClosing);
+  const setSubRivalClosing = useRadioSettingsStore((s) => s.setSubRivalClosing);
+  const subRivalPenalty = useRadioSettingsStore((s) => s.subRivalPenalty);
+  const setSubRivalPenalty = useRadioSettingsStore((s) => s.setSubRivalPenalty);
   const undercutGapSec = useRadioSettingsStore((s) => s.undercutGapSec);
   const setUndercutGapSec = useRadioSettingsStore((s) => s.setUndercutGapSec);
   const rivalGapThresholdSec = useRadioSettingsStore((s) => s.rivalGapThresholdSec);
@@ -72,6 +76,18 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
           label={t('ai_engineer.proactiveAlerts.gapReport')}
           checked={subGapReport}
           onChange={setSubGapReport}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.rivalClosing')}
+          checked={subRivalClosing}
+          onChange={setSubRivalClosing}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.rivalPenalty')}
+          checked={subRivalPenalty}
+          onChange={setSubRivalPenalty}
         />
       </div>
 

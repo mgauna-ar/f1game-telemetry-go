@@ -5,6 +5,7 @@ import { RADIO_TRIGGER_PRESETS } from '../../../constants/f1';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 import { api } from '../../../utils/apiClient';
 import { CoachingAccordion } from './CoachingAccordion';
+import { FlagsAccordion } from './FlagsAccordion';
 import { PitAccordion } from './PitAccordion';
 import { QualyAccordion } from './QualyAccordion';
 import { RivalsAccordion } from './RivalsAccordion';
@@ -36,6 +37,28 @@ describe('alert sections', () => {
       RivalsAccordion,
       'rivalAlertsEnabled',
       'subGapReport',
+    ],
+    [
+      'Rival Battles & DRS Gaps',
+      'Cars Closing In, Ahead or Behind',
+      RivalsAccordion,
+      'rivalAlertsEnabled',
+      'subRivalClosing',
+    ],
+    [
+      'Rival Battles & DRS Gaps',
+      'Time Penalties of the Cars Around You',
+      RivalsAccordion,
+      'rivalAlertsEnabled',
+      'subRivalPenalty',
+    ],
+    ['Pit Stop', 'Stops of the Leader and the Cars Near You', PitAccordion, 'pitAlertsEnabled', 'subPitNews'],
+    [
+      'Safety Car, Flags & Penalties',
+      'Rain Heavier, Easing or Stopping, Track Temperature',
+      FlagsAccordion,
+      'flagsPensAlertsEnabled',
+      'subWeatherChanges',
     ],
   ] as const)('%s turns its calls on and off', (title, label, Section, master, alert) => {
     renderSection(<Section {...sectionProps} />);

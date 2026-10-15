@@ -27,6 +27,7 @@ describe('useAIChatStream Hook', () => {
     model: 'gemini-flash-lite-latest',
     baseUrl: '',
     providerModels: { gemini: 'gemini-flash-lite-latest', openai: '', claude: '', custom: '' },
+    providerRadioModels: { gemini: '', openai: '', claude: '', custom: '' },
   };
 
   const geminiKeySaved: AIKeyStatusByProvider = {

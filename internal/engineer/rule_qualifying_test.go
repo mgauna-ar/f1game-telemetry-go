@@ -657,7 +657,7 @@ func TestFlagsRule_TrackLimitsInRacesOnly(t *testing.T) {
 		sessionType uint8
 		want        bool
 	}{{packets.SessionRace, true}, {packets.SessionQ1, false}, {packets.SessionP1, false}} {
-		rule := NewFlagsRule()
+		rule := seededFlagsRule()
 		lapPkt := &packets.PacketLapData{}
 		lapPkt.LapData[0] = packets.LapData{CornerCuttingWarnings: 3}
 		ctx := &EvaluationContext{

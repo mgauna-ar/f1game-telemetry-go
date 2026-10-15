@@ -101,6 +101,8 @@ func registry() *tsgen.Generator {
 		ai.AIFetchModelsResponse{},
 		ai.AIErrorPayload{},
 		ai.AIChatRequest{},
+		ai.RadioLineRequest{},
+		ai.RadioLineResponse{},
 		system.AppVersion{},
 		system.UpdateCheckResponse{},
 		system.TelemetryEndpoint{},
@@ -117,6 +119,7 @@ func registry() *tsgen.Generator {
 
 	// An AI chat request names what it is about; the server builds the prompt data.
 	g.TypeAlias("ai", "ChatContextMode", stringUnion(ai.ChatContextModes))
+	g.TypeAlias("ai", "ChatChannel", stringUnion(ai.ChatChannels))
 	g.TypeAlias("ai", "DebriefFocus", stringUnion(ai.DebriefFocuses))
 
 	// Messages on /ws/engineer, told apart by their type.
@@ -142,6 +145,9 @@ func registry() *tsgen.Generator {
 	g.TypeAlias("engineer", "EngineerBoxTiming", stringUnion(engineer.BoxTimings))
 	g.TypeAlias("engineer", "EngineerGapTrend", stringUnion(engineer.GapTrendDirections))
 	g.TypeAlias("engineer", "EngineerElimination", stringUnion(engineer.EliminationStatuses))
+	g.TypeAlias("engineer", "EngineerWheel", stringUnion(engineer.WheelPositions))
+	g.TypeAlias("engineer", "EngineerAxle", stringUnion(engineer.AxlePositions))
+	g.TypeAlias("engineer", "EngineerCompound", stringUnion(engineer.TyreCompounds))
 
 	// The 10Hz live snapshot on /ws: the slim per-car and session DTOs, and the race feed rows
 	// the server adds to it (event codes and parameters, no text).

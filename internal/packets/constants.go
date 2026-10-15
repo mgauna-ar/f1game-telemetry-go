@@ -125,7 +125,13 @@ const (
 	WeatherStorm      uint8 = 5
 )
 
-// Actual tyre compound identifiers (C0 through C5 Pirelli dry slick compounds)
+// Weather forecast accuracy (session packet)
+const (
+	ForecastAccuracyPerfect     uint8 = 0
+	ForecastAccuracyApproximate uint8 = 1
+)
+
+// Actual tyre compound identifiers (C0 through C6 Pirelli dry slick compounds)
 const (
 	ActualCompoundC5 uint8 = 16
 	ActualCompoundC4 uint8 = 17
@@ -133,6 +139,7 @@ const (
 	ActualCompoundC2 uint8 = 19
 	ActualCompoundC1 uint8 = 20
 	ActualCompoundC0 uint8 = 21
+	ActualCompoundC6 uint8 = 22
 )
 
 // Active Aero mode constants (2026 Regulations)

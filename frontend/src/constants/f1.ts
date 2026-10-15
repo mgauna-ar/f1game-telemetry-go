@@ -695,6 +695,17 @@ export const RADIO_CONVERSATION_LIMITS = {
   STAND_BY_AFTER_MS: 2000,
 } as const;
 
+/** Routine calls the AI words afresh (POST /api/ai/radio-line). */
+export const RADIO_LINE = {
+  /** How long a call waits for the AI's line before the catalogue's words are said instead. */
+  CLIENT_DEADLINE_MS: 2500,
+} as const;
+
+export const RADIO_PHRASE_CONSTANTS = {
+  /** A routine call says the driver's callsign once every this many routine calls; an urgent one always does. */
+  CALLSIGN_ROUTINE_EVERY: 4,
+} as const;
+
 export const RADIO_PTT_MODES = {
   HOLD: 'hold',
   TOGGLE: 'toggle',

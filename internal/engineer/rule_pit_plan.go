@@ -104,12 +104,20 @@ func (r *PitPlanRule) Evaluate(ctx *EvaluationContext) []Directive {
 			return nil
 		}
 		r.headsUpFor = plan.IdealLap
+		subAlert := "pit_plan_next_lap"
+		msg := fmt.Sprintf("Box next lap: lap %d is the plan's stop.%s", plan.IdealLap, rejoinText(plan))
+		// The car a stop would rejoin right behind.
+		if car := rejoinTraffic(ctx); car != nil {
+			subAlert = "pit_plan_next_lap_traffic"
+			msg += fmt.Sprintf(" We'd come out %.1fs behind a car.", car.GapSec)
+			values = &DirectiveValues{Position: plan.RejoinPosition, Ahead: car}
+		}
 		return []Directive{{
 			ID:       "pit_window",
 			Category: DirectiveCategoryPitStrategy,
-			SubAlert: "pit_plan_next_lap",
+			SubAlert: subAlert,
 			Title:    "Box Next Lap",
-			Message:  fmt.Sprintf("Box next lap: lap %d is the plan's stop.%s", plan.IdealLap, rejoinText(plan)),
+			Message:  msg,
 			Urgency:  UrgencyMedium,
 			Values:   values,
 		}}

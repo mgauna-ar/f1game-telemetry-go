@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { ChatSettingsDrawer, type ChatSettingsDrawerProps } from './ChatSettingsDrawer';
+import { AiSettingsFields, ChatSettingsDrawer, type ChatSettingsDrawerProps } from './ChatSettingsDrawer';
 import { NO_AI_KEYS, type AIConfig } from '../../context/RaceEngineerContext';
 
 const config: AIConfig = {
@@ -8,6 +8,7 @@ const config: AIConfig = {
   model: 'gemini-flash-latest',
   baseUrl: '',
   providerModels: { gemini: 'gemini-flash-latest', openai: 'gpt-4o-mini', claude: '', custom: 'llama3' },
+  providerRadioModels: { gemini: 'gemini-flash-lite-latest', openai: 'gpt-4o-mini', claude: '', custom: 'llama3' },
 };
 
 const renderDrawer = (props: Partial<ChatSettingsDrawerProps> = {}) => {
@@ -185,5 +186,52 @@ describe('ChatSettingsDrawer model list', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(props.saveConfig).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-pro-latest' }));
+  });
+});
+
+describe('AiSettingsFields radio model', () => {
+  const models = [
+    { id: 'gemini-flash-latest', display_name: 'Gemini Flash' },
+    { id: 'gemini-flash-lite-latest', display_name: 'Gemini Flash-Lite' },
+  ];
+  const withKey = { ...NO_AI_KEYS, gemini: { hasSavedKey: true, hasEnvKey: false } };
+  const renderFields = (showRadioModel: boolean) => {
+    const saveConfig = vi.fn();
+    render(
+      <AiSettingsFields
+        config={config}
+        saveConfig={saveConfig}
+        keyStatus={withKey}
+        saveApiKey={vi.fn().mockResolvedValue(undefined)}
+        availableModels={models}
+        isLoadingModels={false}
+        modelsError={null}
+        fetchAvailableModels={vi.fn().mockResolvedValue(undefined)}
+        showRadioModel={showRadioModel}
+      />
+    );
+    return saveConfig;
+  };
+
+  it('picks the push-to-talk model without changing the chat model', () => {
+    const saveConfig = renderFields(true);
+
+    const radioList = screen.getByRole('listbox', { name: 'Radio model' });
+    expect(within(radioList).getByRole('option', { selected: true })).toHaveTextContent('Gemini Flash-Lite');
+    expect(screen.getByText(/Answers your push-to-talk questions/)).toBeInTheDocument();
+
+    fireEvent.click(within(radioList).getByText('Gemini Flash'));
+    expect(saveConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-flash-latest',
+        providerRadioModels: expect.objectContaining({ gemini: 'gemini-flash-latest', openai: 'gpt-4o-mini' }),
+      })
+    );
+  });
+
+  it('is left out of the chat drawer', () => {
+    renderFields(false);
+    expect(screen.queryByRole('listbox', { name: 'Radio model' })).not.toBeInTheDocument();
+    expect(screen.getByRole('listbox', { name: 'Model' })).toBeInTheDocument();
   });
 });

@@ -76,9 +76,10 @@ func (o toolOutcome) responseJSON() string {
 	return string(b)
 }
 
-// toolsRejected reports whether an upstream error looks like the model or server not
-// supporting function calling, in which case the request is retried without tools.
-func toolsRejected(err error) bool {
+// requestRejected reports whether an upstream error looks like the model or server not
+// supporting part of the request, such as function calling or the quick answer settings, in
+// which case the request is retried without that part.
+func requestRejected(err error) bool {
 	var streamErr *AIStreamError
 	if !errors.As(err, &streamErr) {
 		return false

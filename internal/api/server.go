@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/mgauna/f1game-telemetry-go/frontend"
+	"github.com/mgauna/f1game-telemetry-go/internal/ai"
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
@@ -53,6 +54,7 @@ type Server struct {
 	settingsMu      sync.Mutex
 	staticFS        fs.FS
 	comparatorCache *analytics.ComparatorLRUCache
+	radioLines      *ai.RadioLines
 	liveFeed        LiveFeed
 	desktopApp      DesktopApp
 }
@@ -82,6 +84,7 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 		engineerHub:     engineerHub,
 		staticFS:        staticFS,
 		comparatorCache: analytics.NewComparatorLRUCache(analytics.ComparatorCacheCapacity),
+		radioLines:      ai.NewRadioLines(),
 		pttLearnTimeout: PTTLearningTimeout,
 	}
 
@@ -98,10 +101,14 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 }
 
 // SetEngineerEngine attaches the EngineerEngine instance to the API server and applies the saved
-// race engineer settings, if any.
+// race engineer settings, if any, and whether the AI words routine calls.
 func (s *Server) SetEngineerEngine(engine *engineer.EngineerEngine) {
 	s.engineerEngine = engine
-	if s.repo == nil || engine == nil {
+	if engine == nil {
+		return
+	}
+	s.refreshRadioWording(context.Background())
+	if s.repo == nil {
 		return
 	}
 	saved, ok, err := settings.LoadEngineer(context.Background(), s.repo)
@@ -225,6 +232,7 @@ func (s *Server) setupComparatorRoutes(r chi.Router) {
 func (s *Server) setupAIRoutes(r chi.Router) {
 	// AI Race Engineer routes
 	r.Post("/ai/chat", s.handleAIChat)
+	r.Post("/ai/radio-line", s.handleAIRadioLine)
 	r.Post("/ai/models", s.handleAIFetchModels)
 	r.Post("/ai/tts", s.handleAITTS)
 	r.Get("/ai/engineer/race-context", s.handleRaceContext)

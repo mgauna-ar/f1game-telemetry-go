@@ -16,6 +16,7 @@ type CoachingRule struct {
 	bestSector3MS      int
 	currentLapS1MS     int
 	currentLapS2MS     int
+	currentLapInvalid  bool // the lap under way was invalidated: its sectors set no best
 	lastLapNumber      int
 	lastNeutralizedLap int
 	formationLapFired  bool
@@ -58,13 +59,15 @@ func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"formation_lap_start": {
-			ValidPhases: []DrivingPhase{PhaseFormationLap},
-			DedupScope:  DedupScopePhase,
+			ValidPhases:   []DrivingPhase{PhaseFormationLap},
+			DedupScope:    DedupScopePhase,
+			CooldownGroup: cooldownFormationLap,
 		},
 		"grid_approach": {
-			ValidPhases: []DrivingPhase{PhaseFormationLap},
-			DedupScope:  DedupScopePhase,
-			MaxDelayMs:  MomentMaxDelayMs,
+			ValidPhases:   []DrivingPhase{PhaseFormationLap},
+			DedupScope:    DedupScopePhase,
+			MaxDelayMs:    MomentMaxDelayMs,
+			CooldownGroup: cooldownFormationLap,
 		},
 		"start_reaction_time": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
@@ -89,9 +92,21 @@ func (r *CoachingRule) Reset(scope DedupScope) {
 		r.bestSector3MS = 0
 		r.currentLapS1MS = 0
 		r.currentLapS2MS = 0
+		r.currentLapInvalid = false
 		r.lastLapNumber = 0
 		r.lastNeutralizedLap = 0
 	}
+}
+
+// skipLap leaves a lap out of the sector comparison: on a new lap its sectors are forgotten, so
+// the next one compared doesn't mix them with its own.
+func (r *CoachingRule) skipLap(currentLap int) {
+	if currentLap != r.lastLapNumber {
+		r.currentLapS1MS = 0
+		r.currentLapS2MS = 0
+		r.currentLapInvalid = false
+	}
+	r.lastLapNumber = currentLap
 }
 
 // GetBestSector1MS returns the tracked personal best sector 1 in milliseconds.
@@ -177,6 +192,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Launch Reaction Time",
 					Message:  msg,
 					Urgency:  UrgencyMedium,
+					Values:   &DirectiveValues{ReactionSec: roundTo(float64(rt), 2)},
 				})
 			}
 		}
@@ -198,13 +214,13 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		playerLap.SafetyCarDelta != 0
 	if isNeutralized {
 		r.lastNeutralizedLap = currentLap
-		r.lastLapNumber = currentLap
+		r.skipLap(currentLap)
 		return directives
 	}
 
 	// Restart Lap Cooldown: suppress coaching for the remainder of any lap that had a neutralization
 	if currentLap == r.lastNeutralizedLap {
-		r.lastLapNumber = currentLap
+		r.skipLap(currentLap)
 		return directives
 	}
 
@@ -230,17 +246,29 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		playerLap.PitStatus == packets.PitStatusNone
 
 	if !isCompetitiveDriver {
+		// An in-lap, out-lap or stop: its sectors are no lap to compare, so the next flying lap
+		// starts clean instead of measuring its sector 3 against the in-lap's first two.
+		r.skipLap(currentLap)
 		return directives
 	}
 
 	s1 := int(playerLap.Sector1TimeMSPart) + int(playerLap.Sector1TimeMinutesPart)*packets.MillisPerMinute
 	s2 := int(playerLap.Sector2TimeMSPart) + int(playerLap.Sector2TimeMinutesPart)*packets.MillisPerMinute
 
-	// Only update baseline PBs on clean, green-flag sectors
-	if s1 > 0 && (r.bestSector1MS == 0 || s1 < r.bestSector1MS) {
+	// The lap that just ended keeps its validity for its sector 3; the new lap starts valid.
+	prevLapInvalid := r.currentLapInvalid
+	if currentLap != r.lastLapNumber {
+		r.currentLapInvalid = false
+	}
+	if playerLap.CurrentLapInvalid == 1 {
+		r.currentLapInvalid = true
+	}
+
+	// Only valid, green-flag sectors set the bests to beat
+	if !r.currentLapInvalid && s1 > 0 && (r.bestSector1MS == 0 || s1 < r.bestSector1MS) {
 		r.bestSector1MS = s1
 	}
-	if s2 > 0 && (r.bestSector2MS == 0 || s2 < r.bestSector2MS) {
+	if !r.currentLapInvalid && s2 > 0 && (r.bestSector2MS == 0 || s2 < r.bestSector2MS) {
 		r.bestSector2MS = s2
 	}
 
@@ -260,7 +288,9 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 			s3 := lastLapMs - (r.currentLapS1MS + r.currentLapS2MS)
 			if s3 > 0 {
 				if r.bestSector3MS == 0 || s3 < r.bestSector3MS {
-					r.bestSector3MS = s3
+					if !prevLapInvalid {
+						r.bestSector3MS = s3
+					}
 				} else if isSectorCoachingPhase && r.bestSector3MS > 0 {
 					deltaS3 := float64(s3-r.bestSector3MS) / float64(packets.MillisPerSecond)
 					if deltaS3 >= SectorTimeLossThresholdSec && deltaS3 <= SectorTimeLossMaxThresholdSec {
@@ -271,6 +301,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 							Title:    "Sector 3 Delta",
 							Message:  fmt.Sprintf("Time lost in Sector 3 (+%.2fs vs personal best). Prioritize throttle application onto the start-finish straight.", deltaS3),
 							Urgency:  UrgencyMedium,
+							Values:   &DirectiveValues{Sector: 3, DeltaSec: roundTo(deltaS3, 2)},
 						})
 					}
 				}
@@ -295,6 +326,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Sector 1 Delta",
 				Message:  fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{Sector: 1, DeltaSec: roundTo(deltaS1, 2)},
 			})
 		}
 	}
@@ -309,6 +341,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Sector 2 Delta",
 				Message:  fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{Sector: 2, DeltaSec: roundTo(deltaS2, 2)},
 			})
 		}
 	}

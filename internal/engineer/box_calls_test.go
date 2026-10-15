@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -36,108 +35,6 @@ func TestBoxTimingAt(t *testing.T) {
 	}
 }
 
-func TestPitLanes_LearnsTheEntryFromCarsThatPit(t *testing.T) {
-	session := &packets.PacketSessionData{TrackId: 7, TrackLength: 5000}
-	prev, next := &packets.PacketLapData{}, &packets.PacketLapData{}
-	set := func(i int, before, after uint8, lapDistance float32, driverStatus uint8) {
-		prev.LapData[i] = packets.LapData{PitStatus: before, DriverStatus: driverStatus}
-		next.LapData[i] = packets.LapData{PitStatus: after, LapDistance: lapDistance, DriverStatus: driverStatus}
-	}
-	set(1, packets.PitStatusNone, packets.PitStatusPitting, 4790, packets.DriverStatusInLap)
-	set(2, packets.PitStatusNone, packets.PitStatusPitting, 4810, packets.DriverStatusInLap)
-	set(3, packets.PitStatusNone, packets.PitStatusPitting, 4805, packets.DriverStatusInLap)
-	set(4, packets.PitStatusNone, packets.PitStatusInPitArea, 100, packets.DriverStatusInLap)   // already in the box
-	set(5, packets.PitStatusPitting, packets.PitStatusPitting, 200, packets.DriverStatusInLap)  // was already pitting
-	set(6, packets.PitStatusNone, packets.PitStatusPitting, -20, packets.DriverStatusInLap)     // before the line on lap 1
-	set(7, packets.PitStatusNone, packets.PitStatusPitting, 6000, packets.DriverStatusInLap)    // past the track's length
-	set(8, packets.PitStatusNone, packets.PitStatusPitting, 2500, packets.DriverStatusInGarage) // in the garage
-
-	lanes := newPitLanes()
-	lanes.learn(session, prev, next)
-	if got := lanes.entrySamples[7]; !slices.Equal(got, []float32{4790, 4810, 4805}) {
-		t.Fatalf("samples = %v, want the three cars that started pitting", got)
-	}
-	if got := lanes.entry(7); got != 4805 {
-		t.Errorf("entry = %v, want the median 4805", got)
-	}
-	if got := lanes.entry(3); got != 0 {
-		t.Errorf("entry of an unknown track = %v, want 0", got)
-	}
-
-	// Only the latest samples are kept.
-	for range PitEntryMaxSamples {
-		lanes.learn(session, prev, next)
-	}
-	if n := len(lanes.entrySamples[7]); n != PitEntryMaxSamples {
-		t.Errorf("kept %d samples, want %d", n, PitEntryMaxSamples)
-	}
-}
-
-// memPitLaneStore is a settings store that reports each save.
-type memPitLaneStore struct {
-	mu     sync.Mutex
-	values map[string]string
-	saved  chan string
-}
-
-func (s *memPitLaneStore) GetSetting(_ context.Context, key string) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.values[key], nil
-}
-
-func (s *memPitLaneStore) SetSetting(_ context.Context, key, value string) error {
-	s.mu.Lock()
-	s.values[key] = value
-	s.mu.Unlock()
-	s.saved <- value
-	return nil
-}
-
-func TestEngineerEngine_PitLanesSurviveARestart(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	store := &memPitLaneStore{
-		values: map[string]string{pitLaneSettingKey: `{"tracks":{"3":{"entry_m":[4700,4720,4710]}}}`},
-		saved:  make(chan string, 4),
-	}
-	e := newTestEngineerEngine(&mockBroadcaster{})
-	if err := e.UsePitLaneStore(ctx, store); err != nil {
-		t.Fatalf("UsePitLaneStore: %v", err)
-	}
-	if got := e.pitLanes.entry(3); got != 4710 {
-		t.Fatalf("loaded entry = %v, want 4710", got)
-	}
-
-	// A car pits at a track not seen before: the new entry is saved.
-	h := createTestHeader(packets.PacketFormat2025, 77, 0)
-	e.ProcessPacket(ctx, &packets.PacketSessionData{Header: h, SessionType: packets.SessionRace, TrackId: 9, TrackLength: 5000})
-	lap := func(pitStatus uint8) *packets.PacketLapData {
-		p := &packets.PacketLapData{Header: h}
-		p.LapData[0] = packets.LapData{CurrentLapNum: 4, LapDistance: 1000, DriverStatus: packets.DriverStatusOnTrack}
-		p.LapData[1] = packets.LapData{CurrentLapNum: 4, LapDistance: 3300, DriverStatus: packets.DriverStatusInLap, PitStatus: pitStatus}
-		return p
-	}
-	e.ProcessPacket(ctx, lap(packets.PitStatusNone))
-	e.ProcessPacket(ctx, lap(packets.PitStatusPitting))
-
-	select {
-	case raw := <-store.saved:
-		restarted := newPitLanes()
-		if err := restarted.load(raw); err != nil {
-			t.Fatalf("load saved pit lanes: %v", err)
-		}
-		if restarted.entry(9) != 3300 || restarted.entry(3) != 4710 {
-			t.Errorf("after a restart: entry(9) = %v, entry(3) = %v; want 3300 and 4710", restarted.entry(9), restarted.entry(3))
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("the learned pit entry was never saved")
-	}
-	if got := e.GetConfig().PitCallLeadM; got != DefaultPitCallLeadM {
-		t.Errorf("PitCallLeadM = %v, want the default %v", got, DefaultPitCallLeadM)
-	}
-}
-
 // scriptedRule says the calls a test queues on the next packet.
 type scriptedRule struct{ queued []Directive }
 
@@ -159,7 +56,7 @@ func (r *scriptedRule) Evaluate(*EvaluationContext) []Directive {
 func boxEngine(t *testing.T) (*EngineerEngine, *mockBroadcaster, *testClock, *scriptedRule, func(lap uint8, lapDistance float32, pitStatus uint8)) {
 	t.Helper()
 	e, b, clock, h := raceEngine(t)
-	e.pitLanes.entrySamples[0] = []float32{4800}
+	e.profiles.tracks[0] = &trackProfile{entryM: []float32{4800}}
 	rule := &scriptedRule{}
 	e.rules = append(e.rules, rule)
 	e.alertRules["test_box"] = rule.AlertKeys()["test_box"]
@@ -209,7 +106,7 @@ func TestEngineerEngine_UrgentBoxCallSaysWhenToPit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			e, b, _, rule, drive := boxEngine(t)
 			if !tt.entryKnown {
-				delete(e.pitLanes.entrySamples, 0)
+				delete(e.profiles.tracks, 0)
 			}
 			rule.queued = []Directive{boxCall(UrgencyCritical, BoxCallInstruction)}
 			drive(10, tt.lapDistance, packets.PitStatusNone)
@@ -334,8 +231,16 @@ func TestRules_MarkBoxCalls(t *testing.T) {
 			Config:  cfg, Phase: PhaseRacing,
 		}
 	}
-	puncture := &packets.PacketCarDamageData{}
-	puncture.CarDamageData[0].TyresWear = wheels[float32](96, 20, 20, 20)
+	// A puncture is a tyre damage jump: the call comes on the packet after the clean one.
+	punctureCalls := func() []Directive {
+		rule := NewTyresRule()
+		rule.Evaluate(&EvaluationContext{Damage: &packets.PacketCarDamageData{}, Config: cfg, Phase: PhaseRacing})
+		puncture := &packets.PacketCarDamageData{}
+		puncture.CarDamageData[0].TyresDamage = wheels[uint8](0, 80, 0, 0)
+		return rule.Evaluate(&EvaluationContext{Damage: puncture, Config: cfg, Phase: PhaseRacing})
+	}
+	wornOut := &packets.PacketCarDamageData{}
+	wornOut.CarDamageData[0].TyresWear = wheels[float32](96, 20, 20, 20)
 
 	tests := []struct {
 		name string
@@ -343,7 +248,8 @@ func TestRules_MarkBoxCalls(t *testing.T) {
 		key  string
 		want BoxCall
 	}{
-		{"puncture", NewTyresRule().Evaluate(&EvaluationContext{Damage: puncture, Config: cfg, Phase: PhaseRacing}), "tyre_puncture", BoxCallInstruction},
+		{"puncture", punctureCalls(), "tyre_puncture", BoxCallInstruction},
+		{"worn out tyre", NewTyresRule().Evaluate(&EvaluationContext{Damage: wornOut, Config: cfg, Phase: PhaseRacing}), "tyre_worn_out", BoxCallInstruction},
 		{"critical wing damage", NewDamageRule().Evaluate(damage(60)), "damage_wing", BoxCallInstruction},
 		{"light wing damage", NewDamageRule().Evaluate(damage(25)), "damage_wing", BoxCallNone},
 		{"Safety Car", optionalDirective(NewFlagsRule().evaluateSafetyCar(safetyCar(packets.SafetyCarFull))), "flags_sc", BoxCallOption},

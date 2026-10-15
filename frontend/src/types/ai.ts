@@ -11,4 +11,12 @@ export interface ChatMessage {
 }
 
 
-export type { AIChatRequest, ChatContextMode, ChatContextRequest, ChatZoomRange, DebriefFocus } from './generated/ai';
+export type {
+  AIChatRequest,
+  ChatContextMode,
+  ChatContextRequest,
+  ChatZoomRange,
+  DebriefFocus,
+  RadioLineRequest,
+  RadioLineResponse,
+} from './generated/ai';

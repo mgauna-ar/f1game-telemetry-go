@@ -287,6 +287,8 @@ export interface RadioSpeechOptions {
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (error: unknown) => void;
+  /** Epoch ms after which the message is no longer worth saying: if its audio is ready later, it ends without playing. */
+  expiresAt?: number;
 }
 
 /**
@@ -644,6 +646,11 @@ export async function speakRadioResponse(
   }
   // Stopped, or another message took the radio, while the audio was fetched: it is not played.
   if (generation !== speechGeneration) return;
+  // A pit wall call that went stale while its audio was synthesized is skipped; the queue moves on.
+  if (options.expiresAt !== undefined && Date.now() > options.expiresAt) {
+    options.onEnd?.();
+    return;
+  }
   await playRadioAudioBuffer(audioBuffer, options);
 }
 

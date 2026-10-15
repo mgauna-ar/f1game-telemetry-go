@@ -120,6 +120,37 @@ func TestAISettings_EnvVarsApplyUntilTheDashboardSaves(t *testing.T) {
 	}
 }
 
+func TestAISettings_RadioModels(t *testing.T) {
+	server, _ := newSettingsTestServer(t, ServerConfig{})
+
+	got := decodeAISettings(t, doJSON(t, server, http.MethodPut, "/api/settings/ai", map[string]any{
+		"models": map[string]string{"custom": "llama3"},
+	}))
+	if model := got.Providers[settings.ProviderClaude].RadioModel; model != ai.DefaultClaudeRadioModel {
+		t.Errorf("claude radio model = %q, want the built-in %q", model, ai.DefaultClaudeRadioModel)
+	}
+	if model := got.Providers[settings.ProviderCustom].RadioModel; model != "llama3" {
+		t.Errorf("custom radio model = %q, want its chat model", model)
+	}
+
+	got = decodeAISettings(t, doJSON(t, server, http.MethodPut, "/api/settings/ai", map[string]any{
+		"radio_models": map[string]string{"claude": "claude-sonnet-5-5"},
+	}))
+	if model := got.Providers[settings.ProviderClaude].RadioModel; model != "claude-sonnet-5-5" {
+		t.Errorf("claude radio model = %q, want the saved one", model)
+	}
+	if model := got.Providers[settings.ProviderClaude].Model; model != ai.DefaultClaudeModel {
+		t.Errorf("claude chat model = %q, the radio model must not change it", model)
+	}
+
+	got = decodeAISettings(t, doJSON(t, server, http.MethodPut, "/api/settings/ai", map[string]any{
+		"radio_models": map[string]string{"claude": ""},
+	}))
+	if model := got.Providers[settings.ProviderClaude].RadioModel; model != ai.DefaultClaudeRadioModel {
+		t.Errorf("claude radio model = %q, want the built-in one back after clearing it", model)
+	}
+}
+
 func TestAISettings_RejectsUnknownProviders(t *testing.T) {
 	server, _ := newSettingsTestServer(t, ServerConfig{})
 	for _, body := range []map[string]any{

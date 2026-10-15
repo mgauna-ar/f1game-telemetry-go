@@ -68,6 +68,14 @@ func (c *EnglishCatalog) ToolUseDirective() string {
 		"- Do not announce that you are checking. Reply once, with the answer, in the same short radio style.\n"
 }
 
+func (c *EnglishCatalog) RadioLineDirective() string {
+	return "\nWORDING A RADIO CALL:\n" +
+		"- You are making a call to your driver on the team radio; the driver did not speak. Reply with the call itself, the way you would say it on the radio, and nothing else: no quotes, labels or notes.\n" +
+		"- Say the call's facts and only those. Keep every number of the example exactly, in digits, and add no other number.\n" +
+		"- One or two short sentences, no longer than the example. Do not start with Copy, Roger or Understood, and do not use the driver's name.\n" +
+		"- Use your own words, different from the lines already said for this call. Sound like a real pit wall: short, calm, natural.\n"
+}
+
 func (c *EnglishCatalog) UrgencyDirective(level string) string {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "critical":

@@ -61,14 +61,23 @@ export interface TelemetrySample extends LiveCarTelemetry {
 export type {
   DirectiveValues,
   EngineerAlertKey,
+  EngineerAxle,
   EngineerBoxTiming,
+  EngineerCompound,
   EngineerDirective,
   EngineerDirectiveCategory,
   EngineerGapTrend,
   EngineerUrgency,
+  EngineerWheel,
   GapToCar,
 } from './generated/engineer';
-import type { DirectiveValues, EngineerBoxTiming } from './generated/engineer';
+import type {
+  DirectiveValues,
+  EngineerAxle,
+  EngineerBoxTiming,
+  EngineerCompound,
+  EngineerWheel,
+} from './generated/engineer';
 
 /** How a call that mentions pitting puts it: an order to box, or a stop the team offers. */
 export type BoxCallKind = 'instruction' | 'option';
@@ -89,6 +98,16 @@ export type ReportPhrase =
   | 'tyre_life_one_lap'
   | 'elimination_drop_zone'
   | 'elimination_last_through';
+
+/**
+ * The words a call's wheel, axle and tyre are said with (each locale's `value_words`), for the
+ * `{wheel}`, `{axle}` and `{compound}` placeholders.
+ */
+export interface RadioValueWords {
+  wheel: Record<EngineerWheel, string>;
+  axle: Record<EngineerAxle, string>;
+  compound: Record<EngineerCompound, string>;
+}
 
 /** The engineer's own lines in a push-to-talk exchange, besides the answer (each locale's `exchange_phrases`). */
 export type ExchangeLine = 'say_again' | 'radio_fault' | 'stand_by' | 'answer_failed';
@@ -170,6 +189,8 @@ export type RadioAlertCategory =
   | 'race_final_lap'
   | 'race_final_lap_lead'
   | 'car_collision'
+  | 'car_collision_light'
+  | 'car_collision_heavy'
   | 'car_retirement'
   | 'formation_lap_start'
   | 'grid_approach'
@@ -208,12 +229,34 @@ export type RadioAlertCategory =
   | 'rival_attack_drs'
   | 'safety_car_box'
   | 'vsc_box'
-  | 'vsc_ending';
+  | 'vsc_ending'
+  | 'tyre_worn_out'
+  | 'tyre_crossover_slicks'
+  | 'radiator_overheat_high'
+  | 'radiator_overheat_critical'
+  | 'brake_overheat_rear'
+  | 'brake_bias_forward'
+  | 'rival_closing'
+  | 'rival_catching_you'
+  | 'rival_penalty_ahead'
+  | 'rival_penalty_behind'
+  | 'leader_pitted'
+  | 'nearby_pitted_ahead'
+  | 'nearby_pitted_behind'
+  | 'pit_plan_next_lap_traffic'
+  | 'penalty_served'
+  | 'weather_rain_approx'
+  | 'rain_heavier'
+  | 'rain_easing'
+  | 'track_drying'
+  | 'track_temp_up'
+  | 'track_temp_down';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to
  * `standard` when their pool is missing or empty, and the custom persona always uses it.
- * `{driver}` is replaced by the driver's callsign.
+ * `{driver}` is where the driver's callsign goes when it is said; the other placeholders are the
+ * call's values (see `radioPhrases.ts`).
  */
 export interface RadioPhrasePool {
   bono?: string[];
@@ -223,6 +266,10 @@ export interface RadioPhrasePool {
 
 /** A proactive radio call for the speech queue: the phrase category to speak and how urgently. */
 export interface RadioAlertPayload {
+  /** The directive the call came in, for asking the AI to word it. */
+  directiveId: string;
+  /** The AI may word the call afresh before it is said. */
+  wordable: boolean;
   category: RadioAlertCategory;
   isCritical: boolean;
   emotion: RadioEmotion;

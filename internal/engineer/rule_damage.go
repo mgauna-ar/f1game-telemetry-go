@@ -40,32 +40,39 @@ func (r *DamageRule) ValidPhases() []DrivingPhase {
 
 func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
+		// Wing and floor damage can go back down (a flashback, a new nose), so the rule's own latch,
+		// which re-arms then, says them once instead of the engine's stint dedup.
 		"damage_wing": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:      DedupScopeNone,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"damage_floor": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:      DedupScopeNone,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"damage_engine": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"damage_gearbox_wear": {
-			Category:    DirectiveCategoryDamage,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			Category:        DirectiveCategoryDamage,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"damage_ice_wear": {
-			Category:    DirectiveCategoryDamage,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			Category:        DirectiveCategoryDamage,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"damage_terminal_engine": {
 			Category:    DirectiveCategoryDamage,
@@ -122,6 +129,10 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 		maxWing = float32(dmg.FrontRightWingDamage)
 	}
 
+	// Damage that went back down (a flashback, a new wing) can be called again.
+	if maxWing+DamageRearmDropPct <= r.lastWingDamageAlert {
+		r.lastWingDamageAlert = maxWing
+	}
 	if maxWing >= ctx.Config.WingDamageCritPct && r.lastWingDamageAlert < ctx.Config.WingDamageCritPct {
 		r.lastWingDamageAlert = maxWing
 		directives = append(directives, Directive{
@@ -131,6 +142,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Critical Wing Damage",
 			Message:  fmt.Sprintf("Severe front wing damage detected (%d%% loss)! Massive aero loss on front axle. Box for front wing replacement.", int(math.Round(float64(maxWing)))),
 			Urgency:  UrgencyCritical,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(maxWing)))},
 			BoxCall:  BoxCallInstruction,
 		})
 	} else if maxWing >= ctx.Config.WingDamageWarnPct && r.lastWingDamageAlert < ctx.Config.WingDamageWarnPct {
@@ -142,11 +154,15 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Front Wing Damage",
 			Message:  fmt.Sprintf("Front wing endplate/flap damage detected (%d%%). Expect understeer in medium-to-high speed corners.", int(math.Round(float64(maxWing)))),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(maxWing)))},
 		})
 	}
 
 	// 2. Floor & Diffuser Damage
 	floorDiffDamage := float32(dmg.FloorDamage + dmg.DiffuserDamage)
+	if r.lastFloorDamageAlert && floorDiffDamage+DamageRearmDropPct <= ctx.Config.FloorDamageWarnPct {
+		r.lastFloorDamageAlert = false
+	}
 	if floorDiffDamage >= ctx.Config.FloorDamageWarnPct && !r.lastFloorDamageAlert {
 		r.lastFloorDamageAlert = true
 		directives = append(directives, Directive{
@@ -156,6 +172,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Floor Aero Damage",
 			Message:  fmt.Sprintf("Underfloor/diffuser aerodynamic damage confirmed (%d%%). Downforce levels and high-speed stability are compromised.", int(math.Round(float64(floorDiffDamage)))),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(floorDiffDamage)))},
 		})
 	}
 
@@ -169,6 +186,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Gearbox Wear Critical",
 			Message:  fmt.Sprintf("Gearbox damage reached %d%%! Expect delayed gear shifts and torque sync dropouts.", dmg.GearBoxDamage),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(dmg.GearBoxDamage)},
 		})
 	}
 
@@ -181,6 +199,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Engine ICE Wear Critical",
 			Message:  fmt.Sprintf("Internal Combustion Engine (ICE) wear at %d%%! Expect top-end power loss on the straights.", dmg.EngineICEWear),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(dmg.EngineICEWear)},
 		})
 	}
 
@@ -202,6 +221,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Engine Component Wear",
 			Message:  fmt.Sprintf("Power unit component wear reached %d%%!", int(math.Round(float64(maxEngineWear)))),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Pct: int(math.Round(float64(maxEngineWear)))},
 		})
 	}
 

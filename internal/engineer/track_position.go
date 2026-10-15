@@ -68,3 +68,63 @@ func sessionBestLapMS(ctx *EvaluationContext) uint32 {
 	}
 	return best
 }
+
+// racingCarAt is the car running in position pos out on the circuit: -1 when there is none, or
+// when that car is pitting, in the pits or out of the race, so it isn't racing the player now.
+func racingCarAt(ctx *EvaluationContext, pos int) int {
+	i := carAtPosition(ctx.LapData, pos)
+	if i < 0 || !onTrack(&ctx.LapData.LapData[i]) {
+		return -1
+	}
+	return i
+}
+
+// racePaceMps is the player's race pace in metres a second: the track length over their recent
+// valid laps (RecentPaceLaps). Laps more than PushPaceMaxOffBest off their best of those (a pit
+// stop, a Safety Car) aren't race pace. Before such a lap, their push pace.
+func racePaceMps(ctx *EvaluationContext) float64 {
+	var recent []uint32
+	var best uint32
+	for i := len(ctx.PlayerLaps) - 1; i >= 0 && len(recent) < RecentPaceLaps; i-- {
+		if rec := ctx.PlayerLaps[i]; rec.Valid && rec.LapTimeMS > 0 {
+			recent = append(recent, rec.LapTimeMS)
+			if best == 0 || rec.LapTimeMS < best {
+				best = rec.LapTimeMS
+			}
+		}
+	}
+	var sum, n uint32
+	for _, t := range recent {
+		if float64(t) <= float64(best)*PushPaceMaxOffBest {
+			sum += t
+			n++
+		}
+	}
+	if n == 0 {
+		return pushPaceMps(ctx, ctx.PlayerCarIndex)
+	}
+	return float64(ctx.TrackLengthM()) / msToSec(sum/n)
+}
+
+// raceGapSec is how many seconds car behind runs behind car ahead in a race, negative when it is
+// in fact ahead. It comes from the game's timing where it has it: the delta to the car in front
+// when the two run nose to tail, else their deltas to the leader. Without timing, it is the
+// distance between them at the player's race pace.
+func raceGapSec(ctx *EvaluationContext, ahead, behind int) float64 {
+	a, b := ctx.LapData.LapData[ahead], ctx.LapData.LapData[behind]
+	if b.CarPosition == a.CarPosition+1 {
+		if ms := deltaToCarInFrontMS(b); ms > 0 {
+			return msToSec(ms)
+		}
+	}
+	leaderGap := func(l packets.LapData) (uint32, bool) {
+		ms := deltaToLeaderMS(l)
+		return ms, l.CarPosition == 1 || ms > 0
+	}
+	aMS, aOK := leaderGap(a)
+	bMS, bOK := leaderGap(b)
+	if aOK && bOK && a.CarPosition > 0 && b.CarPosition > 0 {
+		return msToSec(bMS) - msToSec(aMS)
+	}
+	return float64(a.TotalDistance-b.TotalDistance) / racePaceMps(ctx)
+}

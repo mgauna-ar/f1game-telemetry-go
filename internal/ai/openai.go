@@ -10,6 +10,9 @@ import (
 // openAITemperature keeps radio answers factual while still sounding natural.
 const openAITemperature = 0.4
 
+// openAIVariedTemperature words a radio call differently each time (chatStyle.varied).
+const openAIVariedTemperature = 0.9
+
 // OpenAI chat roles and tool settings.
 const (
 	openAIRoleSystem     = "system"
@@ -19,6 +22,8 @@ const (
 	openAIRoleTool       = "tool"
 	openAIToolType       = "function"
 	openAIToolChoiceNone = "none"
+	// openAILowReasoningEffort is the lowest effort every OpenAI reasoning family accepts.
+	openAILowReasoningEffort = "low"
 )
 
 // openAIReasoningModelPrefixes lists OpenAI model families that reject a custom temperature
@@ -167,7 +172,7 @@ func newOpenAIChat(conn connection, model, systemPrompt string, messages []AICha
 	}
 }
 
-func (c *openAIChat) streamTurn(ctx context.Context, turn chatTurn, out sseWriter) ([]toolCall, error) {
+func (c *openAIChat) streamTurn(ctx context.Context, turn chatTurn, out textSink) ([]toolCall, error) {
 	reqMap := map[string]any{
 		"model":    c.model,
 		"messages": c.history,
@@ -175,6 +180,17 @@ func (c *openAIChat) streamTurn(ctx context.Context, turn chatTurn, out sseWrite
 	}
 	if !c.isReasoning {
 		reqMap["temperature"] = openAITemperature
+		if turn.style.varied {
+			reqMap["temperature"] = openAIVariedTemperature
+		}
+	}
+	// A reasoning model's token cap counts its reasoning, so only its effort is lowered.
+	if turn.style.quick {
+		if c.isReasoning {
+			reqMap["reasoning_effort"] = openAILowReasoningEffort
+		} else if turn.style.maxTokens > 0 {
+			reqMap["max_tokens"] = turn.style.maxTokens
+		}
 	}
 	if turn.tools != nil {
 		reqMap["tools"] = openAITools(turn.tools)

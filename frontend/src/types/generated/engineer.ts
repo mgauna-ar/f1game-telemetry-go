@@ -12,13 +12,28 @@ export interface DirectiveValues {
   count?: number;
   penalty_sec?: number;
   stop_sec?: number;
+  sector?: number;
+  delta_sec?: number;
+  reaction_sec?: number;
+  wheel?: EngineerWheel;
+  axle?: EngineerAxle;
+  compound?: EngineerCompound;
+  pct?: number;
+  rain_pct?: number;
+  fuel_delta_laps?: number;
+  laps_to_range?: number;
+  track_temp_delta_c?: number;
 }
 
-export type EngineerAlertKey = 'aero_fault' | 'aero_straight_anticipation' | 'brake_bias' | 'brake_bias_ok' | 'brake_cold' | 'brake_hot' | 'brake_overheat' | 'car_collision' | 'car_retirement' | 'coaching_s1' | 'coaching_s2' | 'coaching_s3' | 'damage_aero_fault' | 'damage_engine' | 'damage_ers_fault' | 'damage_floor' | 'damage_gearbox_wear' | 'damage_ice_wear' | 'damage_terminal_engine' | 'damage_wing' | 'engine_temp' | 'engine_wear' | 'ers_clipping' | 'ers_fault' | 'ers_low' | 'flags_blue' | 'flags_drs_disabled' | 'flags_drs_enabled' | 'flags_green' | 'flags_rain' | 'flags_rain_live' | 'flags_red' | 'flags_sc' | 'flags_sc_in' | 'flags_yellow' | 'floor_damage' | 'formation_lap_start' | 'fuel_deficit' | 'fuel_delta' | 'fuel_mix_neutralized' | 'fuel_mix_restart' | 'gap_report' | 'grid_approach' | 'inlap_cooldown' | 'inlap_traffic_behind' | 'overcut' | 'overcut_window' | 'overtake_boost_anticipation' | 'penalties' | 'penalties_incurred' | 'penalty_drive_through' | 'penalty_stop_go' | 'pit_clean_air' | 'pit_entry_reminder' | 'pit_limiter_exit' | 'pit_limiter_overspeed' | 'pit_plan_box' | 'pit_plan_next_lap' | 'pit_serve_penalty' | 'pit_stop_duration' | 'pit_stop_fast' | 'pit_stop_slow' | 'pit_window' | 'pit_window_close' | 'qualy_clean_air' | 'qualy_deleted_lap' | 'qualy_elim' | 'qualy_elimination_bubble' | 'qualy_elimination_danger' | 'qualy_invalid' | 'qualy_lap_no_improvement' | 'qualy_lap_pole' | 'qualy_lap_result' | 'qualy_session_time' | 'qualy_session_time_garage' | 'qualy_time' | 'qualy_traffic' | 'qualy_traffic_ahead' | 'race_fastest_lap' | 'race_final_lap' | 'race_final_lap_lead' | 'race_finish' | 'race_finish_podium' | 'race_finish_points' | 'race_finish_win' | 'radiator_overheat' | 'red_flag' | 'rival_attack' | 'rival_attack_drs' | 'rival_attack_override' | 'rival_defend' | 'rival_defend_drs' | 'rival_defend_override' | 'safety_car' | 'safety_car_box' | 'sector_delta' | 'start_reaction_fast' | 'start_reaction_slow' | 'start_reaction_time' | 'teammate_ahead' | 'teammate_doublestack' | 'teammate_pitting' | 'teammate_proximity' | 'terminal_engine' | 'track_limits' | 'track_limits_warnings' | 'tyre_blistering' | 'tyre_cold' | 'tyre_crossover' | 'tyre_crossover_inter' | 'tyre_crossover_wet' | 'tyre_life' | 'tyre_life_end' | 'tyre_overheat' | 'tyre_pressure_high' | 'tyre_puncture' | 'tyre_set_advisory' | 'tyre_wear' | 'tyre_wear_critical' | 'undercut' | 'undercut_window' | 'vsc' | 'vsc_box' | 'vsc_ending' | 'warning_wrong_way' | 'weather_rain' | 'wing_damage' | 'wrong_way';
+export type EngineerAlertKey = 'aero_fault' | 'aero_straight_anticipation' | 'brake_bias' | 'brake_bias_forward' | 'brake_bias_ok' | 'brake_cold' | 'brake_hot' | 'brake_overheat' | 'brake_overheat_rear' | 'car_collision' | 'car_collision_heavy' | 'car_collision_light' | 'car_retirement' | 'coaching_s1' | 'coaching_s2' | 'coaching_s3' | 'damage_aero_fault' | 'damage_engine' | 'damage_ers_fault' | 'damage_floor' | 'damage_gearbox_wear' | 'damage_ice_wear' | 'damage_terminal_engine' | 'damage_wing' | 'engine_temp' | 'engine_temp_critical' | 'engine_temp_high' | 'engine_wear' | 'ers_clipping' | 'ers_fault' | 'ers_low' | 'flags_blue' | 'flags_drs_disabled' | 'flags_drs_enabled' | 'flags_green' | 'flags_rain' | 'flags_rain_live' | 'flags_red' | 'flags_sc' | 'flags_sc_in' | 'flags_yellow' | 'floor_damage' | 'formation_lap_start' | 'fuel_deficit' | 'fuel_delta' | 'fuel_mix_neutralized' | 'fuel_mix_restart' | 'gap_report' | 'grid_approach' | 'inlap_cooldown' | 'inlap_traffic_behind' | 'leader_pitted' | 'nearby_pitted' | 'nearby_pitted_ahead' | 'nearby_pitted_behind' | 'overcut' | 'overcut_window' | 'overtake_boost_anticipation' | 'penalties' | 'penalties_incurred' | 'penalty_drive_through' | 'penalty_served' | 'penalty_stop_go' | 'pit_clean_air' | 'pit_entry_reminder' | 'pit_limiter_exit' | 'pit_limiter_overspeed' | 'pit_plan_box' | 'pit_plan_next_lap' | 'pit_plan_next_lap_traffic' | 'pit_serve_penalty' | 'pit_stop_duration' | 'pit_stop_fast' | 'pit_stop_slow' | 'pit_window' | 'pit_window_close' | 'qualy_clean_air' | 'qualy_deleted_lap' | 'qualy_elim' | 'qualy_elimination_bubble' | 'qualy_elimination_danger' | 'qualy_invalid' | 'qualy_lap_no_improvement' | 'qualy_lap_pole' | 'qualy_lap_result' | 'qualy_session_time' | 'qualy_session_time_garage' | 'qualy_time' | 'qualy_traffic' | 'qualy_traffic_ahead' | 'race_fastest_lap' | 'race_final_lap' | 'race_final_lap_lead' | 'race_finish' | 'race_finish_podium' | 'race_finish_points' | 'race_finish_win' | 'radiator_overheat' | 'radiator_overheat_critical' | 'radiator_overheat_high' | 'rain_easing' | 'rain_heavier' | 'red_flag' | 'rival_attack' | 'rival_attack_drs' | 'rival_attack_override' | 'rival_catching_you' | 'rival_closing' | 'rival_defend' | 'rival_defend_drs' | 'rival_defend_override' | 'rival_penalty' | 'rival_penalty_ahead' | 'rival_penalty_behind' | 'safety_car' | 'safety_car_box' | 'sector_delta' | 'start_reaction_fast' | 'start_reaction_slow' | 'start_reaction_time' | 'teammate_ahead' | 'teammate_doublestack' | 'teammate_pitting' | 'teammate_proximity' | 'terminal_engine' | 'track_drying' | 'track_limits' | 'track_limits_warnings' | 'track_temp_down' | 'track_temp_swing' | 'track_temp_up' | 'tyre_blistering' | 'tyre_cold' | 'tyre_crossover' | 'tyre_crossover_inter' | 'tyre_crossover_slicks' | 'tyre_crossover_wet' | 'tyre_life' | 'tyre_life_end' | 'tyre_overheat' | 'tyre_pressure_high' | 'tyre_puncture' | 'tyre_set_advisory' | 'tyre_wear' | 'tyre_wear_critical' | 'tyre_worn_out' | 'undercut' | 'undercut_window' | 'vsc' | 'vsc_box' | 'vsc_ending' | 'warning_wrong_way' | 'weather_change' | 'weather_rain' | 'weather_rain_approx' | 'wing_damage' | 'wrong_way';
 
-export type EngineerAlertSwitch = 'tyreAlertsEnabled' | 'damageAlertsEnabled' | 'ersAlertsEnabled' | 'brakesAlertsEnabled' | 'fuelAlertsEnabled' | 'rivalAlertsEnabled' | 'pitAlertsEnabled' | 'coachingAlertsEnabled' | 'teammateAlertsEnabled' | 'qualyAlertsEnabled' | 'flagsPensAlertsEnabled' | 'subTyreWear' | 'subTyrePuncture' | 'subTyreThermal' | 'subTyreCold' | 'subTyreCondition' | 'subTyreCrossover' | 'subTyreLife' | 'subDamageWing' | 'subDamageFloor' | 'subDamageEngine' | 'subDamageFaults' | 'subEngineTemp' | 'subErsLow' | 'subErsClipping' | 'subAeroZones' | 'subBrakeTemp' | 'subBrakeCold' | 'subBrakeBias' | 'subFuelDelta' | 'subFuelMix' | 'subUndercut' | 'subRivalDefend' | 'subRivalAttack' | 'subGapReport' | 'subPitWindow' | 'subPitWindowClose' | 'subPitCleanAir' | 'subTyreSet' | 'subPitLane' | 'subPitEntryReminder' | 'subSectorDelta' | 'subStartProcedure' | 'subInlapCooldown' | 'subTeammateAhead' | 'subTeammatePit' | 'subQualyTraffic' | 'subQualyInvalid' | 'subQualyTime' | 'subQualyElim' | 'subQualyResult' | 'subSafetyCar' | 'subRedFlag' | 'subRain' | 'subTrackLimits' | 'subPenalties' | 'subFlags' | 'subRaceEvents';
+export type EngineerAlertSwitch = 'tyreAlertsEnabled' | 'damageAlertsEnabled' | 'ersAlertsEnabled' | 'brakesAlertsEnabled' | 'fuelAlertsEnabled' | 'rivalAlertsEnabled' | 'pitAlertsEnabled' | 'coachingAlertsEnabled' | 'teammateAlertsEnabled' | 'qualyAlertsEnabled' | 'flagsPensAlertsEnabled' | 'subTyreWear' | 'subTyrePuncture' | 'subTyreThermal' | 'subTyreCold' | 'subTyreCondition' | 'subTyreCrossover' | 'subTyreLife' | 'subDamageWing' | 'subDamageFloor' | 'subDamageEngine' | 'subDamageFaults' | 'subEngineTemp' | 'subErsLow' | 'subErsClipping' | 'subAeroZones' | 'subBrakeTemp' | 'subBrakeCold' | 'subBrakeBias' | 'subFuelDelta' | 'subFuelMix' | 'subUndercut' | 'subRivalDefend' | 'subRivalAttack' | 'subGapReport' | 'subRivalClosing' | 'subRivalPenalty' | 'subPitWindow' | 'subPitWindowClose' | 'subPitCleanAir' | 'subTyreSet' | 'subPitLane' | 'subPitEntryReminder' | 'subPitNews' | 'subSectorDelta' | 'subStartProcedure' | 'subInlapCooldown' | 'subTeammateAhead' | 'subTeammatePit' | 'subQualyTraffic' | 'subQualyInvalid' | 'subQualyTime' | 'subQualyElim' | 'subQualyResult' | 'subSafetyCar' | 'subRedFlag' | 'subRain' | 'subWeatherChanges' | 'subTrackLimits' | 'subPenalties' | 'subFlags' | 'subRaceEvents';
+
+export type EngineerAxle = 'front' | 'rear';
 
 export type EngineerBoxTiming = 'this_lap' | 'next_lap' | 'asap';
+
+export type EngineerCompound = 'soft' | 'medium' | 'hard' | 'inter' | 'wet';
 
 /** Go: engineer.EngineerDirective */
 export interface EngineerDirective {
@@ -33,6 +48,7 @@ export interface EngineerDirective {
   ttl_ms: number;
   box?: EngineerBoxTiming;
   values?: DirectiveValues;
+  wordable?: boolean;
 }
 
 export type EngineerDirectiveCategory = 'pit_strategy' | 'coaching' | 'weather' | 'teammate' | 'tyres' | 'damage' | 'ers' | 'brakes' | 'fuel' | 'rivals' | 'qualy' | 'flags';
@@ -43,11 +59,16 @@ export type EngineerGapTrend = 'closing' | 'opening' | 'stable';
 
 export type EngineerUrgency = 'low' | 'medium' | 'high' | 'critical';
 
+export type EngineerWheel = 'front_left' | 'front_right' | 'rear_left' | 'rear_right';
+
 /** Go: engineer.GapToCar */
 export interface GapToCar {
   gap_sec: number;
   trend?: EngineerGapTrend;
   per_lap_sec?: number;
+  name?: string;
+  compound?: EngineerCompound;
+  tyre_age_diff_laps?: number;
 }
 
 /** Go: engineer.Tuning */

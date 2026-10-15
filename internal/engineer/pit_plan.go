@@ -1,6 +1,10 @@
 package engineer
 
-import "github.com/mgauna/f1game-telemetry-go/internal/packets"
+import (
+	"math"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
+)
 
 // PitPlanState is the game's plan for the player's next pit stop in a race: the ideal and latest
 // lap to pit on and the position they would rejoin in (Session packet), and whether they have
@@ -110,4 +114,31 @@ func safetyCarStopNear(ctx *EvaluationContext, scStatus uint8) bool {
 		early = VSCStopEarlyLaps
 	}
 	return n >= ctx.PitPlan.IdealLap-early && n <= planLatestLap(ctx.PitPlan)
+}
+
+// rejoinTraffic is the car a stop now would rejoin right behind: the nearest car on track ahead of
+// where the player would come out, the stop's cost (PitLossSec) at race pace back, within
+// RejoinTrafficSec. Nil when the rejoin is clear.
+func rejoinTraffic(ctx *EvaluationContext) *GapToCar {
+	lap := ctx.PlayerLap()
+	if lap == nil || ctx.LapData == nil {
+		return nil
+	}
+	pace := racePaceMps(ctx)
+	rejoinAt := float32(float64(lap.TotalDistance) - ctx.PitLossSec()*pace)
+	trackLen := ctx.TrackLengthM()
+	nearest, nearestM := -1, float32(RejoinTrafficSec*pace)
+	for i := range ctx.LapData.LapData {
+		rival := &ctx.LapData.LapData[i]
+		if i == ctx.PlayerCarIndex || rival.TotalDistance == 0 || !onTrack(rival) {
+			continue
+		}
+		if m := trackGapM(rejoinAt, rival.TotalDistance, trackLen); m <= nearestM {
+			nearest, nearestM = i, m
+		}
+	}
+	if nearest < 0 {
+		return nil
+	}
+	return withRival(ctx, nearest, &GapToCar{GapSec: roundTo(math.Max(float64(nearestM)/pace, 0.1), 1)})
 }

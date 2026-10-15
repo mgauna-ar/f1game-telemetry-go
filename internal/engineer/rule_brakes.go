@@ -12,6 +12,13 @@ import (
 type BrakesRule struct {
 	mu                 sync.Mutex
 	lastBrakeBiasAlert string
+	// hot is how long each brake has been over the overheating limit.
+	hot [4]conditionSpell
+	// The braking zone under way (its peak front and rear temperatures), and the peaks of the last
+	// BrakeBiasZones zones, oldest first: the bias check compares those, not one instant.
+	inZone    bool
+	zonePeak  [2]float32
+	zonePeaks [][2]float32
 }
 
 // NewBrakesRule creates a new BrakesRule.
@@ -34,24 +41,28 @@ func (r *BrakesRule) ValidPhases() []DrivingPhase {
 func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"brake_hot": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"brake_cold": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
-			DedupScope:  DedupScopePhase,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:        []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
+			DedupScope:         DedupScopePhase,
+			MaxDelayMs:         ConditionMaxDelayMs,
+			WaitsForSCToSettle: true,
 		},
 		"brake_bias": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 		"brake_bias_ok": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
+			ValidPhases:     []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			OutlastsSilence: true,
 		},
 	}
 }
@@ -61,6 +72,10 @@ func (r *BrakesRule) Reset(scope DedupScope) {
 	defer r.mu.Unlock()
 	if scope == DedupScopeStint || scope == DedupScopeNone {
 		r.lastBrakeBiasAlert = ""
+		r.hot = [4]conditionSpell{}
+		r.inZone = false
+		r.zonePeak = [2]float32{}
+		r.zonePeaks = nil
 	}
 }
 
@@ -78,25 +93,37 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	var directives []Directive
+	now := ctx.Now
 
+	// A brake that stays over the limit for BrakeHotSustainMs is overheating; one big stop isn't.
+	hotWheel := -1
 	var maxBrakeTemp float32
-	for _, bt := range tele.BrakesTemperature {
+	for w, bt := range tele.BrakesTemperature {
 		val := float32(bt)
-		if val > maxBrakeTemp {
-			maxBrakeTemp = val
+		maxBrakeTemp = max(maxBrakeTemp, val)
+		r.hot[w].update(val >= ctx.Config.BrakeOverheatC, now)
+		if hotWheel < 0 && r.hot[w].heldFor(now, BrakeHotSustainMs) {
+			hotWheel = w
 		}
 	}
 
-	if maxBrakeTemp >= ctx.Config.BrakeOverheatC {
+	switch {
+	case hotWheel >= 0:
+		front := hotWheel == packets.WheelFrontLeft || hotWheel == packets.WheelFrontRight
+		subAlert, advice := "brake_overheat_rear", "Move the brake bias forward a click."
+		if front {
+			subAlert, advice = "brake_overheat", "Move the brake bias rearward a click."
+		}
 		directives = append(directives, Directive{
 			ID:       "brake_hot",
 			Category: DirectiveCategoryBrakes,
-			SubAlert: "brake_overheat",
+			SubAlert: subAlert,
 			Title:    "Brake Disc Overheating",
-			Message:  fmt.Sprintf("Brake disc temperatures are critically high at %d°C (fade threshold: %d°C)!", int(maxBrakeTemp), int(ctx.Config.BrakeOverheatC)),
+			Message:  fmt.Sprintf("The %s brake has been over %d°C for a while (%d°C now). %s", wheelLongNames[hotWheel], int(ctx.Config.BrakeOverheatC), tele.BrakesTemperature[hotWheel], advice),
 			Urgency:  UrgencyMedium,
+			Values:   &DirectiveValues{Wheel: wheelAt[hotWheel]},
 		})
-	} else if maxBrakeTemp > 0 && maxBrakeTemp <= ctx.Config.BrakeColdC {
+	case maxBrakeTemp > 0 && maxBrakeTemp <= ctx.Config.BrakeColdC:
 		directives = append(directives, Directive{
 			ID:       "brake_cold",
 			Category: DirectiveCategoryBrakes,
@@ -107,42 +134,79 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 		})
 	}
 
-	// Front vs Rear Axle Thermal Imbalance / Brake Bias Coaching
+	if bias, ok := r.biasCall(tele); ok {
+		directives = append(directives, bias)
+	}
+	return directives
+}
+
+// biasCall compares the front and rear brakes' peak temperatures over the last BrakeBiasZones
+// braking zones: a front/rear imbalance asks to move the bias, and once a called imbalance evens
+// out, that is said too.
+func (r *BrakesRule) biasCall(tele *packets.CarTelemetryData) (Directive, bool) {
 	frontAvg := (float32(tele.BrakesTemperature[packets.WheelFrontLeft]) + float32(tele.BrakesTemperature[packets.WheelFrontRight])) / 2
 	rearAvg := (float32(tele.BrakesTemperature[packets.WheelRearLeft]) + float32(tele.BrakesTemperature[packets.WheelRearRight])) / 2
 
+	if tele.Brake >= BrakeZoneMinPedal {
+		if !r.inZone {
+			r.inZone, r.zonePeak = true, [2]float32{}
+		}
+		r.zonePeak = [2]float32{max(r.zonePeak[0], frontAvg), max(r.zonePeak[1], rearAvg)}
+		return Directive{}, false
+	}
+	if !r.inZone {
+		return Directive{}, false
+	}
+	// A braking zone just ended: its peaks join the last zones'.
+	r.inZone = false
+	r.zonePeaks = append(r.zonePeaks, r.zonePeak)
+	if len(r.zonePeaks) > BrakeBiasZones {
+		r.zonePeaks = r.zonePeaks[len(r.zonePeaks)-BrakeBiasZones:]
+	}
+	if len(r.zonePeaks) < BrakeBiasZones {
+		return Directive{}, false
+	}
+	var front, rear float32
+	for _, p := range r.zonePeaks {
+		front += p[0]
+		rear += p[1]
+	}
+	front /= float32(len(r.zonePeaks))
+	rear /= float32(len(r.zonePeaks))
+
 	switch {
-	case r.lastBrakeBiasAlert != "" && math.Abs(float64(frontAvg-rearAvg)) < BrakeBiasEqualizedDeltaThresholdC:
+	case r.lastBrakeBiasAlert != "" && math.Abs(float64(front-rear)) < BrakeBiasEqualizedDeltaThresholdC:
 		r.lastBrakeBiasAlert = ""
-		directives = append(directives, Directive{
+		return Directive{
 			ID:       "brake_bias_ok",
 			Category: DirectiveCategoryBrakes,
 			SubAlert: "brake_bias_ok",
 			Title:    "Brake Balance Restored",
-			Message:  "Brake temperatures are equalized, axle thermal balance is restored.",
+			Message:  "Brake temperatures are even again front to rear over the last braking zones.",
 			Urgency:  UrgencyLow,
-		})
-	case frontAvg >= BrakeBiasOverheatThresholdC && (frontAvg-rearAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "front":
+		}, true
+	case front >= BrakeBiasOverheatThresholdC && front-rear >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "front":
 		r.lastBrakeBiasAlert = "front"
-		directives = append(directives, Directive{
+		return Directive{
 			ID:       "brake_bias",
 			Category: DirectiveCategoryBrakes,
 			SubAlert: "brake_bias",
 			Title:    "Brake Bias Imbalance",
-			Message:  fmt.Sprintf("Front brakes are running excessively hot relative to the rears (%d°C vs %d°C). Move brake bias rearward by 1-2%%.", int(frontAvg), int(rearAvg)),
+			Message:  fmt.Sprintf("Front brakes peak much hotter than the rears over the last braking zones (%d°C vs %d°C). Move the brake bias rearward.", int(front), int(rear)),
 			Urgency:  UrgencyMedium,
-		})
-	case rearAvg >= BrakeBiasOverheatThresholdC && (rearAvg-frontAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "rear":
+			Values:   &DirectiveValues{Axle: AxleFront},
+		}, true
+	case rear >= BrakeBiasOverheatThresholdC && rear-front >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "rear":
 		r.lastBrakeBiasAlert = "rear"
-		directives = append(directives, Directive{
+		return Directive{
 			ID:       "brake_bias",
 			Category: DirectiveCategoryBrakes,
-			SubAlert: "brake_bias",
+			SubAlert: "brake_bias_forward",
 			Title:    "Brake Bias Imbalance",
-			Message:  fmt.Sprintf("Rear brakes are running excessively hot relative to the fronts (%d°C vs %d°C). Move brake bias forward by 1-2%%.", int(rearAvg), int(frontAvg)),
+			Message:  fmt.Sprintf("Rear brakes peak much hotter than the fronts over the last braking zones (%d°C vs %d°C). Move the brake bias forward.", int(rear), int(front)),
 			Urgency:  UrgencyMedium,
-		})
+			Values:   &DirectiveValues{Axle: AxleRear},
+		}, true
 	}
-
-	return directives
+	return Directive{}, false
 }

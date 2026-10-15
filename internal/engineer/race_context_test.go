@@ -321,7 +321,7 @@ func TestRaceContext_QualifyingKnockoutLine(t *testing.T) {
 	f := &raceFixture{t: t, engine: engine, header: header}
 	f.send(f.session(packets.SessionQ1))
 
-	const cars = QualyQ1EliminationPositionThreshold + 1
+	const cars = 22 // the 2026 grid: Q1 knocks out six, so P16 is the last place through
 	parts := &packets.PacketParticipantsData{Header: header, NumActiveCars: cars}
 	laps := &packets.PacketLapData{Header: header}
 	for i := 0; i < cars; i++ {
@@ -331,17 +331,17 @@ func TestRaceContext_QualifyingKnockoutLine(t *testing.T) {
 		hist.LapHistoryData[1].LapTimeInMS = 88000 + uint32(i)*100
 		engine.ProcessPacket(context.Background(), hist)
 	}
-	// Put the player in P16, just outside the cut.
+	// Put the player last, outside the cut.
 	laps.LapData[fxPlayer].CarPosition = cars
 	laps.LapData[cars-1].CarPosition = 1
 	engine.ProcessPacket(context.Background(), parts)
 	engine.ProcessPacket(context.Background(), laps)
 
 	snap := engine.RaceContext()
-	if !strings.Contains(snap.Summary, "Knockout line: P15 is Driver O on 1:29.400") {
+	if !strings.Contains(snap.Summary, "Knockout line: P16 is Driver P on 1:29.500") {
 		t.Errorf("expected knockout line in qualifying summary:\n%s", snap.Summary)
 	}
-	if !strings.Contains(snap.Summary, "best lap 1.400s slower than yours") {
+	if !strings.Contains(snap.Summary, "best lap 1.500s slower than yours") {
 		t.Errorf("expected best-lap comparison in qualifying summary:\n%s", snap.Summary)
 	}
 	if strings.Contains(snap.Summary, "Strategy:") {

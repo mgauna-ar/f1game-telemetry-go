@@ -16,6 +16,7 @@ export interface AIChatRequest {
   language?: string;
   messages: AIChatMessage[];
   context?: ChatContextRequest;
+  channel?: ChatChannel;
 }
 
 /** Go: ai.AIErrorPayload */
@@ -39,6 +40,8 @@ export interface AIModelItem {
   description?: string;
 }
 
+export type ChatChannel = 'chat' | 'radio';
+
 export type ChatContextMode = 'comparator' | 'session_debrief' | 'live' | 'general';
 
 /** Go: ai.ChatContextRequest */
@@ -58,3 +61,16 @@ export interface ChatZoomRange {
 }
 
 export type DebriefFocus = 'pace' | 'position' | 'gap' | 'stints' | 'sectors' | 'story';
+
+/** Go: ai.RadioLineRequest */
+export interface RadioLineRequest {
+  directive_id: string;
+  language: string;
+  persona: string;
+  baseline: string;
+}
+
+/** Go: ai.RadioLineResponse */
+export interface RadioLineResponse {
+  text: string;
+}

@@ -7,6 +7,10 @@ import { TextInput } from '../ui/Field';
 import styles from './AiSettings.module.css';
 
 export interface ModelPickerProps {
+  /** The field's name; "Model" when not given. */
+  label?: string;
+  /** What the model is used for, under the name. */
+  about?: string;
   currentModel: string;
   availableModels: AIModelItem[];
   isLoadingModels: boolean;
@@ -18,10 +22,12 @@ export interface ModelPickerProps {
 }
 
 /**
- * Picks the chat model: a searchable list of the provider's models once they load, and a plain
- * name field before that. A name that is not listed can still be typed and used.
+ * Picks a model: a searchable list of the provider's models once they load, and a plain name
+ * field before that. A name that is not listed can still be typed and used.
  */
 export const ModelPicker: React.FC<ModelPickerProps> = ({
+  label,
+  about,
   currentModel,
   availableModels,
   isLoadingModels,
@@ -38,6 +44,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   const hasList = availableModels.length > 0;
   const inputId = useId();
   const hintId = useId();
+  const aboutId = useId();
+  const name = label ?? t('ai_engineer.model');
 
   useEffect(() => {
     setDraftModel(currentModel);
@@ -83,12 +91,13 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
     : modelsError
       ? null
       : (unavailableReason ?? t('ai_engineer.setup.modelTypeHint'));
+  const describedBy = [about && aboutId, hint && hintId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={styles.field}>
       <div className={styles.labelRow}>
         <label className={styles.label} htmlFor={inputId}>
-          {t('ai_engineer.model')}
+          {name}
         </label>
         <span className={styles.meta}>
           {status && <span role="status">{status}</span>}
@@ -104,6 +113,11 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
           )}
         </span>
       </div>
+      {about && (
+        <p id={aboutId} className={styles.about}>
+          {about}
+        </p>
+      )}
 
       {hasList ? (
         <div className={styles.modelPicker}>
@@ -114,7 +128,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
               className={styles.withLeading}
               spellCheck={false}
               placeholder={t('ai_engineer.setup.searchModels')}
-              aria-describedby={hint ? hintId : undefined}
+              aria-describedby={describedBy}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -124,7 +138,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
               }}
             />
           </div>
-          <div className={styles.modelList} ref={listRef} role="listbox" aria-label={t('ai_engineer.model')}>
+          <div className={styles.modelList} ref={listRef} role="listbox" aria-label={name}>
             {typed && !typedIsListed && (
               <button
                 type="button"
@@ -164,7 +178,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
           spellCheck={false}
           value={draftModel}
           placeholder="gemini-flash-latest, gpt-4o-mini, claude-opus-5…"
-          aria-describedby={hint ? hintId : undefined}
+          aria-describedby={describedBy}
           onChange={(e) => setDraftModel(e.target.value)}
           onBlur={commitDraft}
           onKeyDown={(e) => {

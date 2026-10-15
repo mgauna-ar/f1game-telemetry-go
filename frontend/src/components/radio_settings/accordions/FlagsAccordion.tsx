@@ -24,6 +24,8 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
   const setSubRedFlag = useRadioSettingsStore((s) => s.setSubRedFlag);
   const subRain = useRadioSettingsStore((s) => s.subRain);
   const setSubRain = useRadioSettingsStore((s) => s.setSubRain);
+  const subWeatherChanges = useRadioSettingsStore((s) => s.subWeatherChanges);
+  const setSubWeatherChanges = useRadioSettingsStore((s) => s.setSubWeatherChanges);
   const subTrackLimits = useRadioSettingsStore((s) => s.subTrackLimits);
   const setSubTrackLimits = useRadioSettingsStore((s) => s.setSubTrackLimits);
   const subPenalties = useRadioSettingsStore((s) => s.subPenalties);
@@ -70,6 +72,12 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
           label={t('ai_engineer.proactiveAlerts.dynamicRainAlert')}
           checked={subRain}
           onChange={setSubRain}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.weatherChanges')}
+          checked={subWeatherChanges}
+          onChange={setSubWeatherChanges}
         />
         <ToggleRow
           compact

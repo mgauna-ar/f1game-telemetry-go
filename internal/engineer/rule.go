@@ -113,7 +113,36 @@ type AlertKeyConfig struct {
 	// LapBound drops the call once the player starts another lap while a passing gate holds it:
 	// what it says ("box next lap") is only true on the lap it was made for.
 	LapBound bool
+	// PitLaneCall lets the call through while the player is in the pit box or on the pit limiter:
+	// it is about the stop being made.
+	PitLaneCall bool
+	// OutlastsSilence holds the call through radio silence (the grid, the start, a flying lap) and
+	// the phases that pass with it (the formation lap) instead of dropping it: a condition of the
+	// car (damage, wear, a temperature) is still true once the radio is open. Its MaxDelayMs counts
+	// from the end of the silence, for at most SilenceMaxHoldMs in all.
+	OutlastsSilence bool
+	// SpeechMs is about how long the call takes to say; the next routine call waits for it. Zero
+	// means DefaultSpeechMs.
+	SpeechMs int64
+	// CooldownGroup is the chatter cooldown the call starts and waits for instead of its
+	// category's: a report or a 2026 aero zone call doesn't hold back the battle calls after it.
+	CooldownGroup string
+	// WaitsForSCToSettle holds the call for the first SCColdCallDelayMs of a Safety Car or VSC,
+	// so the deployment's own calls come first.
+	WaitsForSCToSettle bool
 }
+
+// Cooldown groups of the calls that don't share their category's chatter cooldown.
+const (
+	cooldownReports      = "reports"
+	cooldownAeroZones    = "aero_zones"
+	cooldownFormationLap = "formation_lap"
+	// News of the cars around (closing in, a penalty, a stop) and of the weather doesn't hold back
+	// the battle calls, the pit plan or the forecast.
+	cooldownRivalNews   = "rival_news"
+	cooldownPitNews     = "pit_news"
+	cooldownWeatherNews = "weather_news"
+)
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
 // every alert threshold. It is the shared part of the engine config and the saved engineer
@@ -246,11 +275,19 @@ type EngineerDirective struct {
 	BoxCall BoxCall `json:"-"`
 	// Values are the numbers a report says (gap report, tyre life); the dashboard speaks them.
 	Values *DirectiveValues `json:"values,omitempty"`
+	// Wordable says the dashboard may ask the AI to word the call afresh (POST /api/ai/radio-line)
+	// before saying it: a routine call that stays worth saying long enough, while AI wording is
+	// on and the AI provider is ready.
+	Wordable bool `json:"wordable,omitempty"`
+	// lapDistance is where the player was on the lap when the call was made, for the log.
+	lapDistance float32
 }
 
-// DirectiveValues are the numbers a report call says. Only the fields of its report are set.
+// DirectiveValues are the facts a call says: its numbers, and which wheel, axle or tyre it is
+// about. Only the fields of its call are set.
 type DirectiveValues struct {
-	// Position is the player's position (gap report, elimination danger, lap result, finish).
+	// Position is the player's position (gap report, elimination danger, lap result, finish), or
+	// the one a stop would rejoin in (pit plan heads-up, clean air).
 	Position int `json:"position,omitempty"`
 	// Ahead and Behind are the cars close in front and behind: in the gap report, nil when there
 	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about.
@@ -258,7 +295,8 @@ type DirectiveValues struct {
 	Behind *GapToCar `json:"behind,omitempty"`
 	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).
 	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
-	// Minutes is how many minutes are left in the session, rounded up (session clock).
+	// Minutes is how many minutes are left in the session, rounded up (session clock), or how
+	// soon the forecast has rain (rain forecast).
 	Minutes int `json:"minutes,omitempty"`
 	// PoleGapSec is how far a qualifying lap is off P1's best, or, on provisional pole, how far
 	// ahead of P2's, to a thousandth; 0 while unknown (lap result).
@@ -268,10 +306,99 @@ type DirectiveValues struct {
 	Elimination EliminationStatus `json:"elimination,omitempty" tstype:"EngineerElimination"`
 	// Count is how many track limits warnings the player has (track limits).
 	Count int `json:"count,omitempty"`
-	// PenaltySec is the time penalty just given, in seconds (penalties).
+	// PenaltySec is the time penalty just given, in seconds (penalties), or the time penalties a
+	// rival close by has to serve (rival penalty).
 	PenaltySec int `json:"penalty_sec,omitempty"`
 	// StopSec is how long the car stood in the pit box, to a tenth (pit stop time).
 	StopSec float64 `json:"stop_sec,omitempty"`
+	// Sector is the sector a coaching call is about, 1 to 3, and DeltaSec how much slower than the
+	// player's best it was, to a hundredth.
+	Sector   int     `json:"sector,omitempty"`
+	DeltaSec float64 `json:"delta_sec,omitempty"`
+	// ReactionSec is the player's reaction time at the start, to a hundredth.
+	ReactionSec float64 `json:"reaction_sec,omitempty"`
+	// Wheel is the tyre or brake a call is about (puncture, wear, blisters, pressure, hot brake).
+	Wheel WheelPosition `json:"wheel,omitempty" tstype:"EngineerWheel"`
+	// Axle is the axle a call is about (brake bias, tyre pressure split).
+	Axle AxlePosition `json:"axle,omitempty" tstype:"EngineerAxle"`
+	// Compound is the tyre a call is about: the one to fit (wet crossover, fresh set in the box).
+	Compound TyreCompound `json:"compound,omitempty" tstype:"EngineerCompound"`
+	// Pct is the percentage a call says: tyre wear or blistering, damage or wear of a part, the
+	// battery's charge.
+	Pct int `json:"pct,omitempty"`
+	// RainPct is the forecast's chance of rain, with Minutes how soon (rain forecast).
+	RainPct int `json:"rain_pct,omitempty"`
+	// FuelDeltaLaps is the fuel target delta, in laps to a tenth: negative is short (fuel).
+	FuelDeltaLaps float64 `json:"fuel_delta_laps,omitempty"`
+	// LapsToRange is about how many laps a closing car takes to come within battle range (rival
+	// closing).
+	LapsToRange int `json:"laps_to_range,omitempty"`
+	// TrackTempDeltaC is how far the track temperature moved since the stint started, in °C:
+	// negative is cooler (track temperature).
+	TrackTempDeltaC int `json:"track_temp_delta_c,omitempty"`
+}
+
+// WheelPosition names a wheel.
+type WheelPosition string
+
+const (
+	WheelFrontLeft  WheelPosition = "front_left"
+	WheelFrontRight WheelPosition = "front_right"
+	WheelRearLeft   WheelPosition = "rear_left"
+	WheelRearRight  WheelPosition = "rear_right"
+)
+
+// WheelPositions lists every WheelPosition, for the generated TypeScript union.
+var WheelPositions = []string{string(WheelFrontLeft), string(WheelFrontRight), string(WheelRearLeft), string(WheelRearRight)}
+
+// wheelAt is the WheelPosition of each packet wheel index.
+var wheelAt = [4]WheelPosition{
+	packets.WheelRearLeft:   WheelRearLeft,
+	packets.WheelRearRight:  WheelRearRight,
+	packets.WheelFrontLeft:  WheelFrontLeft,
+	packets.WheelFrontRight: WheelFrontRight,
+}
+
+// AxlePosition names an axle.
+type AxlePosition string
+
+const (
+	AxleFront AxlePosition = "front"
+	AxleRear  AxlePosition = "rear"
+)
+
+// AxlePositions lists every AxlePosition, for the generated TypeScript union.
+var AxlePositions = []string{string(AxleFront), string(AxleRear)}
+
+// TyreCompound names a tyre as the driver sees it.
+type TyreCompound string
+
+const (
+	TyreSoft   TyreCompound = "soft"
+	TyreMedium TyreCompound = "medium"
+	TyreHard   TyreCompound = "hard"
+	TyreInter  TyreCompound = "inter"
+	TyreWet    TyreCompound = "wet"
+)
+
+// TyreCompounds lists every TyreCompound, for the generated TypeScript union.
+var TyreCompounds = []string{string(TyreSoft), string(TyreMedium), string(TyreHard), string(TyreInter), string(TyreWet)}
+
+// tyreCompoundOf is the TyreCompound of a packet's visual compound; empty when unknown.
+func tyreCompoundOf(visual uint8) TyreCompound {
+	switch visual {
+	case packets.CompoundSoft, packets.CompoundClassicS, packets.CompoundSuperSoft:
+		return TyreSoft
+	case packets.CompoundMedium, packets.CompoundClassicM:
+		return TyreMedium
+	case packets.CompoundHard, packets.CompoundClassicH:
+		return TyreHard
+	case packets.CompoundInter:
+		return TyreInter
+	case packets.CompoundWet:
+		return TyreWet
+	}
+	return ""
 }
 
 // EliminationStatus is where a qualifying position stands against the cut line.
@@ -293,6 +420,13 @@ type GapToCar struct {
 	Trend GapTrendDirection `json:"trend,omitempty" tstype:"EngineerGapTrend"`
 	// PerLapSec is how much the gap changes each lap, to a tenth; 0 when stable.
 	PerLapSec float64 `json:"per_lap_sec,omitempty"`
+	// Name is the driver of the car as said on the radio, on race calls about a rival; empty when
+	// the game doesn't name them.
+	Name string `json:"name,omitempty"`
+	// Compound is the tyre the car runs, and TyreAgeDiffLaps how many laps older its tyres are than
+	// the player's (negative: fresher), on race calls about a rival.
+	Compound        TyreCompound `json:"compound,omitempty" tstype:"EngineerCompound"`
+	TyreAgeDiffLaps int          `json:"tyre_age_diff_laps,omitempty"`
 }
 
 // GapTrendDirection says whether a gap is shrinking, growing or holding.
@@ -347,6 +481,29 @@ type EvaluationContext struct {
 	// PitEntries marks the cars whose pit status went from none to pitting on this lap data
 	// packet: each stop shows once, whatever phase the player was in.
 	PitEntries [packets.MaxCars]bool
+	// ChequeredFlag is whether the leader has taken the chequered flag in this race.
+	ChequeredFlag bool
+	// TrackProfile is what was learned about the track (pit lane, quiet stretches); nil when
+	// nothing was. Read only.
+	TrackProfile *trackProfile
+	// LastSaid is when each alert key was last said, unix ms. Read only.
+	LastSaid map[string]int64
+}
+
+// CallLost reports whether the call a rule made under alertKey at madeAt never got on the radio
+// and is past its useful life (maxDelayMs): a gate held it until it went stale, or dropped it. A
+// rule that makes a call once can make it again then.
+func (ctx *EvaluationContext) CallLost(alertKey string, madeAt, maxDelayMs int64) bool {
+	return alertKey != "" && ctx.Now-madeAt > maxDelayMs && ctx.LastSaid[alertKey] < madeAt
+}
+
+// PitLossSec is what a stop costs at this track against staying out, in seconds: learned from
+// the race stops timed here, else DefaultPitLaneLossSeconds.
+func (ctx *EvaluationContext) PitLossSec() float64 {
+	if loss, ok := ctx.TrackProfile.pitLossSec(ctx.TrackLengthM(), racePaceMps(ctx)); ok {
+		return loss
+	}
+	return DefaultPitLaneLossSeconds
 }
 
 // PlayerLap returns the player car's LapData if available.
@@ -438,9 +595,15 @@ func (ctx *EvaluationContext) IsPracticeSession() bool {
 	return packets.IsPracticeSession(ctx.Session.SessionType)
 }
 
-// Is2026 returns true if the packet format is F1 2026 or newer.
+// Is2026 reports whether the player's car runs the 2026 regulations (Override and Straight Mode,
+// no DRS). The 2026 packet format also carries older cars, so the car's own flag decides; until
+// it arrives, the packet format does.
 func (ctx *EvaluationContext) Is2026() bool {
-	return ctx.Header.PacketFormat >= packets.PacketFormat2026 || ctx.PacketFormat >= packets.PacketFormat2026
+	if ctx.Header.PacketFormat < packets.PacketFormat2026 && ctx.PacketFormat < packets.PacketFormat2026 {
+		return false
+	}
+	tele2 := ctx.PlayerTelemetry2()
+	return tele2 == nil || tele2.Regulations2026 == 1
 }
 
 // CalculateLapDistanceFraction estimates progress along the track [0.0, 1.0] from session and player lap data.
@@ -492,6 +655,24 @@ type EngineerRule interface {
 
 	// Reset clears internal state according to the given deduplication scope.
 	Reset(scope DedupScope)
+}
+
+// conditionSpell is how long a condition (rain, a hot brake) has held.
+type conditionSpell struct {
+	on    bool
+	since int64 // unix ms the condition last became true
+}
+
+func (s *conditionSpell) update(on bool, now int64) {
+	if on && !s.on {
+		s.since = now
+	}
+	s.on = on
+}
+
+// heldFor reports whether the condition has lasted at least ms by now.
+func (s conditionSpell) heldFor(now, ms int64) bool {
+	return s.on && now-s.since >= ms
 }
 
 func isPacketType[T packets.Packet](p packets.Packet) bool {

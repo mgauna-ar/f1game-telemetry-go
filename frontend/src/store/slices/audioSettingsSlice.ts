@@ -24,6 +24,7 @@ export type VoiceSettingsValues = Pick<
   | 'neuralVoice'
   | 'speechRate'
   | 'speechPitch'
+  | 'aiRadioLines'
 >;
 
 const clampSpeechRate = (rate: number): number =>
@@ -50,6 +51,7 @@ export function getDefaultVoiceSettings(): VoiceSettingsValues {
     neuralVoice: '',
     speechRate: RADIO_AUDIO_CONSTANTS.DEFAULT_SPEECH_RATE_PERCENT,
     speechPitch: RADIO_AUDIO_CONSTANTS.DEFAULT_SPEECH_PITCH_HZ,
+    aiRadioLines: true,
   };
 }
 
@@ -62,6 +64,7 @@ export function voiceToPayload(v: VoiceSettingsValues): VoiceSettingsPayload {
     neural_voice: v.neuralVoice,
     speech_rate: v.speechRate,
     speech_pitch: v.speechPitch,
+    ai_radio_lines: v.aiRadioLines,
   };
 }
 
@@ -78,6 +81,8 @@ export function voiceFromPayload(
     neuralVoice: typeof p.neural_voice === 'string' ? p.neural_voice : fallback.neuralVoice,
     speechRate: Number.isFinite(p.speech_rate) ? clampSpeechRate(p.speech_rate as number) : fallback.speechRate,
     speechPitch: Number.isFinite(p.speech_pitch) ? clampSpeechPitch(p.speech_pitch as number) : fallback.speechPitch,
+    // Voice settings saved before the switch existed have it on.
+    aiRadioLines: typeof p.ai_radio_lines === 'boolean' ? p.ai_radio_lines : true,
   };
 }
 
@@ -111,6 +116,7 @@ export function getLegacyVoiceSettings(): VoiceSettingsValues | null {
     neuralVoice: storage.getString(LEGACY_RADIO_STORAGE_KEYS.NEURAL_VOICE, defaults.neuralVoice),
     speechRate: clampSpeechRate(storage.getNumber(LEGACY_RADIO_STORAGE_KEYS.SPEECH_RATE, defaults.speechRate)),
     speechPitch: clampSpeechPitch(storage.getNumber(LEGACY_RADIO_STORAGE_KEYS.SPEECH_PITCH, defaults.speechPitch)),
+    aiRadioLines: defaults.aiRadioLines,
   };
 }
 
@@ -131,6 +137,8 @@ export interface AudioSettingsSlice {
   speechRate: number;
   speechPitch: number;
   neuralVoice: string;
+  /** The AI words routine calls afresh (when a provider is ready); urgent calls keep the catalogue's words. */
+  aiRadioLines: boolean;
 
   setIsRadioEnabled: (enabled: boolean) => void;
   setPersona: (p: RadioPersona) => void;
@@ -144,6 +152,7 @@ export interface AudioSettingsSlice {
   setSpeechRate: (rate: number) => void;
   setSpeechPitch: (pitch: number) => void;
   setNeuralVoice: (v: string) => void;
+  setAiRadioLines: (enabled: boolean) => void;
 }
 
 export function getInitialAudioSettings(): Omit<
@@ -160,6 +169,7 @@ export function getInitialAudioSettings(): Omit<
   | 'setSpeechRate'
   | 'setSpeechPitch'
   | 'setNeuralVoice'
+  | 'setAiRadioLines'
 > {
   return {
     // Voice settings start at their defaults until loadVoiceFromBackend brings the saved ones.
@@ -227,6 +237,10 @@ export const createAudioSettingsSlice: StateCreator<
   },
   setNeuralVoice: (v) => {
     set({ neuralVoice: v });
+    get().syncVoiceToBackend();
+  },
+  setAiRadioLines: (enabled) => {
+    set({ aiRadioLines: enabled });
     get().syncVoiceToBackend();
   },
 });

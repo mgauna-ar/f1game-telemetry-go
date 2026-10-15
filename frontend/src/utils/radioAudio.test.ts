@@ -354,6 +354,31 @@ describe('radioAudio utils', () => {
       expect(onError).not.toHaveBeenCalled();
     });
 
+    it('does not play a call that went stale while its audio was synthesized', async () => {
+      let resolveFetch: (r: Response) => void = () => {};
+      globalThis.fetch = vi.fn(() => new Promise<Response>((resolve) => (resolveFetch = resolve)));
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      const onStart = vi.fn();
+      const onEnd = vi.fn();
+      const onError = vi.fn();
+
+      const speaking = speakRadioResponse('Car ahead within a second', {
+        onStart,
+        onEnd,
+        onError,
+        enableBeeps: false,
+        expiresAt: 1_000_000 + 2000,
+      });
+      now.mockReturnValue(1_000_000 + 3000);
+      resolveFetch({ ok: true, arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)) } as unknown as Response);
+      await speaking;
+      now.mockRestore();
+
+      expect(onStart).not.toHaveBeenCalled();
+      expect(onEnd).toHaveBeenCalledTimes(1); // the speech queue moves on
+      expect(onError).not.toHaveBeenCalled();
+    });
+
     it('ends at once when there is nothing to say, so the speech queue moves on', async () => {
       const onEnd = vi.fn();
       await speakRadioResponse('   ', { onEnd });

@@ -149,13 +149,13 @@ func TestEngineerEngine_RepeatLimitAppliesToUrgentCalls(t *testing.T) {
 		e.ProcessPacket(ctx, hot)
 		clock.advance(16 * time.Millisecond)
 	}
-	if n := spoken(t, b, "radiator_overheat"); n != 1 {
+	if n := spoken(t, b, "radiator_overheat_critical"); n != 1 {
 		t.Fatalf("critical engine temperature was said %d times in half a second, want 1", n)
 	}
 
 	clock.advance(time.Duration(EngineTempMinRepeatMs) * time.Millisecond)
 	e.ProcessPacket(ctx, hot)
-	if n := spoken(t, b, "radiator_overheat"); n != 2 {
+	if n := spoken(t, b, "radiator_overheat_critical"); n != 2 {
 		t.Fatalf("critical engine temperature was said %d times after the repeat window, want 2", n)
 	}
 }
@@ -220,6 +220,10 @@ func TestEngineerEngine_SpeechTTL(t *testing.T) {
 		{"condition call is capped", "tyre_wear", 0, MaxSpeechTTLMs},
 		{"held call keeps what is left", "pit_window", DefaultMaxDelayMs - 8_000, 8_000},
 		{"never below the floor", "rival_defend", MomentMaxDelayMs, MinSpeechTTLMs},
+		{"a rival's penalty stays true", "rival_penalty", 30_000, MaxSpeechTTLMs},
+		{"so does a weather change", "weather_change", 30_000, MaxSpeechTTLMs},
+		{"and the track temperature", "track_temp_swing", 30_000, MaxSpeechTTLMs},
+		{"a stop is news for less long", "leader_pitted", 30_000, MinSpeechTTLMs},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -275,8 +279,10 @@ func TestRivalsRule_CallsTheSameCarAgainAfterItDropsBack(t *testing.T) {
 	rule := NewRivalsRule()
 	lapData := &packets.PacketLapData{}
 	setGapBehind := func(ms uint16) {
-		lapData.LapData[0] = packets.LapData{CurrentLapNum: 12, CarPosition: 5, TotalDistance: 60000}
-		lapData.LapData[1] = packets.LapData{CurrentLapNum: 12, CarPosition: 6, TotalDistance: 59900, DeltaToCarInFrontMSPart: ms}
+		lapData.LapData[0] = packets.LapData{CurrentLapNum: 12, CarPosition: 5, TotalDistance: 60000,
+			ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack}
+		lapData.LapData[1] = packets.LapData{CurrentLapNum: 12, CarPosition: 6, TotalDistance: 59900, DeltaToCarInFrontMSPart: ms,
+			ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack}
 	}
 	ctx := &EvaluationContext{
 		Session:        &packets.PacketSessionData{SessionType: packets.SessionRace},

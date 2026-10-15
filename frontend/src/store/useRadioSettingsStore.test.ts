@@ -117,7 +117,17 @@ describe('useRadioSettingsStore and slices', () => {
         neural_voice: '',
         speech_rate: RADIO_AUDIO_CONSTANTS.MAX_SPEECH_RATE_PERCENT,
         speech_pitch: -20,
+        ai_radio_lines: true,
       },
+      withClientId
+    );
+
+    // The AI wording switch is saved with the voice
+    store.setAiRadioLines(false);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(putSpy).toHaveBeenLastCalledWith(
+      '/api/settings/voice',
+      expect.objectContaining({ ai_radio_lines: false }),
       withClientId
     );
     expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA)).toBeNull();
@@ -399,6 +409,14 @@ describe('useRadioSettingsStore and slices', () => {
     }
   });
 
+  it('has the news of the cars around and of the weather in Immersive and Coaching, not in Minimal', () => {
+    for (const key of ['subRivalClosing', 'subRivalPenalty', 'subPitNews', 'subWeatherChanges'] as const) {
+      expect(TRIGGER_PRESET_VALUES.immersive[key], key).toBe(true);
+      expect(TRIGGER_PRESET_VALUES.coaching[key], key).toBe(true);
+      expect(TRIGGER_PRESET_VALUES.minimal[key], key).toBe(false);
+    }
+  });
+
   it('starts on the Immersive preset with matching alert switches', () => {
     const state = useRadioSettingsStore.getState();
     expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
@@ -509,6 +527,7 @@ describe('useRadioSettingsStore and slices', () => {
 
   it('loads the saved voice from the server and drops old browser copies', async () => {
     localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA, RADIO_PERSONAS.CUSTOM);
+    useRadioSettingsStore.setState({ aiRadioLines: false });
     vi.spyOn(api, 'get').mockResolvedValueOnce({
       saved: true,
       persona: RADIO_PERSONAS.COLAPINTO,
@@ -528,8 +547,17 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.radioLanguage).toBe(RADIO_LANGUAGES.AUTO); // unknown language keeps the current one
     expect(state.driverCallsign).toBe('Mati');
     expect(state.speechPitch).toBe(RADIO_AUDIO_CONSTANTS.MIN_SPEECH_PITCH_HZ);
+    expect(state.aiRadioLines).toBe(true); // saved before the switch existed: on, whatever this device had
     expect(putSpy).not.toHaveBeenCalled();
     expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA)).toBeNull();
+  });
+
+  it('loads the AI wording switch switched off', async () => {
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ saved: true, persona: RADIO_PERSONAS.BONO, ai_radio_lines: false });
+
+    await useRadioSettingsStore.getState().loadVoiceFromBackend();
+
+    expect(useRadioSettingsStore.getState().aiRadioLines).toBe(false);
   });
 
   it('moves the voice an older version kept in this browser to the server once', async () => {

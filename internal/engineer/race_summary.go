@@ -74,14 +74,20 @@ func (v *raceView) writeNeighbours(sb *strings.Builder, strat StrategySummary) {
 	}
 }
 
-// writeQualifyingCutoff reports the gap to the knockout position in Q1 and Q2.
+// writeQualifyingCutoff reports the gap to the knockout position in Q1 and Q2: the last place
+// through, which depends on the grid's size.
 func (v *raceView) writeQualifyingCutoff(sb *strings.Builder) {
+	numCars := 0
+	if v.participants != nil {
+		numCars = int(v.participants.NumActiveCars)
+	}
+	q1, q2 := qualyDangerPositions(numCars)
 	var cutoff int
 	switch v.session.SessionType {
 	case packets.SessionQ1, packets.SessionSprintQ1:
-		cutoff = QualyQ1EliminationPositionThreshold
+		cutoff = q1
 	case packets.SessionQ2, packets.SessionSprintQ2:
-		cutoff = QualyQ2EliminationPositionThreshold
+		cutoff = q2
 	default:
 		return
 	}
@@ -195,6 +201,10 @@ func writeRecentCalls(sb *strings.Builder, calls []RadioCallRecord) {
 	}
 	sb.WriteString("- Pit wall calls you already made (do not repeat them unprompted):\n")
 	for _, c := range calls {
+		if c.Said != "" {
+			fmt.Fprintf(sb, "  * Lap %d: %q\n", c.Lap, c.Said)
+			continue
+		}
 		fmt.Fprintf(sb, "  * Lap %d: %s\n", c.Lap, c.Message)
 	}
 }

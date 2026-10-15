@@ -4,6 +4,77 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
+// BoxTiming is when the driver can act on a call to pit, sent with the call (Directive.Box).
+type BoxTiming string
+
+const (
+	// BoxThisLap: the pit entry is still far enough ahead to take it this lap.
+	BoxThisLap BoxTiming = "this_lap"
+	// BoxNextLap: the pit entry is too close or already passed; the stop is at the end of next lap.
+	BoxNextLap BoxTiming = "next_lap"
+	// BoxASAP: the track's pit entry isn't known yet and the lap is past half way.
+	BoxASAP BoxTiming = "asap"
+)
+
+// BoxTimings lists every BoxTiming, for the generated TypeScript union.
+var BoxTimings = []string{string(BoxThisLap), string(BoxNextLap), string(BoxASAP)}
+
+// BoxCall says whether a call asks the driver to pit. The rule that writes the call sets it; the
+// engine then sends when the pit entry can be made.
+type BoxCall uint8
+
+const (
+	BoxCallNone BoxCall = iota
+	// BoxCallInstruction tells the driver to pit. An urgent one is said at once with its timing; any
+	// other waits for the line when this lap's pit entry is too close, then says "box this lap".
+	BoxCallInstruction
+	// BoxCallOption offers a stop (Safety Car, pit window open): said at once with its timing.
+	BoxCallOption
+)
+
+// boxTimingAt says when a driver lapDistance metres into a lap of trackLength can pit, given the
+// track's pit entry (0 while unknown) and how far before it the call must come (leadM).
+func boxTimingAt(lapDistance, trackLength, pitEntry, leadM float32) BoxTiming {
+	if pitEntry <= 0 || trackLength <= 0 {
+		if lapDistance < trackLength/2 {
+			return BoxThisLap
+		}
+		return BoxASAP
+	}
+	if lapDistance < boxCallPoint(trackLength, pitEntry, leadM) {
+		return BoxThisLap
+	}
+	return BoxNextLap
+}
+
+// boxCallPoint is the last lap distance a call to box this lap can come at. A pit entry just after
+// the line is reached at the start of the next lap, so it counts a lap length further on.
+func boxCallPoint(trackLength, pitEntry, leadM float32) float32 {
+	entry := pitEntry
+	if entry < trackLength/2 {
+		entry += trackLength
+	}
+	return entry - leadM
+}
+
+// enteredPitLane reports whether a car's pit status went from none to pitting between two lap data
+// packets.
+func enteredPitLane(before, after packets.LapData) bool {
+	return before.PitStatus == packets.PitStatusNone && after.PitStatus == packets.PitStatusPitting
+}
+
+// pitLaneEntries marks the cars that entered the pit lane between prev and next; none without prev.
+func pitLaneEntries(prev, next *packets.PacketLapData) [packets.MaxCars]bool {
+	var entries [packets.MaxCars]bool
+	if prev == nil {
+		return entries
+	}
+	for i := range next.LapData {
+		entries[i] = enteredPitLane(prev.LapData[i], next.LapData[i])
+	}
+	return entries
+}
+
 // playerTrackPosition is where the player is on track, as the box calls need it.
 type playerTrackPosition struct {
 	known       bool
@@ -141,10 +212,10 @@ func (e *EngineerEngine) pitEntryReminderLocked(header packets.PacketHeader) []D
 		Message:  "Box, box. Pit entry coming up, stay to the pit lane side.",
 		Urgency:  UrgencyHigh,
 	}
-	switch e.gateDirectiveLocked(reminder.ID, string(reminder.Category), reminder.Urgency) {
+	switch e.gateDirectiveLocked(reminder.ID, string(reminder.Category), reminder.Urgency, 0) {
 	case gateEmit:
 		return []Directive{e.emitDirectiveLocked(header, reminder, reminder.ID, 0)}
-	case gateHold:
+	case gateHold, gateHoldSilence:
 		e.holdDirectiveLocked(reminder, reminder.ID)
 	case gateDrop:
 	}

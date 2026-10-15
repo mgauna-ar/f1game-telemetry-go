@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 
@@ -17,7 +18,9 @@ type TrafficRule struct {
 	pitTimerReported       bool
 	limiterOverspeedFired  bool
 	lastRecordedPitTimerMS uint16
-	cleanAirLap            int // the lap the clean air call was made on
+	stopGoServedSec        float32 // the stop-go the player served at this stop, part of the pit timer
+	penaltyHoldSec         uint8   // the time penalty the player was told to serve at this stop
+	cleanAirLap            int     // the lap the clean air call was made on
 }
 
 // NewTrafficRule creates a new TrafficRule.
@@ -82,6 +85,8 @@ func (r *TrafficRule) Reset(scope DedupScope) {
 		r.pitTimerReported = false
 		r.limiterOverspeedFired = false
 		r.lastRecordedPitTimerMS = 0
+		r.stopGoServedSec = 0
+		r.penaltyHoldSec = 0
 		r.lastPitLimiterStatus = 0
 		r.lastPitStatus = 0
 	}
@@ -134,15 +139,25 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 		r.lastPitLimiterStatus = status.PitLimiterStatus
 	}
 
+	// A stop-go served in the box is part of the pit timer, not of the crew's work.
+	if evt, ok := ctx.Packet.(*packets.PacketEventData); ok {
+		if d, ok := evt.StopGoServedData(); ok && int(d.VehicleIdx) == ctx.PlayerCarIndex {
+			r.stopGoServedSec = d.StopTime
+		}
+	}
+
 	// 2. Pit Stop Procedures (penalty serving & box duration debrief from LapData)
 	if playerLap != nil {
 		// Penalty to serve reminder
 		if ctx.Phase == PhasePitLane || playerLap.PitStatus == packets.PitStatusPitting {
 			if playerLap.PitStopShouldServePen == 1 && !r.penaltyReminderFired {
 				r.penaltyReminderFired = true
+				r.penaltyHoldSec = playerLap.Penalties
 				var pnlMsg string
+				var values *DirectiveValues
 				if playerLap.Penalties > 0 {
 					pnlMsg = fmt.Sprintf("Hold for %d-second penalty before tyres are changed. Do not work on the car until served.", playerLap.Penalties)
+					values = &DirectiveValues{PenaltySec: int(playerLap.Penalties)}
 				} else {
 					pnlMsg = "Serve penalty first. Car must remain stationary before mechanics touch the tyres."
 				}
@@ -153,6 +168,7 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Serve Penalty in Box",
 					Message:  pnlMsg,
 					Urgency:  UrgencyCritical,
+					Values:   values,
 				})
 			}
 		}
@@ -168,26 +184,15 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 		if leavingBox && r.lastRecordedPitTimerMS > 0 && !r.pitTimerReported {
 			r.pitTimerReported = true
-			durationSec := float32(r.lastRecordedPitTimerMS) / packets.MillisPerSecond
-			subAlert := "pit_stop_duration"
-			durMsg := fmt.Sprintf("Stationary time %.1fs. Clean stop, push now.", durationSec)
-			switch {
-			case durationSec <= FastPitStopDurationSec:
-				subAlert = "pit_stop_fast"
-				durMsg = fmt.Sprintf("Rapid stop! Stationary time was %.1fs, brilliant work by the crew.", durationSec)
-			case durationSec >= SlowPitStopDurationSec:
-				subAlert = "pit_stop_slow"
-				durMsg = fmt.Sprintf("Stationary time was %.1fs, longer than planned. Let's make up time on the out-lap.", durationSec)
+			// A stop only long enough for the stop-go had no crew work to time.
+			durationSec := float32(r.lastRecordedPitTimerMS)/packets.MillisPerSecond - r.stopGoServedSec
+			// Whether the game's pit timer includes a time penalty held in the box isn't known yet:
+			// logged so a real stop can tell.
+			slog.Info("Pit stop timed", "timer_ms", r.lastRecordedPitTimerMS, "stop_go_sec", r.stopGoServedSec, "penalty_hold_sec", r.penaltyHoldSec)
+			r.stopGoServedSec, r.penaltyHoldSec = 0, 0
+			if durationSec >= MinServiceStopSec {
+				directives = append(directives, pitStopDurationDirective(durationSec))
 			}
-			directives = append(directives, Directive{
-				ID:       "pit_stop_duration",
-				Category: DirectiveCategoryPitStrategy,
-				SubAlert: subAlert,
-				Title:    "Pit Stop Duration",
-				Message:  durMsg,
-				Urgency:  UrgencyMedium,
-				Values:   &DirectiveValues{StopSec: roundTo(float64(durationSec), 1)},
-			})
 		}
 		r.lastPitStatus = playerLap.PitStatus
 	}
@@ -198,6 +203,29 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	return directives
+}
+
+// pitStopDurationDirective tells the driver how long the crew's stop took: fast, slow or neither.
+func pitStopDurationDirective(durationSec float32) Directive {
+	subAlert := "pit_stop_duration"
+	durMsg := fmt.Sprintf("Stationary time %.1fs. Clean stop, push now.", durationSec)
+	switch {
+	case durationSec <= FastPitStopDurationSec:
+		subAlert = "pit_stop_fast"
+		durMsg = fmt.Sprintf("Rapid stop! Stationary time was %.1fs, brilliant work by the crew.", durationSec)
+	case durationSec >= SlowPitStopDurationSec:
+		subAlert = "pit_stop_slow"
+		durMsg = fmt.Sprintf("Stationary time was %.1fs, longer than planned. Let's make up time on the out-lap.", durationSec)
+	}
+	return Directive{
+		ID:       "pit_stop_duration",
+		Category: DirectiveCategoryPitStrategy,
+		SubAlert: subAlert,
+		Title:    "Pit Stop Duration",
+		Message:  durMsg,
+		Urgency:  UrgencyMedium,
+		Values:   &DirectiveValues{StopSec: roundTo(float64(durationSec), 1)},
+	}
 }
 
 // evaluateCleanAir says when pitting now would bring the player out in clean air: inside the
@@ -225,8 +253,9 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 	}
 
 	trackLen := float64(ctx.TrackLengthM())
-	rejoinAt := float64(playerLap.TotalDistance) - DefaultPitLaneLossSeconds*AverageRaceSpeedMetersPerSec
-	window := CleanAirTrafficWindowSeconds * AverageRaceSpeedMetersPerSec
+	pace := racePaceMps(ctx)
+	rejoinAt := float64(playerLap.TotalDistance) - ctx.PitLossSec()*pace
+	window := CleanAirTrafficWindowSeconds * pace
 	for i, rival := range ctx.LapData.LapData {
 		if i == ctx.PlayerCarIndex || rival.TotalDistance == 0 || rival.ResultStatus != packets.ResultStatusActive ||
 			rival.PitStatus != packets.PitStatusNone || rival.DriverStatus == packets.DriverStatusInGarage {
@@ -239,7 +268,7 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 	}
 
 	r.cleanAirLap = currentLap
-	return &Directive{
+	d := &Directive{
 		ID:       "pit_clean_air",
 		Category: DirectiveCategoryPitStrategy,
 		SubAlert: "pit_clean_air",
@@ -248,4 +277,9 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 		Urgency:  UrgencyLow,
 		BoxCall:  BoxCallOption,
 	}
+	if pos := int(ctx.Session.PitStopRejoinPosition); pos > 0 {
+		d.Message = fmt.Sprintf("Box this lap and you rejoin P%d in clean air. Good chance for the undercut.", pos)
+		d.Values = &DirectiveValues{Position: pos}
+	}
+	return d
 }

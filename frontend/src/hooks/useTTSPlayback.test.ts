@@ -163,6 +163,76 @@ describe('useTTSPlayback hook', () => {
     expect(spokenMessages).toEqual(['A long answer', 'Tyre wear is high']);
   });
 
+  it('makes room in a full queue by dropping stale calls, then the oldest routine call', async () => {
+    let activeOnEnd: (() => void) | undefined;
+    const spokenMessages: string[] = [];
+    vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (text, opts) => {
+      spokenMessages.push(text);
+      activeOnEnd = opts?.onEnd;
+    });
+    vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockImplementation(() => {});
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const { result } = renderHook(() => useTTSPlayback({ effectiveLanguage: 'en' }));
+
+    await act(async () => {
+      await result.current.speakMessage('Gap report', false);
+      await result.current.speakMessage('Tyre wear is building', false, undefined, 15000);
+      await result.current.speakMessage('Car behind is within a second', false, undefined, 2000);
+      await result.current.speakMessage('Fuel is on target', false, undefined, 15000);
+    });
+    now.mockReturnValue(1_000_000 + 3000);
+    await act(async () => {
+      await result.current.speakMessage('Brake bias is good', false, undefined, 15000); // the stale call makes room
+    });
+    await act(async () => {
+      activeOnEnd?.();
+    });
+    expect(spokenMessages).toEqual(['Gap report', 'Tyre wear is building']);
+
+    await act(async () => {
+      await result.current.speakMessage('Engine temperature is high', false, undefined, 15000);
+      await result.current.speakMessage('Rain in five minutes', false, undefined, 15000); // the oldest one goes
+    });
+    for (let i = 0; i < 3; i++) {
+      await act(async () => {
+        activeOnEnd?.();
+      });
+    }
+
+    expect(spokenMessages).toEqual([
+      'Gap report',
+      'Tyre wear is building',
+      'Brake bias is good',
+      'Engine temperature is high',
+      'Rain in five minutes',
+    ]);
+  });
+
+  it('synthesizes the next queued call while one plays, and tells the player when it goes stale', async () => {
+    let activeOnEnd: (() => void) | undefined;
+    const expiries: (number | undefined)[] = [];
+    vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (_text, opts) => {
+      expiries.push(opts?.expiresAt);
+      activeOnEnd = opts?.onEnd;
+    });
+    const prefetch = vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockImplementation(() => {});
+    vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const { result } = renderHook(() => useTTSPlayback({ effectiveLanguage: 'en' }));
+
+    await act(async () => {
+      await result.current.speakMessage('Gap report', false);
+      await result.current.speakMessage('Tyre wear is building', false, undefined, 15000);
+      await result.current.speakMessage('Fuel is on target', false, undefined, 15000);
+    });
+    expect(prefetch.mock.calls.map((call) => call[0])).toEqual(['Tyre wear is building']);
+
+    await act(async () => {
+      activeOnEnd?.();
+    });
+    expect(prefetch.mock.calls.map((call) => call[0])).toEqual(['Tyre wear is building', 'Fuel is on target']);
+    expect(expiries).toEqual([undefined, 1_000_000 + 15000]);
+  });
+
   it('clears queue and stops audio on stopSpeech', async () => {
     const stopSpy = vi.spyOn(radioAudio, 'stopRadioSpeech').mockImplementation(() => {});
     vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async () => {});

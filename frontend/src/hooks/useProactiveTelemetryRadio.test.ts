@@ -88,11 +88,22 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith({
+      directiveId: 'dir-1',
+      wordable: false,
       category: 'tyre_wear',
       isCritical: false,
       emotion: { rateModifier: 0, pitchModifier: 0 },
       ttlMs: 15000,
     });
+  });
+
+  it('passes on that the AI may word the call', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    send(makeEngineerDirective({ id: 'dir-worded', sub_alert: 'tyre_wear', urgency: 'medium', wordable: true }));
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(expect.objectContaining({ directiveId: 'dir-worded', wordable: true }));
   });
 
   it('passes on how long the call stays worth saying', () => {
@@ -157,6 +168,8 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
     send(makeEngineerDirective({ id: `dir-${urgency}`, sub_alert: 'tyre_puncture', urgency }));
 
     expect(onTriggerAlert).toHaveBeenCalledWith({
+      directiveId: `dir-${urgency}`,
+      wordable: false,
       category: 'tyre_puncture',
       isCritical: true,
       emotion: { rateModifier: 12, pitchModifier: 5 },

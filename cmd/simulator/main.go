@@ -23,6 +23,7 @@ const (
 	defaultTargetUDP            = defaultTargetHost + ":20777"
 	sendInterval                = 50 * time.Millisecond // 20Hz
 	simBrakingThrottleThreshold = 0.3
+	simFlatOutThrottleGain      = 1.25 // throttle peaks are cut flat at 1: the straights
 	simBrakingForce             = 0.8
 	// simTrackLengthM is the simulated track's length (Melbourne).
 	simTrackLengthM = 5278
@@ -36,11 +37,25 @@ const (
 	simPitEntryM  = 4950
 	simPitBoxEndM = 150
 	simPitExitM   = 300
+	// simPitLaneMs is how long the pit lane takes, entry to exit, on the cars' pit lane timers.
+	simPitLaneMs = 24_000
 	// simPlayerPitLap is the lap the player pits at the end of; a puncture comes on the lap before,
-	// just past the point a call to box that lap can still be made.
+	// just past the point a call to box that lap can still be made (a frame's distance past it, as
+	// the telemetry packet that shows it comes before the frame's lap data).
 	simPlayerPitLap  = 4
 	simPunctureLap   = 3
-	simPunctureFromM = 4460
+	simPunctureFromM = 4480
+	// The punctured rear left loses its pressure and its damage jumps, as the engineer detects a
+	// puncture.
+	simPuncturedPressurePSI = 15.0
+	simPuncturedDamagePct   = 85
+
+	// The start scenario: the start lights come on, then go out, and lap 1 starts from the line.
+	// The player's front wing is damaged early in lap 1, during the start's radio silence.
+	simStartLightsOnSec     = 9.0
+	simLightsOutSec         = 10.0
+	simStartWingDamageFromM = 500
+	simStartWingDamagePct   = 25
 )
 
 // The qualifying scenario (Q1, 22 cars, the player P17: in the drop zone) runs in runs of
@@ -243,6 +258,8 @@ type simState struct {
 	sessionTimeLeft uint16
 	lapDist         float32                // the player's lap distance this frame
 	pitStatus       [packets.MaxCars]uint8 // each car's pit status last frame (pit scenario)
+	lightsOn        bool                   // the start lights came on (start scenario)
+	lightsOut       bool                   // the start lights went out (start scenario)
 }
 
 func main() {
@@ -318,7 +335,8 @@ func main() {
 				gear = 8
 			}
 
-			throttle := float32(0.5 + 0.5*math.Sin(st.angle*2))
+			// Flat out on the two straights of the lap, so the engineer can learn where they are.
+			throttle := float32(min(1, simFlatOutThrottleGain*(0.5+0.5*math.Sin(st.angle*2))))
 			brake := float32(0.0)
 			if throttle < simBrakingThrottleThreshold {
 				brake = simBrakingForce
@@ -329,13 +347,15 @@ func main() {
 
 			switch cfg.Scenario {
 			case "start":
+				// The formation lap, then the crawl into the grid box. From lights out (simStartEvent
+				// puts the car on the line) lap 1 runs at the usual pace.
 				switch {
 				case st.sessionTime < 6.0:
 					lapDist = float32(500.0 + st.sessionTime*200.0)
-				case st.sessionTime < 10.0:
+				case st.sessionTime < simLightsOutSec:
 					lapDist = float32(4900.0 + (st.sessionTime-6.0)*20.0)
-				default:
-					lapDist = float32(150.0 + (st.sessionTime-10.0)*30.0)
+				case !st.lightsOut:
+					lapDist = 0 // the lights go out this frame: on the line
 				}
 			case "pit", "strategy":
 				pitStatus := simPitStatus(st.lapNum, lapDist, simPlayerPitLap)
@@ -394,6 +414,14 @@ func main() {
 				sendEventPacket(conn, &evtPkt)
 			}
 
+			if cfg.Scenario == "start" {
+				if code := simStartEvent(st); code != "" {
+					slog.Info("Start event", "scenario", "start", "event", code)
+					evtPkt := buildCodeEvent(header, code)
+					sendEventPacket(conn, &evtPkt)
+				}
+			}
+
 			// 1b. Periodic Event Packet (ID: 3)
 			if st.frameID%120 == 40 {
 				evtPkt := buildEventPacket(header, st.frameID, st.lapNum)
@@ -411,6 +439,9 @@ func main() {
 
 			// 3. Car Telemetry Packet (ID: 6)
 			telemetryCars := buildTelemetryCars(cfg, st.angle, speedKmh, rpm, gear, throttle, brake)
+			if cfg.Scenario == "pit" && simPunctured(st.lapNum, st.lapDist) {
+				telemetryCars[0].TyresPressure[packets.WheelRearLeft] = simPuncturedPressurePSI
+			}
 			sendTelemetryPacket(conn, header, cfg.TotalSlots, telemetryCars, cfg.PacketFormat)
 
 			// 3b. Car Telemetry 2 Packet (ID: 16) - 2026 Only
@@ -420,8 +451,16 @@ func main() {
 			}
 
 			// 4. Lap Data Packet (ID: 2)
+			playerPitBefore := st.pitStatus[0]
 			lapCars := buildLapCars(cfg, st, lapDist)
 			sendLapDataPacket(conn, header, cfg.TotalSlots, lapCars)
+
+			// The pit scenario's player serves a drive-through as they leave the pit lane.
+			if cfg.Scenario == "pit" && playerPitBefore != packets.PitStatusNone && st.pitStatus[0] == packets.PitStatusNone {
+				slog.Info("Drive-through served", "scenario", "pit", "lap", st.lapNum)
+				evtPkt := buildCodeEvent(header, packets.EventDriveThroughServed)
+				sendEventPacket(conn, &evtPkt)
+			}
 
 			// 5. Car Status Packet (ID: 7)
 			if st.frameID == 1 || st.frameID%5 == 0 {
@@ -522,10 +561,16 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 	timeOffsetSample1 := uint8(5)
 	if cfg.Scenario == "rain" {
 		if st.sessionTime >= 2.0 && st.sessionTime < 2.1 {
-			slog.Info("Rain forecast injected", "scenario", "rain", "probability", "85%", "timeToRain", "2m")
+			slog.Info("Rain forecast injected", "scenario", "rain", "probability", "85%", "timeToRain", "2m", "accuracy", "approximate")
 		}
 		rainPctSample1 = 85
 		timeOffsetSample1 = 2
+		if st.sessionTime >= simRainStopSec {
+			rainPctSample1 = 10
+		}
+		sessionPkt.ForecastAccuracy = packets.ForecastAccuracyApproximate
+		sessionPkt.Weather = simRainWeather(st.sessionTime)
+		sessionPkt.TrackTemperature = simRainTrackTemp(st.sessionTime)
 	}
 
 	sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
@@ -656,24 +701,24 @@ func buildMotionCars(cfg SimulatorConfig, angle float64, posY float32) []packets
 
 func buildTelemetryCars(cfg SimulatorConfig, angle float64, speedKmh, rpm uint16, gear int8, throttle, brake float32) []packets.CarTelemetryData {
 	telemetryCars := make([]packets.CarTelemetryData, cfg.TotalSlots)
-	for i := 0; i < cfg.TotalSlots; i++ {
-		if i < cfg.NumActiveCars {
-			factor := 1.0 - float64(i)*0.02
-			if factor < 0.5 {
-				factor = 0.5
-			}
-			a := angle - float64(i)*0.08
-			telemetryCars[i] = packets.CarTelemetryData{
-				Speed:             uint16(float64(speedKmh) * factor),
-				Throttle:          float32(float64(throttle) * factor),
-				Steer:             float32(math.Sin(a)),
-				Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
-				Gear:              gear,
-				EngineRPM:         uint16(float64(rpm) * factor),
-				DRS:               uint8(i % 2),
-				EngineTemperature: uint16(90 + i),
-				TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
-			}
+	for i := 0; i < cfg.TotalSlots && i < cfg.NumActiveCars; i++ {
+		factor := 1.0 - float64(i)*0.02
+		if factor < 0.5 {
+			factor = 0.5
+		}
+		a := angle - float64(i)*0.08
+		// The wheel is straight when flat out, turned in the corners.
+		carThrottle := float64(throttle) * factor
+		telemetryCars[i] = packets.CarTelemetryData{
+			Speed:             uint16(float64(speedKmh) * factor),
+			Throttle:          float32(carThrottle),
+			Steer:             float32(math.Sin(a) * (1 - carThrottle)),
+			Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
+			Gear:              gear,
+			EngineRPM:         uint16(float64(rpm) * factor),
+			DRS:               uint8(i % 2),
+			EngineTemperature: uint16(90 + i),
+			TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
 		}
 	}
 	return telemetryCars
@@ -726,7 +771,9 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 
 			switch i {
 			case 2:
-				penalties = 5
+				if cfg.Scenario != "strategy" || st.lapNum >= simStrategyPenaltyLap {
+					penalties = 5
+				}
 			case 5:
 				penalties = 3
 			case 7:
@@ -810,8 +857,16 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			if st.lapNum > 1 {
 				numStops = uint8(i / 8)
 			}
+			// The pit lane timer runs while a car is in the pit lane of the pit and strategy scenarios.
+			var pitLaneTimer uint8
+			pitLaneTime := uint16(21500 + i*400)
+			if (cfg.Scenario == "pit" || cfg.Scenario == "strategy") && pitStatus != packets.PitStatusNone {
+				pitLaneTimer, pitLaneTime = 1, simPitLaneTime(carLapDist)
+			}
+			deltaToCarInFront := uint16(350)
 			if cfg.Scenario == "strategy" && i == 0 {
 				numStops = uint8(simStrategyStopsMade(st.lapNum, lapDist))
+				deltaToCarInFront = simStrategyGapAheadMS(st.lapNum)
 			}
 
 			lapCars[i] = packets.LapData{
@@ -828,12 +883,13 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				GridPosition:                gridPos,
 				ResultStatus:                packets.ResultStatusActive,
 				DeltaToRaceLeaderMSPart:     uint16(gapMs),
-				DeltaToCarInFrontMSPart:     uint16(350),
+				DeltaToCarInFrontMSPart:     deltaToCarInFront,
 				PitStatus:                   pitStatus,
 				PitStopShouldServePen:       pitStopShouldServePen,
 				PitStopTimerInMS:            pitStopTimerInMS,
 				NumPitStops:                 numStops,
-				PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
+				PitLaneTimerActive:          pitLaneTimer,
+				PitLaneTimeInLaneInMS:       pitLaneTime,
 				SpeedTrapFastestSpeed:       speedTrap,
 				SpeedTrapFastestLap:         uint8(1 + (i % 3)),
 				Penalties:                   penalties,
@@ -925,8 +981,9 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 		frWear := baseWear + float32((i+1)%2)*2.5
 		rlWear := baseWear * 0.95
 		rrWear := baseWear * 0.92
+		tyreDamage := [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)}
 		if i == 0 && cfg.Scenario == "pit" && simPunctured(st.lapNum, st.lapDist) {
-			rlWear = 97
+			tyreDamage[packets.WheelRearLeft] = simPuncturedDamagePct
 		}
 
 		if i == 0 && (cfg.Scenario == "wear" || cfg.Scenario == "tyre-wear") && st.frameID%100 == 0 {
@@ -944,12 +1001,17 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 			blown = 1
 		}
 
+		frontLeftWing := uint8((i * 9) % 55)
+		if i == 0 && simStartWingDamaged(cfg, st) {
+			frontLeftWing = simStartWingDamagePct
+		}
+
 		damageCars[i] = packets.CarDamageData{
 			TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
-			TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
+			TyresDamage:          tyreDamage,
 			BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
 			TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
-			FrontLeftWingDamage:  uint8((i * 9) % 55),
+			FrontLeftWingDamage:  frontLeftWing,
 			FrontRightWingDamage: uint8((i * 13) % 40),
 			RearWingDamage:       uint8((i * 5) % 30),
 			FloorDamage:          uint8((i * 7) % 35),
@@ -1045,6 +1107,17 @@ func simPitStatus(ownLap uint8, lapDist float32, pitLap uint8) uint8 {
 	return packets.PitStatusNone
 }
 
+// simPitLaneTime is how long a car carLapDist into its lap has been in the pit lane, in ms: the
+// lane runs from simPitEntryM to simPitExitM on the next lap and takes simPitLaneMs.
+func simPitLaneTime(carLapDist float32) uint16 {
+	covered := carLapDist - simPitEntryM
+	if covered < 0 {
+		covered += simTrackLengthM
+	}
+	laneLength := float32(simTrackLengthM - simPitEntryM + simPitExitM)
+	return uint16(min(covered/laneLength, 1) * simPitLaneMs)
+}
+
 // simCarLap is the lap a car carLapDist into its lap is on: one behind the leader's until it too
 // has crossed the line (0 before the start).
 func simCarLap(leaderLap uint8, leaderLapDist, carLapDist float32) uint8 {
@@ -1052,6 +1125,36 @@ func simCarLap(leaderLap uint8, leaderLapDist, carLapDist float32) uint8 {
 		return leaderLap - 1
 	}
 	return leaderLap
+}
+
+// simStartEvent is the start event of the start scenario due this frame, once each: the start
+// lights coming on, then going out, which puts the car on the line for lap 1. "" for none.
+func simStartEvent(st *simState) string {
+	switch {
+	case !st.lightsOn && st.sessionTime >= simStartLightsOnSec:
+		st.lightsOn = true
+		return packets.EventStartLights
+	case !st.lightsOut && st.sessionTime >= simLightsOutSec:
+		st.lightsOut = true
+		st.angle, st.lapNum, st.lapTimeMs = 0, 1, 0
+		return packets.EventLightsOut
+	}
+	return ""
+}
+
+// simStartWingDamaged reports whether the player's front wing is damaged in the start scenario:
+// from simStartWingDamageFromM into lap 1, after the lights went out.
+func simStartWingDamaged(cfg SimulatorConfig, st *simState) bool {
+	return cfg.Scenario == "start" && st.lightsOut && (st.lapNum > 1 || st.lapDist >= simStartWingDamageFromM)
+}
+
+// buildCodeEvent is an event with no details of its own, by its code.
+func buildCodeEvent(header packets.PacketHeader, code string) packets.PacketEventData {
+	var evtPkt packets.PacketEventData
+	evtPkt.Header = header
+	evtPkt.Header.PacketId = packets.PacketIDEvent
+	copy(evtPkt.EventStringCode[:], code)
+	return evtPkt
 }
 
 // simPunctured reports whether the player's rear left is punctured in the pit scenario: from late

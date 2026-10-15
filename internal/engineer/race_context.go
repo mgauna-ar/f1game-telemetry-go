@@ -27,6 +27,7 @@ type raceView struct {
 	playerLaps   []LapRecord
 	events       []RaceEventRecord
 	radioCalls   []RadioCallRecord
+	pitLossSec   float64 // what a stop costs at this track
 }
 
 // liveView returns a view of the current session, or false when there is no fresh telemetry.
@@ -57,7 +58,20 @@ func (e *EngineerEngine) liveView() (*raceView, bool) {
 		playerLaps:   append([]LapRecord(nil), e.history.playerLaps...),
 		events:       append([]RaceEventRecord(nil), e.history.events...),
 		radioCalls:   append([]RadioCallRecord(nil), e.history.radioCalls...),
+		pitLossSec:   e.pitLossSecLocked(),
 	}, true
+}
+
+// pitLossSecLocked is what a stop costs at the session's track, as the rules see it.
+func (e *EngineerEngine) pitLossSecLocked() float64 {
+	ctx := &EvaluationContext{
+		Session:        e.latestSession,
+		PlayerCarIndex: e.playerCarIndex,
+		PlayerLaps:     e.history.playerLaps,
+		CarHistory:     &e.history.carHistory,
+		TrackProfile:   e.trackProfileLocked(),
+	}
+	return ctx.PitLossSec()
 }
 
 // LiveBriefing builds the live race briefing for the AI race engineer prompt.
@@ -387,7 +401,7 @@ func (v *raceView) strategySummary() StrategySummary {
 	player := v.playerLap()
 	strat := StrategySummary{
 		WearLimitPct:   float64(v.config.TyreWearCritPct),
-		PitLaneLossSec: DefaultPitLaneLossSeconds,
+		PitLaneLossSec: roundTo(v.pitLossSec, 1),
 	}
 	if st, ok := v.statusOf(v.playerIdx); ok {
 		strat.StintLaps = int(st.TyresAgeLaps)

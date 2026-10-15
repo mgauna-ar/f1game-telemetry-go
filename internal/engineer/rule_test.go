@@ -57,21 +57,21 @@ func TestTyresRule_Unit(t *testing.T) {
 		t.Fatalf("expected 1 directive after stint reset, got %d", len(dirsAfterReset))
 	}
 
-	// 4. Critical Puncture emergency bypass (>= 95%)
-	puncturePkt := &packets.PacketCarDamageData{
+	// 4. A tyre worn to 95% is finished: box (not a puncture)
+	wornOutPkt := &packets.PacketCarDamageData{
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
 			{TyresWear: wheels[float32](96.0, 20.0, 20.0, 20.0)},
 		},
 	}
-	ctxPuncture := &EvaluationContext{
-		Damage:         puncturePkt,
+	ctxWornOut := &EvaluationContext{
+		Damage:         wornOutPkt,
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
 	}
-	dirsPuncture := rule.Evaluate(ctxPuncture)
-	if len(dirsPuncture) != 1 || dirsPuncture[0].SubAlert != "tyre_puncture" || dirsPuncture[0].Urgency != UrgencyCritical {
-		t.Fatalf("expected tyre_puncture critical directive, got %+v", dirsPuncture)
+	dirsWornOut := rule.Evaluate(ctxWornOut)
+	if len(dirsWornOut) != 1 || dirsWornOut[0].SubAlert != "tyre_worn_out" || dirsWornOut[0].Urgency != UrgencyCritical || dirsWornOut[0].BoxCall != BoxCallInstruction {
+		t.Fatalf("expected tyre_worn_out critical box call, got %+v", dirsWornOut)
 	}
 
 	// 5. Compound-Specific Thermal Overheating (C4 vs C1)
@@ -223,7 +223,7 @@ func TestDamageRule_Unit(t *testing.T) {
 }
 
 func TestFlagsRule_Unit(t *testing.T) {
-	rule := NewFlagsRule()
+	rule := seededFlagsRule()
 
 	if rule.Name() != "flags" {
 		t.Fatalf("expected Name()=flags, got %s", rule.Name())
@@ -360,7 +360,7 @@ func TestFlagsRule_Unit(t *testing.T) {
 	}
 
 	// 7. Track Limits warning fires when no penalty is incurred
-	rule.Reset(DedupScopeNone)
+	rule = seededFlagsRule()
 	lapPktWarningOnly := &packets.PacketLapData{
 		LapData: [packets.MaxCars]packets.LapData{
 			{CornerCuttingWarnings: 3, Penalties: 0},
@@ -420,7 +420,7 @@ func TestERSRuleAndBrakesRule_Unit(t *testing.T) {
 		t.Fatalf("expected ers_low directive, got %+v", dirsERS)
 	}
 
-	// 2. Brake Overheat
+	// 2. Brake Overheat: the fronts stay over the limit long enough
 	telePkt := &packets.PacketCarTelemetryData{
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 			{BrakesTemperature: wheels[uint16](960, 920, 800, 800)},
@@ -432,9 +432,13 @@ func TestERSRuleAndBrakesRule_Unit(t *testing.T) {
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
 	}
+	if dirs := brakesRule.Evaluate(ctxBrakes); len(dirs) != 0 {
+		t.Fatalf("expected no call on the first hot reading, got %+v", dirs)
+	}
+	ctxBrakes.Now = BrakeHotSustainMs
 	dirsBrakes := brakesRule.Evaluate(ctxBrakes)
-	if len(dirsBrakes) != 1 || dirsBrakes[0].SubAlert != "brake_overheat" {
-		t.Fatalf("expected brake_overheat directive, got %+v", dirsBrakes)
+	if len(dirsBrakes) != 1 || dirsBrakes[0].SubAlert != "brake_overheat" || !strings.Contains(dirsBrakes[0].Message, "rearward") {
+		t.Fatalf("expected brake_overheat (fronts) directive, got %+v", dirsBrakes)
 	}
 }
 
@@ -586,7 +590,7 @@ func TestFuelRule_TableDriven(t *testing.T) {
 		})
 	}
 
-	t.Run("fuel rule lap dedup and reset", func(t *testing.T) {
+	t.Run("fuel rule once a stint and again when worse", func(t *testing.T) {
 		rule := NewFuelRule()
 		ctx := &EvaluationContext{
 			Status: &packets.PacketCarStatusData{
@@ -614,13 +618,23 @@ func TestFuelRule_TableDriven(t *testing.T) {
 
 		dirs2 := rule.Evaluate(ctx)
 		if len(dirs2) != 0 {
-			t.Fatalf("expected 0 directives on repeated evaluation on same lap, got %d", len(dirs2))
+			t.Fatalf("expected 0 directives on repeated evaluation, got %d", len(dirs2))
 		}
 
-		rule.Reset(DedupScopeLap)
+		// A new lap with the same deficit isn't said again; a deficit a step worse is.
+		ctx.LapData.LapData[0].CurrentLapNum = 6
+		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
+			t.Fatalf("expected 0 directives on the next lap with the same deficit, got %d", len(dirs))
+		}
+		ctx.Status.CarStatusData[0].FuelRemainingLaps = -1.0 - FuelDeltaRecallStepLaps
+		if dirs := rule.Evaluate(ctx); len(dirs) != 1 {
+			t.Fatalf("expected 1 directive once the deficit grew by a step, got %d", len(dirs))
+		}
+
+		rule.Reset(DedupScopeStint)
 		dirs3 := rule.Evaluate(ctx)
 		if len(dirs3) != 1 {
-			t.Fatalf("expected 1 directive after Reset(DedupScopeLap), got %d", len(dirs3))
+			t.Fatalf("expected 1 directive after Reset(DedupScopeStint), got %d", len(dirs3))
 		}
 	})
 }
@@ -633,8 +647,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 3, TotalDistance: 2000.0},
-					{CarPosition: 4, TotalDistance: 1960.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 4, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1960.0},
 				},
 			},
 			Status: &packets.PacketCarStatusData{
@@ -685,8 +699,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 3, TotalDistance: 1960.0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1960.0},
 				},
 			},
 			Config:         cfg,
@@ -703,8 +717,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if len(dirs) != 1 {
 			t.Fatalf("expected 1 directive, got %d", len(dirs))
 		}
-		if !strings.Contains(dirs[0].Message, "Override/Boost attack threat") {
-			t.Errorf("expected 2026 message to mention Override/Boost attack threat: %s", dirs[0].Message)
+		if !strings.Contains(dirs[0].Message, "Override range") {
+			t.Errorf("expected 2026 message to mention Override range: %s", dirs[0].Message)
 		}
 	})
 
@@ -713,13 +727,13 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 1, TotalDistance: 2050.0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 1, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2050.0},
 				},
 			},
 			Telemetry2: &packets.PacketCarTelemetry2Data{
 				CarTelemetry2Data: [packets.MaxCars]packets.CarTelemetry2Data{
-					{OvertakeAvailable: 1},
+					{OvertakeAvailable: 1, Regulations2026: 1},
 				},
 			},
 			Config:         cfg,
@@ -739,10 +753,10 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if dirs[0].SubAlert != "rival_attack_override" {
 			t.Errorf("expected rival_attack_override, got %s", dirs[0].SubAlert)
 		}
-		if !strings.Contains(dirs[0].Message, "Override Boost is available!") {
+		if !strings.Contains(dirs[0].Message, "Override is available!") {
 			t.Errorf("expected message to mention Override Boost is available: %s", dirs[0].Message)
 		}
-		if !strings.Contains(dirs[0].Message, "Straight Mode and Boost deployment") {
+		if !strings.Contains(dirs[0].Message, "Straight Mode and Override") {
 			t.Errorf("expected message to mention Straight Mode and Boost: %s", dirs[0].Message)
 		}
 	})
@@ -752,8 +766,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 3, TotalDistance: 1980.0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1980.0},
 				},
 			},
 			Config:         cfg,
@@ -774,8 +788,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 2, TotalDistance: 2000.0},
-					{CarPosition: 3, TotalDistance: 1900.0, DeltaToCarInFrontMSPart: 750, DeltaToCarInFrontMinutesPart: 0},
+					{CarPosition: 2, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 2000.0},
+					{CarPosition: 3, ResultStatus: packets.ResultStatusActive, DriverStatus: packets.DriverStatusOnTrack, TotalDistance: 1900.0, DeltaToCarInFrontMSPart: 750, DeltaToCarInFrontMinutesPart: 0},
 				},
 			},
 			Config:         cfg,
@@ -870,6 +884,9 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 	if len(dirsS1) != 1 || dirsS1[0].SubAlert != "sector_delta" || dirsS1[0].ID != "coaching_s1" {
 		t.Fatalf("expected coaching_s1 directive, got %+v", dirsS1)
 	}
+	if v := dirsS1[0].Values; v == nil || v.Sector != 1 || v.DeltaSec != 0.5 {
+		t.Errorf("sector 1 values = %+v, want sector 1, 0.5 s", v)
+	}
 
 	// Lap 2, Sector 2: S2 time was 27600ms (+0.60s delta vs 27000ms >= 0.35s threshold)
 	ctxLap2S2 := &EvaluationContext{
@@ -894,6 +911,9 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 	if len(dirsS2) != 1 || dirsS2[0].SubAlert != "sector_delta" || dirsS2[0].ID != "coaching_s2" {
 		t.Fatalf("expected coaching_s2 directive, got %+v", dirsS2)
 	}
+	if v := dirsS2[0].Values; v == nil || v.Sector != 2 || v.DeltaSec != 0.6 {
+		t.Errorf("sector 2 values = %+v, want sector 2, 0.6 s", v)
+	}
 
 	// Reset clears baseline
 	rule.Reset(DedupScopeNone)
@@ -910,8 +930,8 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 10, TotalDistance: 5000.0, DriverStatus: packets.DriverStatusOnTrack},
-					{CurrentLapNum: 10, TotalDistance: 4800.0, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 10, TotalDistance: 5000.0, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+					{CurrentLapNum: 10, TotalDistance: 4800.0, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 				},
 			},
 			Config:           cfg,
@@ -930,8 +950,8 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 8, TotalDistance: 3000.0, DriverStatus: packets.DriverStatusOnTrack},
-					{CurrentLapNum: 8, TotalDistance: 3090.0, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 8, CarPosition: 4, TotalDistance: 3000.0, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+					{CurrentLapNum: 8, CarPosition: 3, TotalDistance: 3090.0, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 				},
 			},
 			Config:           cfg,
@@ -950,8 +970,8 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		ctx := &EvaluationContext{
 			LapData: &packets.PacketLapData{
 				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 15, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack},
-					{CurrentLapNum: 15, PitStatus: packets.PitStatusInPitArea, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 15, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+					{CurrentLapNum: 15, PitStatus: packets.PitStatusInPitArea, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 				},
 			},
 			Config:           cfg,
@@ -1108,6 +1128,7 @@ func TestERSRule_YearAware(t *testing.T) {
 			SessionType: packets.SessionRace,
 		},
 	}
+	rule.Reset(DedupScopeStint) // the low battery call is made once a stint
 	dirs2026 := rule.Evaluate(ctx2026)
 	if len(dirs2026) != 1 || !strings.Contains(dirs2026[0].Message, "MGU-K regeneration") {
 		t.Fatalf("expected 2026 ERS message to mention MGU-K regeneration: %+v", dirs2026)
@@ -1143,9 +1164,33 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
 	}
+	rule.Evaluate(ctxFade)
+	ctxFade.Now = BrakeHotSustainMs
 	dirsFade := rule.Evaluate(ctxFade)
 	if len(dirsFade) != 1 || dirsFade[0].SubAlert != "brake_overheat" {
 		t.Fatalf("expected brake_overheat directive, got %+v", dirsFade)
+	}
+
+	// Hot rears ask for the bias to go forward.
+	rearRule := NewBrakesRule()
+	ctxRear := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{BrakesTemperature: wheels[uint16](700, 700, 940, 930)},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	rearRule.Evaluate(ctxRear)
+	ctxRear.Now = BrakeHotSustainMs - 1
+	if dirs := rearRule.Evaluate(ctxRear); len(dirs) != 0 {
+		t.Fatalf("expected no call before the brake has been hot for %d ms, got %+v", BrakeHotSustainMs, dirs)
+	}
+	ctxRear.Now = BrakeHotSustainMs
+	if dirs := rearRule.Evaluate(ctxRear); len(dirs) != 1 || dirs[0].SubAlert != "brake_overheat_rear" || !strings.Contains(dirs[0].Message, "forward") {
+		t.Fatalf("expected brake_overheat_rear asking for forward bias, got %+v", dirs)
 	}
 
 	ctxCold := &EvaluationContext{
@@ -1163,7 +1208,8 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 		t.Fatalf("expected brake_cold directive, got %+v", dirsCold)
 	}
 
-	// 3. Front Brake Bias Imbalance (Front 850°C, Rear 400°C => delta 450°C >= 400°C)
+	// 3. One instant of hot fronts is no bias imbalance: the check compares braking zones
+	// (TestPhase5CockpitAndCrossovers/Brake_Bias_Recovery).
 	rule.Reset(DedupScopeStint)
 	ctxBias := &EvaluationContext{
 		Telemetry: &packets.PacketCarTelemetryData{
@@ -1175,18 +1221,10 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
 	}
-	dirsBias := rule.Evaluate(ctxBias)
-	var foundBias bool
-	for _, d := range dirsBias {
-		if d.SubAlert == "brake_bias" {
-			foundBias = true
-			if !strings.Contains(d.Message, "Move brake bias rearward") {
-				t.Fatalf("expected rearward bias suggestion, got %s", d.Message)
-			}
+	for _, d := range rule.Evaluate(ctxBias) {
+		if d.ID == "brake_bias" {
+			t.Fatalf("expected no brake_bias from one reading, got %+v", d)
 		}
-	}
-	if !foundBias {
-		t.Fatalf("expected brake_bias directive, got %+v", dirsBias)
 	}
 }
 
@@ -1236,7 +1274,7 @@ func TestDamageRule_EngineWear(t *testing.T) {
 }
 
 func TestFlagsRule_VSCAndPenalties(t *testing.T) {
-	rule := NewFlagsRule()
+	rule := seededFlagsRule()
 	cfg := DefaultEngineerConfig()
 
 	ctxVSC := &EvaluationContext{
@@ -1355,11 +1393,11 @@ func TestERSRule_EngineThermalDerateStages(t *testing.T) {
 		Phase:          PhaseRacing,
 	}
 	dirsWarn := rule.Evaluate(ctxWarn)
-	if len(dirsWarn) != 1 || dirsWarn[0].SubAlert != "radiator_overheat" || dirsWarn[0].Urgency != UrgencyMedium {
-		t.Fatalf("expected warning radiator_overheat at 135°C, got %+v", dirsWarn)
+	if len(dirsWarn) != 1 || dirsWarn[0].ID != "engine_temp_high" || dirsWarn[0].SubAlert != "radiator_overheat_high" || dirsWarn[0].Urgency != UrgencyMedium {
+		t.Fatalf("expected engine_temp_high at 135°C, got %+v", dirsWarn)
 	}
-	if !strings.Contains(dirsWarn[0].Message, "1.5%") || !strings.Contains(dirsWarn[0].Message, "Lift & Coast") {
-		t.Errorf("expected warning message to mention 1.5%% power loss and Lift & Coast: %s", dirsWarn[0].Message)
+	if strings.Contains(dirsWarn[0].Message, "power loss") {
+		t.Errorf("the engine call must not claim a power loss it can't measure: %s", dirsWarn[0].Message)
 	}
 
 	// 2. Stage Critical: 145°C (6.0% loss, UrgencyHigh)
@@ -1374,11 +1412,24 @@ func TestERSRule_EngineThermalDerateStages(t *testing.T) {
 		Phase:          PhaseRacing,
 	}
 	dirsCrit := rule.Evaluate(ctxCrit)
-	if len(dirsCrit) != 1 || dirsCrit[0].SubAlert != "radiator_overheat" || dirsCrit[0].Urgency != UrgencyHigh {
-		t.Fatalf("expected critical radiator_overheat at 145°C, got %+v", dirsCrit)
+	if len(dirsCrit) != 1 || dirsCrit[0].ID != "engine_temp_critical" || dirsCrit[0].SubAlert != "radiator_overheat_critical" || dirsCrit[0].Urgency != UrgencyHigh {
+		t.Fatalf("expected engine_temp_critical at 145°C, got %+v", dirsCrit)
 	}
-	if !strings.Contains(dirsCrit[0].Message, "6.0%") || !strings.Contains(dirsCrit[0].Message, "thermal derate") {
-		t.Errorf("expected critical message to mention 6.0%% power loss and thermal derate: %s", dirsCrit[0].Message)
+
+	// 3. The driver's own limit: 125°C by default
+	ctxLimit := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{EngineTemperature: 127},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	dirsLimit := rule.Evaluate(ctxLimit)
+	if len(dirsLimit) != 1 || dirsLimit[0].ID != "engine_temp" || dirsLimit[0].SubAlert != "radiator_overheat" {
+		t.Fatalf("expected engine_temp at 127°C under the Safety Car, got %+v", dirsLimit)
 	}
 }
 
@@ -1666,8 +1717,8 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 	ctxTeammateSC := &EvaluationContext{
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
-				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack}, // teammate 50m ahead
+				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive}, // teammate 50m ahead
 			},
 		},
 		Session:          sessionSC,
@@ -1684,8 +1735,8 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 	ctxTeammatePitSC := &EvaluationContext{
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
-				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting},
+				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
+				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting, ResultStatus: packets.ResultStatusActive},
 			},
 		},
 		Session:          sessionSC,
@@ -1709,7 +1760,7 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 		},
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 			},
 		},
 		Session:        sessionSC,
@@ -1737,7 +1788,7 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 		},
 		LapData: &packets.PacketLapData{
 			LapData: [packets.MaxCars]packets.LapData{
-				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive},
 			},
 		},
 		Session:        sessionSC,
@@ -1855,6 +1906,9 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 		if len(dirsSlow) != 1 || dirsSlow[0].SubAlert != "start_reaction_slow" {
 			t.Fatalf("expected slow start reaction alert, got %+v", dirsSlow)
 		}
+		if v := dirsSlow[0].Values; v == nil || v.ReactionSec != 0.45 {
+			t.Errorf("slow start values = %+v, want the 0.45 s reaction", v)
+		}
 	})
 
 	// 3. Pit Stop Procedures (penalty serving, box timer, limiter exit)
@@ -1885,14 +1939,12 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 
 		// Initial evaluation: pit_serve_penalty
 		dirsEntry := rule.Evaluate(ctxPitEntry)
-		var hasServePen bool
-		for _, d := range dirsEntry {
-			if d.ID == "pit_serve_penalty" {
-				hasServePen = true
-			}
-		}
-		if !hasServePen {
+		servePen := directiveFor(dirsEntry, "pit_serve_penalty")
+		if servePen == nil {
 			t.Fatalf("expected pit_serve_penalty alert on pit entry, got %+v", dirsEntry)
+		}
+		if v := servePen.Values; v == nil || v.PenaltySec != 5 {
+			t.Errorf("serve penalty values = %+v, want the 5 s hold", v)
 		}
 
 		// In pit box stationary: PitStatus = InPitArea, PitStopTimerInMS = 2400
@@ -2036,6 +2088,10 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 			Phase:          PhaseRacing,
 		}
 
+		if dirs := rule.Evaluate(ctxWet); len(dirs) != 0 {
+			t.Fatalf("expected the heavy rain to have to hold first, got %+v", dirs)
+		}
+		ctxWet.Now = CrossoverRainConfirmMs
 		dirsWet := rule.Evaluate(ctxWet)
 		if len(dirsWet) != 1 || dirsWet[0].ID != "tyre_crossover_wet" || !strings.Contains(dirsWet[0].Message, "Full Wets") {
 			t.Fatalf("expected tyre_crossover_wet, got %+v", dirsWet)
@@ -2062,6 +2118,8 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 			PlayerCarIndex: 0,
 			Phase:          PhaseRacing,
 		}
+		ruleDrying.Evaluate(ctxDrying)
+		ctxDrying.Now = CrossoverRainConfirmMs
 		dirsDrying := ruleDrying.Evaluate(ctxDrying)
 		if len(dirsDrying) != 1 || dirsDrying[0].ID != "tyre_crossover_inter" || !strings.Contains(dirsDrying[0].Message, "Inters") {
 			t.Fatalf("expected tyre_crossover_inter, got %+v", dirsDrying)
@@ -2103,51 +2161,59 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		if len(dirs) != 1 || dirs[0].ID != "tyre_set_advisory" || !strings.Contains(dirs[0].Message, "Hard") {
 			t.Fatalf("expected tyre_set_advisory with Hard tyres, got %+v", dirs)
 		}
+		if v := dirs[0].Values; v == nil || v.Compound != TyreHard {
+			t.Errorf("advisory values = %+v, want the fresh hards", v)
+		}
 		ctx.Config = cfg
 		if dirs := NewTyresRule().Evaluate(ctx); len(dirs) != 0 {
 			t.Fatalf("expected no tyre_set_advisory with the plan's heads-up on, got %+v", dirs)
 		}
 	})
 
-	// 3. Brake Bias Equalization Recovery
+	// 3. Brake Bias Equalization Recovery: the bias call compares the last braking zones' peaks
 	t.Run("Brake Bias Recovery", func(t *testing.T) {
 		rule := NewBrakesRule()
-		// First trigger front imbalance
-		teleImbalanced := &packets.PacketCarTelemetryData{
-			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{
-					BrakesTemperature: wheels[uint16](850, 850, 400, 400), // Front 850, Rear 400 (delta 450 >= 400)
-				},
-			},
-		}
-		ctxImbalance := &EvaluationContext{
-			Telemetry:      teleImbalanced,
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
-		}
-		dirs1 := rule.Evaluate(ctxImbalance)
-		if len(dirs1) != 1 || dirs1[0].ID != "brake_bias" {
-			t.Fatalf("expected brake_bias alert, got %+v", dirs1)
+		// zone drives one braking zone at these temperatures and returns the calls made when it ends.
+		zone := func(fl, fr, rl, rr uint16) []Directive {
+			braking := &EvaluationContext{
+				Telemetry: &packets.PacketCarTelemetryData{CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+					{Brake: 1, BrakesTemperature: wheels[uint16](fl, fr, rl, rr)},
+				}},
+				Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+			}
+			if dirs := rule.Evaluate(braking); len(dirs) != 0 {
+				t.Fatalf("expected no call while braking, got %+v", dirs)
+			}
+			released := &EvaluationContext{
+				Telemetry: &packets.PacketCarTelemetryData{CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+					{BrakesTemperature: wheels[uint16](fl, fr, rl, rr)},
+				}},
+				Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+			}
+			return rule.Evaluate(released)
 		}
 
-		// Now normalize temperatures (delta 50 < 150)
-		teleBalanced := &packets.PacketCarTelemetryData{
-			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{
-					BrakesTemperature: wheels[uint16](600, 600, 550, 550), // Front 600, Rear 550 (delta 50 < 150)
-				},
-			},
+		// Front 850, rear 400 (delta 450 >= 400): said once the last zones all show it
+		for i := 1; i < BrakeBiasZones; i++ {
+			if dirs := zone(850, 850, 400, 400); len(dirs) != 0 {
+				t.Fatalf("zone %d: expected no bias call before %d zones, got %+v", i, BrakeBiasZones, dirs)
+			}
 		}
-		ctxBalance := &EvaluationContext{
-			Telemetry:      teleBalanced,
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
+		dirs1 := zone(850, 850, 400, 400)
+		if len(dirs1) != 1 || dirs1[0].ID != "brake_bias" || dirs1[0].SubAlert != "brake_bias" {
+			t.Fatalf("expected brake_bias alert (fronts hot), got %+v", dirs1)
 		}
-		dirs2 := rule.Evaluate(ctxBalance)
-		if len(dirs2) != 1 || dirs2[0].ID != "brake_bias_ok" {
-			t.Fatalf("expected brake_bias_ok, got %+v", dirs2)
+		if v := dirs1[0].Values; v == nil || v.Axle != AxleFront {
+			t.Errorf("bias values = %+v, want the hot front axle", v)
+		}
+
+		// Balanced zones (delta 50) bring the average under 150
+		var ok []Directive
+		for i := 0; i < BrakeBiasZones && len(ok) == 0; i++ {
+			ok = zone(600, 600, 550, 550)
+		}
+		if len(ok) != 1 || ok[0].ID != "brake_bias_ok" {
+			t.Fatalf("expected brake_bias_ok, got %+v", ok)
 		}
 	})
 
@@ -2177,9 +2243,11 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 			Phase:          PhaseSafetyCar,
 		}
 		dirsSC := rule.Evaluate(ctxSC)
-		if len(dirsSC) != 1 || dirsSC[0].ID != "fuel_mix_neutralized" || !strings.Contains(dirsSC[0].Message, "Lean") {
+		if len(dirsSC) != 1 || dirsSC[0].ID != "fuel_mix_neutralized" || !strings.Contains(dirsSC[0].Message, "lean") {
 			t.Fatalf("expected fuel_mix_neutralized under SC, got %+v", dirsSC)
 		}
+		// The phase change at the restart doesn't forget the Safety Car.
+		rule.Reset(DedupScopePhase)
 
 		// On restart: car is in Lean, race resumes green
 		sessionGreen := &packets.PacketSessionData{
@@ -2205,8 +2273,11 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 			Phase:          PhaseRacing,
 		}
 		dirsRestart := rule.Evaluate(ctxRestart)
-		if len(dirsRestart) != 1 || dirsRestart[0].ID != "fuel_mix_restart" || !strings.Contains(dirsRestart[0].Message, "Race Mix 2") {
+		if len(dirsRestart) != 1 || dirsRestart[0].ID != "fuel_mix_restart" || !strings.Contains(dirsRestart[0].Message, "race mix") {
 			t.Fatalf("expected fuel_mix_restart on green flag, got %+v", dirsRestart)
+		}
+		if dirs := rule.Evaluate(ctxRestart); len(dirs) != 0 {
+			t.Fatalf("expected the restart call once, got %+v", dirs)
 		}
 	})
 
@@ -2341,6 +2412,9 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		if len(dirsS3) != 1 || dirsS3[0].ID != "coaching_s3" || !strings.Contains(dirsS3[0].Message, "Sector 3") {
 			t.Fatalf("expected coaching_s3 directive, got %+v", dirsS3)
 		}
+		if v := dirsS3[0].Values; v == nil || v.Sector != 3 || v.DeltaSec != 0.8 {
+			t.Errorf("sector 3 values = %+v, want sector 3, 0.8 s", v)
+		}
 	})
 }
 
@@ -2359,6 +2433,7 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 					OvertakeAvailable:            1,
 					OvertakeActive:               0,
 					OvertakeActivationDistance:   95, // <= 100m
+					Regulations2026:              1,
 				},
 			},
 		}

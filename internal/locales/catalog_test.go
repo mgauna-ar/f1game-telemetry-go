@@ -162,6 +162,11 @@ func TestCatalogMethodsNonEmpty(t *testing.T) {
 				t.Errorf("CriticalRadioConstraints() is empty for locale %s", cat.LocaleCode())
 			}
 
+			// Wording a routine radio call
+			if strings.TrimSpace(cat.RadioLineDirective()) == "" {
+				t.Errorf("RadioLineDirective() is empty for locale %s", cat.LocaleCode())
+			}
+
 			// Urgencies
 			for _, u := range []string{"critical", "high", "relaxed"} {
 				if strings.TrimSpace(cat.UrgencyDirective(u)) == "" {

@@ -7,8 +7,14 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-// ERSRule manages low ERS battery reserve and engine radiator overheating alerts.
-type ERSRule struct{}
+// ERSRule manages low ERS battery reserve, ERS clipping and engine temperature alerts.
+type ERSRule struct {
+	// The low battery call is made once a stint: lowCalledPct is the charge it was made at and
+	// lowCalledAt when. It is made again only lower by ERSLowRecallStepPct, ERSLowRecallMinMs on.
+	lowCalled    bool
+	lowCalledPct float32
+	lowCalledAt  int64
+}
 
 // NewERSRule creates a new ERSRule.
 func NewERSRule() *ERSRule {
@@ -24,14 +30,18 @@ func (r *ERSRule) Category() string {
 }
 
 func (r *ERSRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap}
+	return []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
+
+// engineTempPhases are where the engine temperature calls are made: on track, the Safety Car
+// included (a slow car runs hot).
+var engineTempPhases = []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 
 func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"ers_low": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeLap,
+			DedupScope:  DedupScopeNone, // once a stint, again when lower (Evaluate)
 			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"ers_clipping": {
@@ -39,17 +49,35 @@ func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:  DedupScopeLap,
 			MaxDelayMs:  MomentMaxDelayMs,
 		},
+		// Each step of the engine temperature is its own call, so the climb to the next one is said.
 		"engine_temp": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
-			DedupScope:  DedupScopeStint,
-			MaxDelayMs:  ConditionMaxDelayMs,
-			MinRepeatMs: EngineTempMinRepeatMs,
+			ValidPhases:     engineTempPhases,
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			MinRepeatMs:     EngineTempMinRepeatMs,
+			OutlastsSilence: true,
+		},
+		"engine_temp_high": {
+			ValidPhases:     engineTempPhases,
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			MinRepeatMs:     EngineTempMinRepeatMs,
+			OutlastsSilence: true,
+		},
+		"engine_temp_critical": {
+			ValidPhases:     engineTempPhases,
+			DedupScope:      DedupScopeStint,
+			MaxDelayMs:      ConditionMaxDelayMs,
+			MinRepeatMs:     EngineTempMinRepeatMs,
+			OutlastsSilence: true,
 		},
 	}
 }
 
 func (r *ERSRule) Reset(scope DedupScope) {
-	// State is managed by engine deduplication & cooldowns
+	if scope == DedupScopeStint || scope == DedupScopeNone {
+		r.lowCalled = false
+	}
 }
 
 func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
@@ -73,8 +101,10 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 		lapFraction := CalculateLapDistanceFraction(ctx.Session, playerLap)
 		isFinalSector := lapFraction >= ERSPushLapDistanceFraction
 
-		if ersPct <= ctx.Config.ERSLowPct && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
+		lower := !r.lowCalled || (ersPct <= r.lowCalledPct-ERSLowRecallStepPct && ctx.Now-r.lowCalledAt >= ERSLowRecallMinMs)
+		if ersPct <= ctx.Config.ERSLowPct && lower && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
 			!isNeutralized && !isPushMode && !isFinalSector {
+			r.lowCalled, r.lowCalledPct, r.lowCalledAt = true, ersPct, ctx.Now
 			var ersMsg string
 			if ctx.Is2026() {
 				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Use Lift & Coast for MGU-K regeneration on straights.", int(math.Round(float64(ersPct))))
@@ -88,11 +118,13 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Low ERS Battery",
 				Message:  ersMsg,
 				Urgency:  UrgencyLow,
+				Values:   &DirectiveValues{Pct: int(math.Round(float64(ersPct)))},
 			})
 		}
 
-		// 1b. Per-Lap ERS Energy Clipping / Derate (Approaching 4.0MJ per-lap quota)
-		if status.ERSDeployedThisLap >= ERSClippingThresholdJoules && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
+		// 1b. Clipping: the lap's 4 MJ deploy limit is close. A pre-2026 rule: 2026 cars have no
+		// per-lap deploy limit (their packet only gives the harvest limit), so they aren't called.
+		if !ctx.Is2026() && status.ERSDeployedThisLap >= ERSClippingThresholdJoules && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
 			!isNeutralized && lapFraction < ERSClippingMaxDistanceFraction {
 			directives = append(directives, Directive{
 				ID:       "ers_clipping",
@@ -105,29 +137,27 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 2. Engine Core Radiator Overheating & Thermal Derate (from CarTelemetryData)
+	// 2. Engine temperature (from CarTelemetryData): the driver's limit, then two steps above it.
 	tele := ctx.PlayerTelemetry()
 	if tele != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarTelemetryData](ctx.Packet)) {
 		engTemp := float32(tele.EngineTemperature)
-		_, powerLossPct := CalculateEnginePowerPct(engTemp)
-
 		switch {
-		case engTemp >= EnginePowerCritTempC:
+		case engTemp >= max(EnginePowerCritTempC, ctx.Config.EngineOverheatC):
 			directives = append(directives, Directive{
-				ID:       "engine_temp",
+				ID:       "engine_temp_critical",
 				Category: DirectiveCategoryERS,
-				SubAlert: "radiator_overheat",
-				Title:    "Critical Engine Overheating",
-				Message:  fmt.Sprintf("Critical engine temperature! Power unit at %d°C (%.1f%% power loss). Lift and coast immediately to prevent thermal derate.", tele.EngineTemperature, powerLossPct),
+				SubAlert: "radiator_overheat_critical",
+				Title:    "Critical Engine Temperature",
+				Message:  fmt.Sprintf("Critical engine temperature, %d°C! Lift and coast and get out of the tow to cool it now.", tele.EngineTemperature),
 				Urgency:  UrgencyHigh,
 			})
-		case engTemp >= EnginePowerWarnTempC:
+		case engTemp >= max(EnginePowerWarnTempC, ctx.Config.EngineOverheatC):
 			directives = append(directives, Directive{
-				ID:       "engine_temp",
+				ID:       "engine_temp_high",
 				Category: DirectiveCategoryERS,
-				SubAlert: "radiator_overheat",
-				Title:    "Engine Radiator Overheating",
-				Message:  fmt.Sprintf("Engine temperature high at %d°C (%.1f%% power loss). Introduce Lift & Coast into braking zones to cool the engine.", tele.EngineTemperature, powerLossPct),
+				SubAlert: "radiator_overheat_high",
+				Title:    "Engine Temperature Rising",
+				Message:  fmt.Sprintf("Engine temperature still climbing, %d°C. Lift and coast into the braking zones and find clean air.", tele.EngineTemperature),
 				Urgency:  UrgencyMedium,
 			})
 		case engTemp >= ctx.Config.EngineOverheatC:
@@ -135,8 +165,8 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				ID:       "engine_temp",
 				Category: DirectiveCategoryERS,
 				SubAlert: "radiator_overheat",
-				Title:    "Engine Radiator Overheating",
-				Message:  fmt.Sprintf("Engine core water/oil temperatures are high at %d°C (limit: %d°C)!", tele.EngineTemperature, int(ctx.Config.EngineOverheatC)),
+				Title:    "Engine Temperature High",
+				Message:  fmt.Sprintf("Engine temperature is high at %d°C (limit: %d°C). Some lift and coast to cool it.", tele.EngineTemperature, int(ctx.Config.EngineOverheatC)),
 				Urgency:  UrgencyMedium,
 			})
 		}

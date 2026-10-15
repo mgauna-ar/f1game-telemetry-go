@@ -63,3 +63,17 @@ func BuildChatContext(ctx context.Context, req *ChatContextRequest, opts ChatOpt
 	}
 	return tc, nil
 }
+
+// CheckChannel reports an unknown channel, or a radio answer about anything but the live session.
+func (r AIChatRequest) CheckChannel() error {
+	switch r.Channel {
+	case "", ChatChannelChat:
+		return nil
+	case ChatChannelRadio:
+		if r.Context == nil || r.Context.ContextMode != ContextModeLive {
+			return fmt.Errorf("%w: the radio channel needs context_mode live", ErrInvalidChatContext)
+		}
+		return nil
+	}
+	return fmt.Errorf("%w: unknown channel %q", ErrInvalidChatContext, r.Channel)
+}

@@ -65,7 +65,7 @@ func TestFlagsRule_FastestLapOnlyThePlayers(t *testing.T) {
 }
 
 func TestFlagsRule_Penalties(t *testing.T) {
-	rule := NewFlagsRule()
+	rule := seededFlagsRule()
 	step := func(timeSec, driveThroughs, stopGos uint8) *Directive {
 		lapPkt := &packets.PacketLapData{}
 		lapPkt.LapData[0] = packets.LapData{Penalties: timeSec, NumUnservedDriveThroughPens: driveThroughs, NumUnservedStopGoPens: stopGos}
@@ -110,7 +110,7 @@ func TestFlagsRule_TrackLimitsSaysTheCount(t *testing.T) {
 	lapPkt.LapData[0] = packets.LapData{CornerCuttingWarnings: 3}
 	ctx := &EvaluationContext{Packet: lapPkt, LapData: lapPkt, Config: DefaultEngineerConfig(), Phase: PhaseRacing,
 		Session: &packets.PacketSessionData{SessionType: packets.SessionRace}}
-	d := directiveFor(NewFlagsRule().Evaluate(ctx), "track_limits_warnings")
+	d := directiveFor(seededFlagsRule().Evaluate(ctx), "track_limits_warnings")
 	if d == nil || d.Values == nil || d.Values.Count != 3 {
 		t.Fatalf("expected 3 warnings in the values, got %+v", d)
 	}
@@ -122,6 +122,9 @@ func TestRivalsRule_DRSOnlyWhenAvailable(t *testing.T) {
 		lapPkt.LapData[0] = packets.LapData{CarPosition: 5, CurrentLapNum: 8, DeltaToCarInFrontMSPart: 700}
 		lapPkt.LapData[1] = packets.LapData{CarPosition: 6, CurrentLapNum: 8, DeltaToCarInFrontMSPart: 600}
 		lapPkt.LapData[2] = packets.LapData{CarPosition: 4, CurrentLapNum: 8}
+		for i := range 3 {
+			lapPkt.LapData[i].ResultStatus, lapPkt.LapData[i].DriverStatus = packets.ResultStatusActive, packets.DriverStatusOnTrack
+		}
 		status := &packets.PacketCarStatusData{}
 		status.CarStatusData[0].DRSAllowed = playerDRS
 		status.CarStatusData[1].DRSAllowed = rivalDRS
@@ -266,7 +269,10 @@ func TestOvercut_Silent(t *testing.T) {
 		setup func(r *rivalRace)
 	}{
 		{"too far ahead", func(r *rivalRace) { r.lap.LapData[rrPlayer].DeltaToCarInFrontMSPart = 3000 }},
-		{"no gap known", func(r *rivalRace) { r.lap.LapData[rrPlayer].DeltaToCarInFrontMSPart = 0 }},
+		{"no timing, too far on track", func(r *rivalRace) {
+			r.lap.LapData[rrPlayer].DeltaToCarInFrontMSPart = 0
+			r.lap.LapData[rrAhead].TotalDistance = 46_600 // 400 m: 6 s at 65 m/s
+		}},
 		{"the teammate", func(r *rivalRace) { r.e.teammateCarIndex = rrAhead }},
 		{"under the Safety Car", func(r *rivalRace) {
 			r.session.SafetyCarStatus = packets.SafetyCarFull

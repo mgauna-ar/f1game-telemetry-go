@@ -11,8 +11,12 @@ import (
 // ideal on lap 3 and latest on lap 5: the player ignores the ideal lap and pits at the end of lap
 // 5. The game then plans the second stop for lap 10 (latest 11), and a VSC on lap 9 brings it a
 // lap early: the player pits under it. The player runs P2 behind car 2 (car 1 is the teammate),
-// which pits at the end of lap 2 (the overcut call); lap 12 is the last. AI cars pit on the first laps, as in the pit
-// scenario, so the server learns the pit entry before the plan's first call.
+// which pits at the end of lap 2 (the overcut call); lap 12 is the last. Car 2 comes out 5.7 s up
+// the road and the player closes 0.5 s a lap: the closing call comes once neither stop is in the
+// gap's trend and the tyres aren't fresh, around lap 8. Car 2 gets a 5 s time penalty on lap 4
+// (the rival penalty call). AI cars pit on the first laps, as in the pit
+// scenario, so the server learns the pit entry before the plan's first call; their stops, a few
+// seconds behind, are news.
 const (
 	simStrategyLaps         = 12
 	simStrategyRejoin       = 9
@@ -21,6 +25,7 @@ const (
 	simStrategyVSCFromM     = 2500 // the VSC comes out this far into simStrategyVSCLap...
 	simStrategyVSCEndingM   = 600  // ...its ending is announced this far into the next lap...
 	simStrategyVSCEndM      = 1000 // ...and it ends this far into it
+	simStrategyPenaltyLap   = 4    // car 2 has a time penalty from this lap
 )
 
 // simStrategyAIPitLaps are the AI cars that pit in the strategy scenario and the lap each pits at
@@ -39,6 +44,15 @@ func simStrategyPosition(carIdx int) uint8 {
 		return 1
 	}
 	return uint8(carIdx + 1)
+}
+
+// simStrategyGapAheadMS is the player's gap to car 2, ahead, on lap lapNum: nose to tail on the
+// first laps, then from 5.7 s after car 2's stop, 0.5 s less each lap.
+func simStrategyGapAheadMS(lapNum uint8) uint16 {
+	if lapNum <= 2 {
+		return 350
+	}
+	return uint16(max(6700-500*int(lapNum-1), 350))
 }
 
 // simStrategyStops are the laps the player pits at the end of.
