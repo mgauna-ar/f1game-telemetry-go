@@ -149,6 +149,26 @@ describe('the radio phrase picker', () => {
         gap: '0.7',
       });
     });
+
+    it('says how many laps until a closing car is in range, but not one', () => {
+      const closing = { ahead: { gap_sec: 2.6, trend: 'closing' as const, per_lap_sec: 0.4 } };
+      expect(callFacts({ ...closing, laps_to_range: 4 }, 'en')).toEqual({ gap: '2.6', rate: '0.4', laps: '4' });
+      expect(callFacts({ ...closing, laps_to_range: 1 }, 'en')).toEqual({ gap: '2.6', rate: '0.4' });
+    });
+
+    it("says a track temperature change in the listener's unit, without its sign", () => {
+      expect(callFacts({ track_temp_delta_c: 7 }, 'en')).toEqual({ temp_delta: '7' });
+      expect(callFacts({ track_temp_delta_c: -7 }, 'es', 'c')).toEqual({ temp_delta: '7' });
+      expect(callFacts({ track_temp_delta_c: -7 }, 'en', 'f')).toEqual({ temp_delta: '13' });
+      expect(callFacts({ track_temp_delta_c: 6 }, 'en', 'f')).toEqual({ temp_delta: '11' });
+      const picker = createRadioPhrasePicker(seeded(2));
+      const speech = picker.proactive('track_temp_up', {
+        ...quiet,
+        values: { track_temp_delta_c: 7 },
+        temperatureUnit: 'f',
+      });
+      expect(speech).toContain('13 degrees');
+    });
   });
 
   describe("the driver's callsign", () => {

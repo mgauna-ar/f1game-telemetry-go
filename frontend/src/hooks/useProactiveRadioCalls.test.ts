@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { RADIO_LINE } from '../constants/f1';
+import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import type { RadioAlertPayload } from '../types/telemetry';
 import { useProactiveRadioCalls, type ProactiveRadio } from './useProactiveRadioCalls';
 
-const { post, onTrigger } = vi.hoisted(() => ({
+const { post, onTrigger, prepare } = vi.hoisted(() => ({
   post: vi.fn(),
   onTrigger: { current: null as ((payload: RadioAlertPayload) => void) | null },
+  // Each call's catalogue words name it, and the callsign goes in front of a line the AI worded.
+  prepare: vi.fn((category: string) => ({
+    speech: `Max, the ${category} line.`,
+    baseline: `The ${category} line.`,
+    address: (line: string) => `Max, ${line}`,
+  })),
 }));
 
 vi.mock('../utils/apiClient', () => ({ api: { post } }));
@@ -15,14 +22,7 @@ vi.mock('./useProactiveTelemetryRadio', () => ({
     onTrigger.current = onTriggerAlert;
   },
 }));
-// Each call's catalogue words name it, and the callsign goes in front of a line the AI worded.
-vi.mock('../utils/radioPhrases', () => ({
-  prepareProactiveRadioCall: (category: string) => ({
-    speech: `Max, the ${category} line.`,
-    baseline: `The ${category} line.`,
-    address: (line: string) => `Max, ${line}`,
-  }),
-}));
+vi.mock('../utils/radioPhrases', () => ({ prepareProactiveRadioCall: prepare }));
 
 const CALM = { rateModifier: 0, pitchModifier: 0 };
 
@@ -69,6 +69,21 @@ describe('useProactiveRadioCalls', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("says a temperature change in the device's unit", () => {
+    const units = useDevicePreferencesStore.getState().units;
+    useDevicePreferencesStore.getState().setUnits({ temperature: 'f' });
+    try {
+      const { send } = setup();
+      send(call({ category: 'track_temp_up', values: { track_temp_delta_c: 7 } }));
+      expect(prepare).toHaveBeenLastCalledWith(
+        'track_temp_up',
+        expect.objectContaining({ temperatureUnit: 'f', values: { track_temp_delta_c: 7 } })
+      );
+    } finally {
+      useDevicePreferencesStore.getState().setUnits(units);
+    }
   });
 
   it("says a wordable call in the AI's words, addressed like the catalogue line", async () => {

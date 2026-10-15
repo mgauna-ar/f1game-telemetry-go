@@ -220,6 +220,10 @@ func TestEngineerEngine_SpeechTTL(t *testing.T) {
 		{"condition call is capped", "tyre_wear", 0, MaxSpeechTTLMs},
 		{"held call keeps what is left", "pit_window", DefaultMaxDelayMs - 8_000, 8_000},
 		{"never below the floor", "rival_defend", MomentMaxDelayMs, MinSpeechTTLMs},
+		{"a rival's penalty stays true", "rival_penalty", 30_000, MaxSpeechTTLMs},
+		{"so does a weather change", "weather_change", 30_000, MaxSpeechTTLMs},
+		{"and the track temperature", "track_temp_swing", 30_000, MaxSpeechTTLMs},
+		{"a stop is news for less long", "leader_pitted", 30_000, MinSpeechTTLMs},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

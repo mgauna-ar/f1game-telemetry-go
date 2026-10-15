@@ -409,6 +409,14 @@ describe('useRadioSettingsStore and slices', () => {
     }
   });
 
+  it('has the news of the cars around and of the weather in Immersive and Coaching, not in Minimal', () => {
+    for (const key of ['subRivalClosing', 'subRivalPenalty', 'subPitNews', 'subWeatherChanges'] as const) {
+      expect(TRIGGER_PRESET_VALUES.immersive[key], key).toBe(true);
+      expect(TRIGGER_PRESET_VALUES.coaching[key], key).toBe(true);
+      expect(TRIGGER_PRESET_VALUES.minimal[key], key).toBe(false);
+    }
+  });
+
   it('starts on the Immersive preset with matching alert switches', () => {
     const state = useRadioSettingsStore.getState();
     expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);

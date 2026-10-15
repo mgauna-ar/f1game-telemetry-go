@@ -153,6 +153,7 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		NewERSRule(),
 		NewBrakesRule(),
 		NewFuelRule(),
+		NewStrategyNewsRule(),
 		NewPitPlanRule(),
 		NewRivalsRule(),
 		NewCoachingRule(),

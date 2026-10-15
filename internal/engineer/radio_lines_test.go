@@ -183,6 +183,10 @@ func TestDescribeValues(t *testing.T) {
 		{&DirectiveValues{RainPct: 85, Minutes: 2}, "minutes: 2; 85% chance of rain"},
 		{&DirectiveValues{FuelDeltaLaps: -0.42}, "fuel 0.4 laps short"},
 		{&DirectiveValues{PoleGapSec: 0.088, Elimination: EliminationDropZone}, "0.088 s to pole; qualifying cut line: drop zone"},
+		{&DirectiveValues{Ahead: &GapToCar{GapSec: 2.6, Trend: GapClosing, PerLapSec: 0.4, Name: "Hamilton", Compound: TyreMedium, TyreAgeDiffLaps: 8}, LapsToRange: 4},
+			"car ahead 2.6 s, closing 0.4 s a lap, Hamilton, on medium tyres 8 laps older than ours; in battle range in about 4 laps"},
+		{&DirectiveValues{Behind: &GapToCar{GapSec: 1.1, Compound: TyreSoft, TyreAgeDiffLaps: -5}}, "car behind 1.1 s, on soft tyres 5 laps fresher than ours"},
+		{&DirectiveValues{TrackTempDeltaC: -7}, "track temperature down 7 °C (13 °F) this stint"},
 	}
 	for _, tt := range tests {
 		if got := describeValues(tt.values); got != tt.want {

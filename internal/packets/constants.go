@@ -125,6 +125,12 @@ const (
 	WeatherStorm      uint8 = 5
 )
 
+// Weather forecast accuracy (session packet)
+const (
+	ForecastAccuracyPerfect     uint8 = 0
+	ForecastAccuracyApproximate uint8 = 1
+)
+
 // Actual tyre compound identifiers (C0 through C6 Pirelli dry slick compounds)
 const (
 	ActualCompoundC5 uint8 = 16

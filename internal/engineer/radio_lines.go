@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
@@ -108,6 +109,18 @@ func describeValues(v *DirectiveValues) string {
 		} else if gap.Trend == GapStable {
 			text += ", stable"
 		}
+		if gap.Name != "" {
+			text += ", " + gap.Name
+		}
+		if gap.Compound != "" {
+			text += fmt.Sprintf(", on %s tyres", gap.Compound)
+			switch {
+			case gap.TyreAgeDiffLaps > 0:
+				text += fmt.Sprintf(" %d laps older than ours", gap.TyreAgeDiffLaps)
+			case gap.TyreAgeDiffLaps < 0:
+				text += fmt.Sprintf(" %d laps fresher than ours", -gap.TyreAgeDiffLaps)
+			}
+		}
 		facts = append(facts, text)
 	}
 	describeGap("ahead", v.Ahead)
@@ -162,6 +175,17 @@ func describeValues(v *DirectiveValues) string {
 		add("fuel %.1f laps short", -v.FuelDeltaLaps)
 	case v.FuelDeltaLaps >= 0.05:
 		add("fuel %.1f laps over", v.FuelDeltaLaps)
+	}
+	if v.LapsToRange > 0 {
+		add("in battle range in about %d laps", v.LapsToRange)
+	}
+	if v.TrackTempDeltaC != 0 {
+		// Both units: the dashboard says the driver's.
+		dir, c := "up", v.TrackTempDeltaC
+		if c < 0 {
+			dir, c = "down", -c
+		}
+		add("track temperature %s %d °C (%d °F) this stint", dir, c, int(math.Round(float64(c)*9/5)))
 	}
 	return strings.Join(facts, "; ")
 }

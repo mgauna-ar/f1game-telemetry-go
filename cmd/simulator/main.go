@@ -451,8 +451,16 @@ func main() {
 			}
 
 			// 4. Lap Data Packet (ID: 2)
+			playerPitBefore := st.pitStatus[0]
 			lapCars := buildLapCars(cfg, st, lapDist)
 			sendLapDataPacket(conn, header, cfg.TotalSlots, lapCars)
+
+			// The pit scenario's player serves a drive-through as they leave the pit lane.
+			if cfg.Scenario == "pit" && playerPitBefore != packets.PitStatusNone && st.pitStatus[0] == packets.PitStatusNone {
+				slog.Info("Drive-through served", "scenario", "pit", "lap", st.lapNum)
+				evtPkt := buildCodeEvent(header, packets.EventDriveThroughServed)
+				sendEventPacket(conn, &evtPkt)
+			}
 
 			// 5. Car Status Packet (ID: 7)
 			if st.frameID == 1 || st.frameID%5 == 0 {
@@ -553,10 +561,16 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 	timeOffsetSample1 := uint8(5)
 	if cfg.Scenario == "rain" {
 		if st.sessionTime >= 2.0 && st.sessionTime < 2.1 {
-			slog.Info("Rain forecast injected", "scenario", "rain", "probability", "85%", "timeToRain", "2m")
+			slog.Info("Rain forecast injected", "scenario", "rain", "probability", "85%", "timeToRain", "2m", "accuracy", "approximate")
 		}
 		rainPctSample1 = 85
 		timeOffsetSample1 = 2
+		if st.sessionTime >= simRainStopSec {
+			rainPctSample1 = 10
+		}
+		sessionPkt.ForecastAccuracy = packets.ForecastAccuracyApproximate
+		sessionPkt.Weather = simRainWeather(st.sessionTime)
+		sessionPkt.TrackTemperature = simRainTrackTemp(st.sessionTime)
 	}
 
 	sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
@@ -757,7 +771,9 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 
 			switch i {
 			case 2:
-				penalties = 5
+				if cfg.Scenario != "strategy" || st.lapNum >= simStrategyPenaltyLap {
+					penalties = 5
+				}
 			case 5:
 				penalties = 3
 			case 7:
@@ -847,8 +863,10 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			if (cfg.Scenario == "pit" || cfg.Scenario == "strategy") && pitStatus != packets.PitStatusNone {
 				pitLaneTimer, pitLaneTime = 1, simPitLaneTime(carLapDist)
 			}
+			deltaToCarInFront := uint16(350)
 			if cfg.Scenario == "strategy" && i == 0 {
 				numStops = uint8(simStrategyStopsMade(st.lapNum, lapDist))
+				deltaToCarInFront = simStrategyGapAheadMS(st.lapNum)
 			}
 
 			lapCars[i] = packets.LapData{
@@ -865,7 +883,7 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				GridPosition:                gridPos,
 				ResultStatus:                packets.ResultStatusActive,
 				DeltaToRaceLeaderMSPart:     uint16(gapMs),
-				DeltaToCarInFrontMSPart:     uint16(350),
+				DeltaToCarInFrontMSPart:     deltaToCarInFront,
 				PitStatus:                   pitStatus,
 				PitStopShouldServePen:       pitStopShouldServePen,
 				PitStopTimerInMS:            pitStopTimerInMS,

@@ -137,6 +137,11 @@ const (
 	cooldownReports      = "reports"
 	cooldownAeroZones    = "aero_zones"
 	cooldownFormationLap = "formation_lap"
+	// News of the cars around (closing in, a penalty, a stop) and of the weather doesn't hold back
+	// the battle calls, the pit plan or the forecast.
+	cooldownRivalNews   = "rival_news"
+	cooldownPitNews     = "pit_news"
+	cooldownWeatherNews = "weather_news"
 )
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -281,7 +286,8 @@ type EngineerDirective struct {
 // DirectiveValues are the facts a call says: its numbers, and which wheel, axle or tyre it is
 // about. Only the fields of its call are set.
 type DirectiveValues struct {
-	// Position is the player's position (gap report, elimination danger, lap result, finish).
+	// Position is the player's position (gap report, elimination danger, lap result, finish), or
+	// the one a stop would rejoin in (pit plan heads-up, clean air).
 	Position int `json:"position,omitempty"`
 	// Ahead and Behind are the cars close in front and behind: in the gap report, nil when there
 	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about.
@@ -300,7 +306,8 @@ type DirectiveValues struct {
 	Elimination EliminationStatus `json:"elimination,omitempty" tstype:"EngineerElimination"`
 	// Count is how many track limits warnings the player has (track limits).
 	Count int `json:"count,omitempty"`
-	// PenaltySec is the time penalty just given, in seconds (penalties).
+	// PenaltySec is the time penalty just given, in seconds (penalties), or the time penalties a
+	// rival close by has to serve (rival penalty).
 	PenaltySec int `json:"penalty_sec,omitempty"`
 	// StopSec is how long the car stood in the pit box, to a tenth (pit stop time).
 	StopSec float64 `json:"stop_sec,omitempty"`
@@ -323,6 +330,12 @@ type DirectiveValues struct {
 	RainPct int `json:"rain_pct,omitempty"`
 	// FuelDeltaLaps is the fuel target delta, in laps to a tenth: negative is short (fuel).
 	FuelDeltaLaps float64 `json:"fuel_delta_laps,omitempty"`
+	// LapsToRange is about how many laps a closing car takes to come within battle range (rival
+	// closing).
+	LapsToRange int `json:"laps_to_range,omitempty"`
+	// TrackTempDeltaC is how far the track temperature moved since the stint started, in °C:
+	// negative is cooler (track temperature).
+	TrackTempDeltaC int `json:"track_temp_delta_c,omitempty"`
 }
 
 // WheelPosition names a wheel.
@@ -371,6 +384,23 @@ const (
 // TyreCompounds lists every TyreCompound, for the generated TypeScript union.
 var TyreCompounds = []string{string(TyreSoft), string(TyreMedium), string(TyreHard), string(TyreInter), string(TyreWet)}
 
+// tyreCompoundOf is the TyreCompound of a packet's visual compound; empty when unknown.
+func tyreCompoundOf(visual uint8) TyreCompound {
+	switch visual {
+	case packets.CompoundSoft, packets.CompoundClassicS, packets.CompoundSuperSoft:
+		return TyreSoft
+	case packets.CompoundMedium, packets.CompoundClassicM:
+		return TyreMedium
+	case packets.CompoundHard, packets.CompoundClassicH:
+		return TyreHard
+	case packets.CompoundInter:
+		return TyreInter
+	case packets.CompoundWet:
+		return TyreWet
+	}
+	return ""
+}
+
 // EliminationStatus is where a qualifying position stands against the cut line.
 type EliminationStatus string
 
@@ -390,6 +420,13 @@ type GapToCar struct {
 	Trend GapTrendDirection `json:"trend,omitempty" tstype:"EngineerGapTrend"`
 	// PerLapSec is how much the gap changes each lap, to a tenth; 0 when stable.
 	PerLapSec float64 `json:"per_lap_sec,omitempty"`
+	// Name is the driver of the car as said on the radio, on race calls about a rival; empty when
+	// the game doesn't name them.
+	Name string `json:"name,omitempty"`
+	// Compound is the tyre the car runs, and TyreAgeDiffLaps how many laps older its tyres are than
+	// the player's (negative: fresher), on race calls about a rival.
+	Compound        TyreCompound `json:"compound,omitempty" tstype:"EngineerCompound"`
+	TyreAgeDiffLaps int          `json:"tyre_age_diff_laps,omitempty"`
 }
 
 // GapTrendDirection says whether a gap is shrinking, growing or holding.

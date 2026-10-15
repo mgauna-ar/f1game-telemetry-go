@@ -157,6 +157,24 @@ const (
 	RivalDefendGapDefaultSec = 1.0
 	RivalAttackGapDefaultSec = 1.2
 	RivalRearmHysteresisSec  = 0.5 // Gap beyond the threshold before the same rival can be called again
+	// A car closing into battle range, ahead or behind, is called once on its way from this far...
+	RivalClosingWindowSec = 4.0
+	// ...when the gap comes down by this much a lap or more, and it gets there within this many
+	// laps and before the flag. It is called again once it drops back this far past the window.
+	RivalClosingMinSecPerLap = 0.2
+	RivalClosingMaxLaps      = 10
+	RivalClosingRearmSec     = 1.0
+	// RivalClosingMaxSecPerLap: a gap coming down faster than this a lap isn't race pace: a stop
+	// or a Safety Car falls in the laps it was measured over.
+	RivalClosingMaxSecPerLap = 2.0
+	// RivalPenaltyMaxGapSec: a time penalty given to the car right ahead or behind is said while
+	// it is this close.
+	RivalPenaltyMaxGapSec = 10.0
+	// NearbyPitGapSec: a car this close ahead or behind that pits is news.
+	NearbyPitGapSec = 10.0
+	// RejoinTrafficSec: the plan's heads-up says the car a stop would rejoin behind when it is this
+	// close ahead of the rejoin.
+	RejoinTrafficSec = 2.0
 
 	// Pit entry and box calls
 	DefaultPitCallLeadM = 500.0 // How far before the pit entry a "box this lap" call must come
@@ -227,6 +245,13 @@ const (
 	WeatherHeavyRainWetThreshold   = 75
 	WeatherLightRainInterThreshold = 35
 	CornerCutWarnDefaultThreshold  = 2
+	// RainRearmPct: the rain forecast is said again when its chance rises this much, and once it
+	// falls this far below the threshold, the next rain spell is a new call.
+	RainRearmPct = 15
+	// WeatherStepHoldMs: rain getting heavier or easing, or stopping, is said once it held this long.
+	WeatherStepHoldMs = 20_000
+	// TrackTempSwingC: the track temperature moving this much in a stint is said.
+	TrackTempSwingC = 6
 
 	// 2026 Active Aero & Override thresholds
 	ActiveAeroAnticipationDistanceM    = 100 // Metres before Straight Mode zone to alert driver

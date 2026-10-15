@@ -268,7 +268,7 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 	}
 
 	r.cleanAirLap = currentLap
-	return &Directive{
+	d := &Directive{
 		ID:       "pit_clean_air",
 		Category: DirectiveCategoryPitStrategy,
 		SubAlert: "pit_clean_air",
@@ -277,4 +277,9 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 		Urgency:  UrgencyLow,
 		BoxCall:  BoxCallOption,
 	}
+	if pos := int(ctx.Session.PitStopRejoinPosition); pos > 0 {
+		d.Message = fmt.Sprintf("Box this lap and you rejoin P%d in clean air. Good chance for the undercut.", pos)
+		d.Values = &DirectiveValues{Position: pos}
+	}
+	return d
 }

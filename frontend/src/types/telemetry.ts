@@ -235,7 +235,22 @@ export type RadioAlertCategory =
   | 'radiator_overheat_high'
   | 'radiator_overheat_critical'
   | 'brake_overheat_rear'
-  | 'brake_bias_forward';
+  | 'brake_bias_forward'
+  | 'rival_closing'
+  | 'rival_catching_you'
+  | 'rival_penalty_ahead'
+  | 'rival_penalty_behind'
+  | 'leader_pitted'
+  | 'nearby_pitted_ahead'
+  | 'nearby_pitted_behind'
+  | 'pit_plan_next_lap_traffic'
+  | 'penalty_served'
+  | 'weather_rain_approx'
+  | 'rain_heavier'
+  | 'rain_easing'
+  | 'track_drying'
+  | 'track_temp_up'
+  | 'track_temp_down';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to

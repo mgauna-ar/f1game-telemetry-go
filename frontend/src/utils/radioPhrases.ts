@@ -1,5 +1,6 @@
 import { RADIO_PHRASE_CONSTANTS, type RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
+import type { TemperatureUnit } from './units';
 import {
   box_timing_phrases as enBox,
   exchange_phrases as enExchange,
@@ -92,13 +93,18 @@ function personaPhrases(catPool: RadioPhrasePool, persona: RadioPersona): readon
 
 /** The placeholders a phrase can fill from its call's values; `{driver}` is the callsign. */
 const VALUE_PLACEHOLDER =
-  /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec|sector|delta|reaction|wheel|axle|compound|pct|rain_pct|fuel_laps)}/g;
+  /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec|sector|delta|reaction|wheel|axle|compound|pct|rain_pct|fuel_laps|temp_delta)}/g;
 
 /**
- * What a call's values say, written the listener's way, by placeholder: numbers as digits, and
- * the wheel, axle and tyre in the language's words. A value the call doesn't have is left out.
+ * What a call's values say, written the listener's way, by placeholder: numbers as digits, the
+ * wheel, axle and tyre in the language's words, and a temperature change in the listener's unit.
+ * A value the call doesn't have is left out.
  */
-export function callFacts(values: DirectiveValues | undefined, language: LocaleCode): Record<string, string> {
+export function callFacts(
+  values: DirectiveValues | undefined,
+  language: LocaleCode,
+  temperatureUnit: TemperatureUnit = 'c'
+): Record<string, string> {
   const facts: Record<string, string> = {};
   if (!values) return facts;
   const words = RADIO_VALUE_WORDS[language];
@@ -106,6 +112,13 @@ export function callFacts(values: DirectiveValues | undefined, language: LocaleC
   // The phrases say "minutes": one minute is said without the number.
   if (values.minutes && values.minutes > 1) facts.minutes = String(values.minutes);
   if (values.tyre_laps_left) facts.laps = String(values.tyre_laps_left);
+  // The phrases say "laps": a car one lap from range is said without the number.
+  if (values.laps_to_range && values.laps_to_range > 1) facts.laps = String(values.laps_to_range);
+  // How much the track temperature moved, as the server's facts for the AI give it in both units.
+  if (values.track_temp_delta_c) {
+    const celsius = Math.abs(values.track_temp_delta_c);
+    facts.temp_delta = String(temperatureUnit === 'f' ? Math.round((celsius * 9) / 5) : celsius);
+  }
   if (values.pole_gap_sec) facts.pole_gap = formatThousandths(values.pole_gap_sec, language);
   if (values.count) facts.count = String(values.count);
   if (values.penalty_sec) facts.penalty_sec = String(values.penalty_sec);
@@ -181,6 +194,8 @@ export interface ProactiveSpeechOptions {
   values?: DirectiveValues;
   /** An urgent call (critical or high) always says the callsign. */
   urgent?: boolean;
+  /** The unit a temperature change is said in. */
+  temperatureUnit?: TemperatureUnit;
 }
 
 /** A proactive call ready to say, in the catalogue's words or in words the AI found for it. */
@@ -277,7 +292,15 @@ export function createRadioPhrasePicker(random: () => number = () => Math.random
 
   const prepare = (
     category: RadioAlertCategory,
-    { language = 'es', persona = 'bono', callsign, box, values, urgent = false }: ProactiveSpeechOptions = {}
+    {
+      language = 'es',
+      persona = 'bono',
+      callsign,
+      box,
+      values,
+      urgent = false,
+      temperatureUnit,
+    }: ProactiveSpeechOptions = {}
   ): ProactiveCall | null => {
     const key = `call|${language}|${persona}|${category}`;
     let parts: string[];
@@ -290,7 +313,7 @@ export function createRadioPhrasePicker(random: () => number = () => Math.random
         category === 'tyre_life' && values?.tyre_laps_left === 1
           ? personaPhrases(REPORT_PHRASES[language].tyre_life_one_lap, persona)
           : radioPhrasePool(category, language, persona);
-      const facts = callFacts(values, language);
+      const facts = callFacts(values, language, temperatureUnit);
       const phrase = draw(key, mostInformative(pool, facts));
       if (!phrase) return null;
       parts = [fillValues(phrase, facts)];

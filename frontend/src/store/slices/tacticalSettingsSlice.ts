@@ -45,12 +45,15 @@ export interface TacticalSettingsSlice {
   subRivalDefend: boolean;
   subRivalAttack: boolean;
   subGapReport: boolean;
+  subRivalClosing: boolean;
+  subRivalPenalty: boolean;
   subPitWindow: boolean;
   subPitWindowClose: boolean;
   subPitCleanAir: boolean;
   subTyreSet: boolean;
   subPitLane: boolean;
   subPitEntryReminder: boolean;
+  subPitNews: boolean;
   subSectorDelta: boolean;
   subStartProcedure: boolean;
   subInlapCooldown: boolean;
@@ -64,6 +67,7 @@ export interface TacticalSettingsSlice {
   subSafetyCar: boolean;
   subRedFlag: boolean;
   subRain: boolean;
+  subWeatherChanges: boolean;
   subTrackLimits: boolean;
   subPenalties: boolean;
   subFlags: boolean;
@@ -108,12 +112,15 @@ export interface TacticalSettingsSlice {
   setSubRivalDefend: (enabled: boolean) => void;
   setSubRivalAttack: (enabled: boolean) => void;
   setSubGapReport: (enabled: boolean) => void;
+  setSubRivalClosing: (enabled: boolean) => void;
+  setSubRivalPenalty: (enabled: boolean) => void;
   setSubPitWindow: (enabled: boolean) => void;
   setSubPitWindowClose: (enabled: boolean) => void;
   setSubPitCleanAir: (enabled: boolean) => void;
   setSubTyreSet: (enabled: boolean) => void;
   setSubPitLane: (enabled: boolean) => void;
   setSubPitEntryReminder: (enabled: boolean) => void;
+  setSubPitNews: (enabled: boolean) => void;
   setSubSectorDelta: (enabled: boolean) => void;
   setSubStartProcedure: (enabled: boolean) => void;
   setSubInlapCooldown: (enabled: boolean) => void;
@@ -127,6 +134,7 @@ export interface TacticalSettingsSlice {
   setSubSafetyCar: (enabled: boolean) => void;
   setSubRedFlag: (enabled: boolean) => void;
   setSubRain: (enabled: boolean) => void;
+  setSubWeatherChanges: (enabled: boolean) => void;
   setSubTrackLimits: (enabled: boolean) => void;
   setSubPenalties: (enabled: boolean) => void;
   setSubFlags: (enabled: boolean) => void;
@@ -172,12 +180,15 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubRivalDefend'
   | 'setSubRivalAttack'
   | 'setSubGapReport'
+  | 'setSubRivalClosing'
+  | 'setSubRivalPenalty'
   | 'setSubPitWindow'
   | 'setSubPitWindowClose'
   | 'setSubPitCleanAir'
   | 'setSubTyreSet'
   | 'setSubPitLane'
   | 'setSubPitEntryReminder'
+  | 'setSubPitNews'
   | 'setSubSectorDelta'
   | 'setSubStartProcedure'
   | 'setSubInlapCooldown'
@@ -191,6 +202,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubSafetyCar'
   | 'setSubRedFlag'
   | 'setSubRain'
+  | 'setSubWeatherChanges'
   | 'setSubTrackLimits'
   | 'setSubPenalties'
   | 'setSubFlags'
@@ -267,12 +279,15 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubRivalDefend: createBoolAction('subRivalDefend', true),
     setSubRivalAttack: createBoolAction('subRivalAttack', true),
     setSubGapReport: createBoolAction('subGapReport', true),
+    setSubRivalClosing: createBoolAction('subRivalClosing', true),
+    setSubRivalPenalty: createBoolAction('subRivalPenalty', true),
     setSubPitWindow: createBoolAction('subPitWindow', true),
     setSubPitWindowClose: createBoolAction('subPitWindowClose', true),
     setSubPitCleanAir: createBoolAction('subPitCleanAir', true),
     setSubTyreSet: createBoolAction('subTyreSet', true),
     setSubPitLane: createBoolAction('subPitLane', true),
     setSubPitEntryReminder: createBoolAction('subPitEntryReminder', true),
+    setSubPitNews: createBoolAction('subPitNews', true),
     setSubSectorDelta: createBoolAction('subSectorDelta', true),
     setSubStartProcedure: createBoolAction('subStartProcedure', true),
     setSubInlapCooldown: createBoolAction('subInlapCooldown', true),
@@ -286,6 +301,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubSafetyCar: createBoolAction('subSafetyCar', true),
     setSubRedFlag: createBoolAction('subRedFlag', true),
     setSubRain: createBoolAction('subRain', true),
+    setSubWeatherChanges: createBoolAction('subWeatherChanges', true),
     setSubTrackLimits: createBoolAction('subTrackLimits', true),
     setSubPenalties: createBoolAction('subPenalties', true),
     setSubFlags: createBoolAction('subFlags', true),

@@ -70,7 +70,22 @@ const CALL_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues[]>> = {
   undercut_window: [{ behind: { gap_sec: 1.8 } }],
   overcut_window: [{ ahead: { gap_sec: 1.5 } }],
   pit_plan_next_lap: [{ position: 9 }],
+  pit_plan_next_lap_traffic: [{ position: 9, ahead: { gap_sec: 1.4 } }, { ahead: { gap_sec: 1.4 } }],
   pit_plan_box: [{ position: 9 }],
+  pit_clean_air: [{ position: 8 }],
+  rival_closing: [
+    { ahead: { gap_sec: 2.6, trend: 'closing', per_lap_sec: 0.4 }, laps_to_range: 4 },
+    { ahead: { gap_sec: 2.6, trend: 'closing', per_lap_sec: 0.4 }, laps_to_range: 1 },
+  ],
+  rival_catching_you: [
+    { behind: { gap_sec: 2.2, trend: 'closing', per_lap_sec: 0.3 }, laps_to_range: 4 },
+    { behind: { gap_sec: 2.2, trend: 'closing', per_lap_sec: 0.3 }, laps_to_range: 1 },
+  ],
+  rival_penalty_ahead: [{ ahead: { gap_sec: 3.2 }, penalty_sec: 5 }],
+  rival_penalty_behind: [{ behind: { gap_sec: 2.1 }, penalty_sec: 5 }],
+  leader_pitted: [{ ahead: { gap_sec: 12.4 } }],
+  nearby_pitted_ahead: [{ ahead: { gap_sec: 6.2 } }],
+  nearby_pitted_behind: [{ behind: { gap_sec: 4.8 } }],
   sector_delta: [{ sector: 2, delta_sec: 0.42 }],
   start_reaction_time: [{ reaction_sec: 0.31 }],
   start_reaction_fast: [{ reaction_sec: 0.21 }],
@@ -90,6 +105,9 @@ const CALL_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues[]>> = {
   tyre_crossover_wet: [{ compound: 'wet' }],
   tyre_set_advisory: [{ compound: 'hard' }],
   weather_rain: [{ rain_pct: 60, minutes: 10 }, { rain_pct: 60 }],
+  weather_rain_approx: [{ rain_pct: 60, minutes: 10 }, { rain_pct: 60 }],
+  track_temp_up: [{ track_temp_delta_c: 7 }],
+  track_temp_down: [{ track_temp_delta_c: -7 }],
   fuel_deficit: [{ fuel_delta_laps: -0.6 }],
   ers_low: [{ pct: 12 }],
   wing_damage: [{ pct: 35 }],
@@ -114,6 +132,8 @@ const COMMON: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'rival_defend',
   'rival_defend_drs',
   'rival_defend_override',
+  'rival_closing',
+  'rival_catching_you',
   'teammate_ahead',
   'tyre_wear',
   'tyre_wear_critical',
@@ -164,7 +184,6 @@ const URGENT: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'flags_yellow',
   'flags_drs_disabled',
   'flags_rain_live',
-  'weather_rain',
   'wrong_way',
   'track_limits_warnings',
   'penalties_incurred',
@@ -488,6 +507,30 @@ describe('the radio phrase catalog', () => {
     ['es', 'colapinto', 'overcut_window', /adelante/i],
     ['en', 'colapinto', 'race_final_lap', /last lap|final lap/i],
     ['es', 'bono', 'race_final_lap_lead', /última/i],
+    ['en', 'bono', 'rival_penalty_ahead', /penalt/i],
+    ['es', 'colapinto', 'rival_penalty_ahead', /penaliz|sanci/i],
+    ['en', 'bono', 'rival_penalty_behind', /penalt/i],
+    ['es', 'colapinto', 'rival_penalty_behind', /penaliz|sanci/i],
+    ['en', 'bono', 'leader_pitted', /leader/i],
+    ['es', 'colapinto', 'leader_pitted', /líder|punter/i],
+    ['en', 'bono', 'nearby_pitted_ahead', /ahead|in front|up the road/i],
+    ['es', 'colapinto', 'nearby_pitted_ahead', /adelante/i],
+    ['en', 'bono', 'nearby_pitted_behind', /behind/i],
+    ['es', 'colapinto', 'nearby_pitted_behind', /atrás|detrás/i],
+    ['en', 'bono', 'pit_plan_next_lap_traffic', /behind|traffic/i],
+    ['es', 'colapinto', 'pit_plan_next_lap_traffic', /detrás|atrás|tráfico/i],
+    ['en', 'bono', 'penalty_served', /served|done/i],
+    ['es', 'colapinto', 'penalty_served', /cumpl/i],
+    ['en', 'bono', 'weather_rain_approx', /rain/i],
+    ['es', 'colapinto', 'weather_rain_approx', /lluvia|llover|llueva/i],
+    ['en', 'bono', 'rain_heavier', /rain/i],
+    ['es', 'colapinto', 'rain_heavier', /lluvia|llueve|llover/i],
+    ['en', 'bono', 'rain_easing', /rain/i],
+    ['es', 'colapinto', 'rain_easing', /lluvia|llueve|llover/i],
+    ['en', 'bono', 'track_drying', /dry|drying/i],
+    ['es', 'colapinto', 'track_drying', /sec/i],
+    ['en', 'bono', 'track_temp_up', /track|asphalt/i],
+    ['es', 'colapinto', 'track_temp_down', /pista|asfalto/i],
   ])('%s/%s %s speaks about it, in every persona', (language, _persona, category, pattern) => {
     for (const persona of PERSONAS) {
       for (const template of radioPhrasePool(category, language, persona)) {
@@ -600,6 +643,40 @@ describe('the radio phrase catalog', () => {
     for (const category of BOX_CATEGORIES) {
       for (const template of allTemplates(RADIO_PHRASE_CATALOG[language][category])) {
         expect(template, `${language}/${category}`).not.toMatch(timingWords);
+      }
+    }
+  });
+  it.each(LOCALES)('hedges an approximate forecast and nothing else, in %s', (language) => {
+    const hedge =
+      language === 'es'
+        ? /aproximad|más o menos|no es segur|capaz|quizás|tal vez|puede que|parece|dice|calcula/i
+        : /approximate|rough|about|around|maybe|might|could|not sure|reckon|looks like|says|suggests/i;
+    for (const template of allTemplates(RADIO_PHRASE_CATALOG[language].weather_rain_approx)) {
+      expect(template).toMatch(hedge);
+    }
+  });
+
+  it.each(LOCALES)('says a track temperature change in degrees, whatever the unit, in %s', (language) => {
+    const catalog = RADIO_PHRASE_CATALOG[language];
+    for (const category of ['track_temp_up', 'track_temp_down'] as const) {
+      for (const template of allTemplates(catalog[category])) {
+        expect(template, category).not.toMatch(/celsius|fahrenheit|centígrad/i);
+        if (template.includes('{temp_delta}')) expect(template, category).toMatch(/{temp_delta} (degrees|grados)/);
+      }
+    }
+    for (const template of allTemplates(catalog.track_temp_up)) expect(template).not.toMatch(/cool|cold|fr[ií]|baj/i);
+    for (const template of allTemplates(catalog.track_temp_down)) expect(template).not.toMatch(/hot|warm|calor|subi/i);
+  });
+
+  it.each(LOCALES)('says a car closing in only as fast as it closes, in %s', (language) => {
+    const catalog = RADIO_PHRASE_CATALOG[language];
+    for (const category of ['rival_closing', 'rival_catching_you'] as const) {
+      for (const template of allTemplates(catalog[category])) {
+        // No claim the engine doesn't make: DRS, the rival's tyres or name, an order to pass.
+        expect(template, category).not.toMatch(
+          /\b(DRS|override|softs?|mediums?|hards?|blandas?|medios?|duros?|pass|overtake|pasalo|superalo)\b/i
+        );
+        if (template.includes('{laps}')) expect(template, category).toMatch(/{laps} (laps|vueltas)/);
       }
     }
   });

@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { RADIO_LINE } from '../constants/f1';
 import type { RadioLineRequest, RadioLineResponse } from '../types/ai';
 import type { RadioAlertPayload } from '../types/telemetry';
+import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { api } from '../utils/apiClient';
 import { prepareProactiveRadioCall } from '../utils/radioPhrases';
 import { useProactiveTelemetryRadio } from './useProactiveTelemetryRadio';
@@ -55,6 +56,7 @@ export function useProactiveRadioCalls(radio: ProactiveRadio): void {
       box: payload.box,
       values: payload.values,
       urgent: payload.isCritical,
+      temperatureUnit: useDevicePreferencesStore.getState().units.temperature,
     });
     if (!call) return;
 

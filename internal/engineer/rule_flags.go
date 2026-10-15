@@ -13,7 +13,7 @@ type FlagsRule struct {
 	mu                       sync.Mutex
 	lastSafetyCarStatus      uint8
 	lastRedFlagCount         uint8
-	rainForecastCalled       bool
+	rainCalledPct            int // the chance of rain the forecast call said in this rain spell (0: none)
 	lastLiveWeather          uint8
 	lastCornerCutWarnings    uint8
 	lastPenaltyTime          uint8
@@ -27,6 +27,15 @@ type FlagsRule struct {
 	// penalties, warnings) and the weather, so joining a session midway doesn't announce old news.
 	sessionSeen bool
 	lapSeen     bool
+	// weatherSaid is the weather the radio last went by, and weatherSince when the weather last
+	// changed (weatherNow): a change of the rain is said once it held WeatherStepHoldMs.
+	weatherSaid, weatherNow uint8
+	weatherSince            int64
+	// stintTrackTemp is the track temperature as the stint started (stintTempSet), and
+	// trackTempCalledAt when the stint's track temperature call was made (0: not yet).
+	stintTrackTemp    int
+	stintTempSet      bool
+	trackTempCalledAt int64
 }
 
 // NewFlagsRule creates a new FlagsRule.
@@ -88,9 +97,28 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_rain": {
-			Category:    DirectiveCategoryWeather,
-			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-			DedupScope:  DedupScopePhase,
+			Category:        DirectiveCategoryWeather,
+			ValidPhases:     []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:      DedupScopeNone, // once a rain spell, again when likelier (evaluateWeather)
+			OutlastsSilence: true,
+		},
+		// A change of the rain is rare and held WeatherStepHoldMs already: it is said when it
+		// comes, and holds back the track temperature after it.
+		"weather_change": {
+			Category:             DirectiveCategoryWeather,
+			ValidPhases:          []DrivingPhase{PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:           DedupScopeNone,
+			MaxDelayMs:           ConditionMaxDelayMs,
+			OutlastsSilence:      true,
+			CooldownGroup:        cooldownWeatherNews,
+			SkipCategoryCooldown: true,
+		},
+		"track_temp_swing": {
+			Category:      DirectiveCategoryWeather,
+			ValidPhases:   []DrivingPhase{PhaseRacing},
+			DedupScope:    DedupScopeNone, // once a stint (evaluateTrackTemp)
+			MaxDelayMs:    ConditionMaxDelayMs,
+			CooldownGroup: cooldownWeatherNews,
 		},
 		"flags_rain_live": {
 			Category:    DirectiveCategoryWeather,
@@ -106,6 +134,14 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseFormationLap, PhaseRaceStart, PhasePitLane, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
+		},
+		// A step of the pit stop, said when it happens.
+		"penalty_served": {
+			Category:             DirectiveCategoryFlags,
+			ValidPhases:          []DrivingPhase{PhasePitLane, PhaseOutLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:           DedupScopeNone,
+			PitLaneCall:          true,
+			SkipCategoryCooldown: true,
 		},
 		"flags_drs_enabled": {
 			Category:    DirectiveCategoryFlags,
@@ -151,10 +187,13 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if scope == DedupScopeNone || scope == DedupScopeStint {
+		r.stintTempSet, r.trackTempCalledAt = false, 0
+	}
 	if scope == DedupScopeNone {
 		r.lastSafetyCarStatus = 0
 		r.lastRedFlagCount = 0
-		r.rainForecastCalled = false
+		r.rainCalledPct = 0
 		r.lastLiveWeather = 0
 		r.lastCornerCutWarnings = 0
 		r.lastPenaltyTime = 0
@@ -181,6 +220,7 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 			r.sessionSeen = true
 			r.lastRedFlagCount = ctx.Session.NumRedFlagPeriods
 			r.lastLiveWeather = ctx.Session.Weather
+			r.weatherSaid, r.weatherNow, r.weatherSince = ctx.Session.Weather, ctx.Session.Weather, ctx.Now
 		}
 		if sc := r.evaluateSafetyCar(ctx); sc != nil {
 			directives = append(directives, *sc)
@@ -193,6 +233,12 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 		if liveWeather := r.evaluateLiveWeather(ctx); liveWeather != nil {
 			directives = append(directives, *liveWeather)
+		}
+		if change := r.evaluateWeatherChange(ctx); change != nil {
+			directives = append(directives, *change)
+		}
+		if temp := r.evaluateTrackTemp(ctx); temp != nil {
+			directives = append(directives, *temp)
 		}
 	}
 
@@ -509,6 +555,16 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 			}
 		}
 
+	case packets.EventDriveThroughServed:
+		if d, ok := p.DriveThroughServedData(); ok && int(d.VehicleIdx) == ctx.PlayerCarIndex {
+			return penaltyServedDirective("Drive-through penalty served.")
+		}
+
+	case packets.EventStopGoServed:
+		if d, ok := p.StopGoServedData(); ok && int(d.VehicleIdx) == ctx.PlayerCarIndex {
+			return penaltyServedDirective("Stop-go penalty served.")
+		}
+
 	case packets.EventFastestLap:
 		// Only the player's: the phrases congratulate the driver.
 		if fl, ok := p.FastestLapData(); ok && int(fl.VehicleIdx) == ctx.PlayerCarIndex {
@@ -580,36 +636,136 @@ func (r *FlagsRule) evaluateRedFlag(p *packets.PacketSessionData) *Directive {
 	}
 }
 
-// evaluateWeather calls rain in the forecast once per rain spell: once a sample inside the
-// horizon passes the threshold, nothing more is said until none does. While it already rains,
-// the live weather call covers it.
+// evaluateWeather calls rain in the forecast once per rain spell: when the first sample inside the
+// horizon passes the threshold, and again when that chance rises RainRearmPct over the one said.
+// The spell is over when it rains (the live weather call covers that) or no sample inside the
+// horizon comes within RainRearmPct of the threshold, so a forecast hovering at the threshold
+// isn't said over and over. An approximate forecast is said as one.
 func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
 	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryWeather), "flags_rain") {
 		return nil
 	}
+	if ctx.Session.Weather >= packets.WeatherLightRain {
+		r.rainCalledPct = 0
+		return nil
+	}
 	var soonest *packets.WeatherForecastSample
+	var likeliest float32
 	for _, sample := range sessionForecast(ctx.Session) {
-		if float32(sample.RainPercentage) >= ctx.Config.RainProbPct && float32(sample.TimeOffset) <= ctx.Config.RainHorizonMin {
-			soonest = &sample
+		if float32(sample.TimeOffset) > ctx.Config.RainHorizonMin {
 			break
+		}
+		likeliest = max(likeliest, float32(sample.RainPercentage))
+		if soonest == nil && float32(sample.RainPercentage) >= ctx.Config.RainProbPct {
+			soonest = &sample
 		}
 	}
 	if soonest == nil {
-		r.rainForecastCalled = false
+		if likeliest < ctx.Config.RainProbPct-RainRearmPct {
+			r.rainCalledPct = 0
+		}
 		return nil
 	}
-	if r.rainForecastCalled || ctx.Session.Weather >= packets.WeatherLightRain {
+	pct := int(soonest.RainPercentage)
+	if r.rainCalledPct > 0 && pct < r.rainCalledPct+RainRearmPct {
 		return nil
 	}
-	r.rainForecastCalled = true
+	r.rainCalledPct = pct
+	subAlert := "weather_rain"
+	msg := fmt.Sprintf("Weather radar shows %d%% chance of rain in the next %d minutes.", pct, soonest.TimeOffset)
+	if ctx.Session.ForecastAccuracy == packets.ForecastAccuracyApproximate {
+		subAlert = "weather_rain_approx"
+		msg = fmt.Sprintf("The forecast is only approximate: about %d%% chance of rain in the next %d minutes.", pct, soonest.TimeOffset)
+	}
 	return &Directive{
 		ID:       "flags_rain",
 		Category: DirectiveCategoryWeather,
-		SubAlert: "weather_rain",
+		SubAlert: subAlert,
 		Title:    "Weather Transition",
-		Message:  fmt.Sprintf("Weather radar confirms %d%% chance of rain in the next %d minutes.", soonest.RainPercentage, soonest.TimeOffset),
-		Urgency:  UrgencyHigh,
-		Values:   &DirectiveValues{RainPct: int(soonest.RainPercentage), Minutes: int(soonest.TimeOffset)},
+		Message:  msg,
+		Urgency:  UrgencyMedium,
+		Values:   &DirectiveValues{RainPct: pct, Minutes: int(soonest.TimeOffset)},
+	}
+}
+
+// evaluateWeatherChange says how the rain changed once the new weather held WeatherStepHoldMs:
+// heavier, easing, or stopped. Rain starting is the live rain call's, and a change of the clouds
+// isn't said.
+func (r *FlagsRule) evaluateWeatherChange(ctx *EvaluationContext) *Directive {
+	w := ctx.Session.Weather
+	if w != r.weatherNow {
+		r.weatherNow, r.weatherSince = w, ctx.Now
+	}
+	if w == r.weatherSaid || ctx.Now-r.weatherSince < WeatherStepHoldMs {
+		return nil
+	}
+	said := r.weatherSaid
+	r.weatherSaid = w
+	if said < packets.WeatherLightRain {
+		return nil
+	}
+	subAlert, title := "rain_easing", "Rain Easing"
+	msg := fmt.Sprintf("The rain is easing: %s now.", packets.WeatherName(w))
+	switch {
+	case w < packets.WeatherLightRain:
+		subAlert, title, msg = "track_drying", "Rain Stopped", "The rain has stopped. The track will start to dry."
+	case w > said:
+		subAlert, title = "rain_heavier", "Rain Heavier"
+		msg = fmt.Sprintf("The rain is getting heavier: %s now.", packets.WeatherName(w))
+	}
+	return &Directive{
+		ID:       "weather_change",
+		Category: DirectiveCategoryWeather,
+		SubAlert: subAlert,
+		Title:    title,
+		Message:  msg,
+		Urgency:  UrgencyMedium,
+	}
+}
+
+// evaluateTrackTemp says once a stint, racing in a race, that the track temperature moved
+// TrackTempSwingC or more since the stint started. A call that never got on the radio is made
+// again while it still holds.
+func (r *FlagsRule) evaluateTrackTemp(ctx *EvaluationContext) *Directive {
+	t := int(ctx.Session.TrackTemperature)
+	if !r.stintTempSet {
+		r.stintTrackTemp, r.stintTempSet = t, true
+		return nil
+	}
+	if r.trackTempCalledAt != 0 && ctx.CallLost("track_temp_swing", r.trackTempCalledAt, ConditionMaxDelayMs) {
+		r.trackTempCalledAt = 0
+	}
+	delta := t - r.stintTrackTemp
+	if !ctx.IsRaceSession() || ctx.Phase != PhaseRacing || r.trackTempCalledAt != 0 || (delta < TrackTempSwingC && delta > -TrackTempSwingC) {
+		return nil
+	}
+	r.trackTempCalledAt = ctx.Now
+	subAlert, title := "track_temp_up", "Track Temperature Up"
+	msg := fmt.Sprintf("The track is %d°C hotter than at the start of the stint, %d°C now.", delta, t)
+	if delta < 0 {
+		subAlert, title = "track_temp_down", "Track Temperature Down"
+		msg = fmt.Sprintf("The track is %d°C cooler than at the start of the stint, %d°C now.", -delta, t)
+	}
+	return &Directive{
+		ID:       "track_temp_swing",
+		Category: DirectiveCategoryWeather,
+		SubAlert: subAlert,
+		Title:    title,
+		Message:  msg,
+		Urgency:  UrgencyLow,
+		Values:   &DirectiveValues{TrackTempDeltaC: delta},
+	}
+}
+
+// penaltyServedDirective says the player served their drive-through or stop-go.
+func penaltyServedDirective(msg string) *Directive {
+	return &Directive{
+		ID:       "penalty_served",
+		Category: DirectiveCategoryFlags,
+		SubAlert: "penalty_served",
+		Title:    "Penalty Served",
+		Message:  msg,
+		Urgency:  UrgencyMedium,
 	}
 }
 

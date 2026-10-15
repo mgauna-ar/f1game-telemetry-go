@@ -20,6 +20,14 @@ type RivalsRule struct {
 	defendAt, attackAt          int64
 	activeAeroAnticipationFired bool
 	overtakeAnticipationFired   bool
+	// The car ahead the player is catching and the car behind catching the player, once called on
+	// their way into battle range (-1: none), and when.
+	closingAheadIdx, closingBehindIdx int
+	closingAheadAt, closingBehindAt   int64
+	// penalties are each car's time penalties at the last lap data; the first lap data only
+	// records them (penaltiesSeen), so joining a race doesn't announce old penalties.
+	penalties     [packets.MaxCars]uint8
+	penaltiesSeen bool
 }
 
 // NewRivalsRule creates a new RivalsRule.
@@ -27,6 +35,8 @@ func NewRivalsRule() *RivalsRule {
 	return &RivalsRule{
 		lastDrsWarningIndex:      -1,
 		lastCarAheadWarningIndex: -1,
+		closingAheadIdx:          -1,
+		closingBehindIdx:         -1,
 	}
 }
 
@@ -84,6 +94,27 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:    MomentMaxDelayMs,
 			CooldownGroup: cooldownAeroZones,
 		},
+		"rival_closing": {
+			Category:                DirectiveCategoryRivals,
+			ValidPhases:             []DrivingPhase{PhaseRacing},
+			SuppressAfterPitForLaps: PostPitSuppressionLaps,
+			DedupScope:              DedupScopeNone,
+			CooldownGroup:           cooldownRivalNews,
+		},
+		"rival_catching_you": {
+			Category:                DirectiveCategoryRivals,
+			ValidPhases:             []DrivingPhase{PhaseRacing},
+			SuppressAfterPitForLaps: PostPitSuppressionLaps,
+			DedupScope:              DedupScopeNone,
+			CooldownGroup:           cooldownRivalNews,
+		},
+		"rival_penalty": {
+			Category:      DirectiveCategoryRivals,
+			ValidPhases:   []DrivingPhase{PhaseRacing},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    ConditionMaxDelayMs,
+			CooldownGroup: cooldownRivalNews,
+		},
 	}
 }
 
@@ -98,6 +129,8 @@ func (r *RivalsRule) Reset(scope DedupScope) {
 	if scope == DedupScopeNone {
 		r.lastDrsWarningIndex = -1
 		r.lastCarAheadWarningIndex = -1
+		r.closingAheadIdx, r.closingBehindIdx = -1, -1
+		r.penalties, r.penaltiesSeen = [packets.MaxCars]uint8{}, false
 	}
 }
 
@@ -155,6 +188,7 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	if ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet) {
 		return directives
 	}
+	penalised := r.newPenaltiesLocked(ctx)
 
 	playerLap := ctx.PlayerLap()
 	if !ctx.IsRaceSession() || playerLap == nil || playerLap.CarPosition <= 0 || ctx.Phase != PhaseRacing ||
@@ -179,7 +213,8 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 2. Attack: the car right ahead. Not the teammate while its own call covers it.
 	aheadIdx := racingCarAt(ctx, playerPos-1)
-	if aheadIdx >= 0 && (aheadIdx != ctx.TeammateCarIndex || !ctx.Config.IsAlertEnabled(string(DirectiveCategoryTeammate), "teammate_ahead")) {
+	teammateCalled := aheadIdx == ctx.TeammateCarIndex && ctx.Config.IsAlertEnabled(string(DirectiveCategoryTeammate), "teammate_ahead")
+	if aheadIdx >= 0 && !teammateCalled {
 		if d, ok := r.attackCall(ctx, aheadIdx, playerPos, is2026); ok {
 			directives = append(directives, d)
 		}
@@ -188,7 +223,134 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		r.lastCarAheadWarningIndex = -1
 	}
 
+	// 3. Closing in: the car ahead the player is catching, the car behind catching the player.
+	if r.closingAheadIdx != aheadIdx {
+		r.closingAheadIdx = -1
+	}
+	if r.closingBehindIdx != behindIdx {
+		r.closingBehindIdx = -1
+	}
+	if aheadIdx >= 0 && !teammateCalled {
+		if d, ok := r.closingCall(ctx, aheadIdx, playerLap, true); ok {
+			directives = append(directives, d)
+		}
+	}
+	if behindIdx >= 0 {
+		if d, ok := r.closingCall(ctx, behindIdx, playerLap, false); ok {
+			directives = append(directives, d)
+		}
+	}
+
+	// 4. A time penalty for the car right ahead or behind.
+	for _, i := range []int{aheadIdx, behindIdx} {
+		if i >= 0 && penalised[i] {
+			if d, ok := rivalPenaltyCall(ctx, i, i == aheadIdx); ok {
+				directives = append(directives, d)
+				break
+			}
+		}
+	}
+
 	return directives
+}
+
+// closingCall says, once on its way, that a car is closing into battle range: the car ahead (i,
+// ahead) the player is catching, or the car behind catching the player. It must be within
+// RivalClosingWindowSec but not yet in range, the gap coming down by RivalClosingMinSecPerLap a
+// lap or more (at race pace: not a stop in the laps measured), and in range within
+// RivalClosingMaxLaps and before the flag. The same car is
+// called again once it drops back RivalClosingRearmSec past the window, or when the call went
+// stale unsaid.
+func (r *RivalsRule) closingCall(ctx *EvaluationContext, i int, playerLap *packets.LapData, ahead bool) (Directive, bool) {
+	key, latched, at := "rival_catching_you", &r.closingBehindIdx, &r.closingBehindAt
+	gapSec, rangeSec := raceGapSec(ctx, ctx.PlayerCarIndex, i), float64(ctx.Config.RivalGapSec)
+	if ahead {
+		key, latched, at = "rival_closing", &r.closingAheadIdx, &r.closingAheadAt
+		gapSec, rangeSec = raceGapSec(ctx, i, ctx.PlayerCarIndex), float64(ctx.Config.RivalAheadGapSec)
+	}
+	if *latched == i && (gapSec > RivalClosingWindowSec+RivalClosingRearmSec || ctx.CallLost(key, *at, DefaultMaxDelayMs)) {
+		*latched = -1
+	}
+	if *latched == i || gapSec <= rangeSec+RivalRearmHysteresisSec || gapSec > RivalClosingWindowSec {
+		return Directive{}, false
+	}
+	g := gapToCar(ctx.PlayerLaps, i, uint32(math.Round(gapSec*packets.MillisPerSecond)), ahead)
+	if g == nil || g.Trend != GapClosing || g.PerLapSec < RivalClosingMinSecPerLap || g.PerLapSec > RivalClosingMaxSecPerLap {
+		return Directive{}, false
+	}
+	// Rounded first: 1.2 s at 0.3 s a lap is 4 laps, not 4.0000001.
+	laps := int(math.Ceil(roundTo((gapSec-rangeSec)/g.PerLapSec, 3)))
+	if laps > RivalClosingMaxLaps || (ctx.Session != nil && ctx.Session.TotalLaps > 0 && int(playerLap.CurrentLapNum)+laps > int(ctx.Session.TotalLaps)) {
+		return Directive{}, false
+	}
+	*latched, *at = i, ctx.Now
+	withRival(ctx, i, g)
+
+	d := Directive{
+		ID:       key,
+		Category: DirectiveCategoryRivals,
+		SubAlert: key,
+		Urgency:  UrgencyLow,
+		Values:   &DirectiveValues{LapsToRange: laps},
+	}
+	if ahead {
+		d.Title = "Closing On The Car Ahead"
+		d.Message = fmt.Sprintf("Closing on the car ahead (P%d): %.1fs, %.1fs a lap, in range in about %d laps.", playerLap.CarPosition-1, g.GapSec, g.PerLapSec, laps)
+		d.Values.Ahead = g
+	} else {
+		d.Title = "Car Behind Closing"
+		d.Message = fmt.Sprintf("The car behind (P%d) is closing: %.1fs, %.1fs a lap, in range in about %d laps.", playerLap.CarPosition+1, g.GapSec, g.PerLapSec, laps)
+		d.Values.Behind = g
+	}
+	return d, true
+}
+
+// newPenaltiesLocked follows each car's time penalties and returns the cars whose went up since
+// the last lap data. The first lap data only records them.
+func (r *RivalsRule) newPenaltiesLocked(ctx *EvaluationContext) [packets.MaxCars]bool {
+	var up [packets.MaxCars]bool
+	if ctx.LapData == nil {
+		return up
+	}
+	for i := range ctx.LapData.LapData {
+		p := ctx.LapData.LapData[i].Penalties
+		up[i] = r.penaltiesSeen && p > r.penalties[i]
+		r.penalties[i] = p
+	}
+	r.penaltiesSeen = true
+	return up
+}
+
+// rivalPenaltyCall says the time penalties the car right ahead (or behind) now has to serve,
+// while it is within RivalPenaltyMaxGapSec: the player beats a car ahead that finishes less than
+// its penalty in front, and keeps a car behind that finishes less than its penalty back.
+func rivalPenaltyCall(ctx *EvaluationContext, i int, ahead bool) (Directive, bool) {
+	gapSec := raceGapSec(ctx, ctx.PlayerCarIndex, i)
+	if ahead {
+		gapSec = raceGapSec(ctx, i, ctx.PlayerCarIndex)
+	}
+	if gapSec <= 0 || gapSec > RivalPenaltyMaxGapSec {
+		return Directive{}, false
+	}
+	pen := int(ctx.LapData.LapData[i].Penalties)
+	g := withRival(ctx, i, &GapToCar{GapSec: roundTo(gapSec, 1)})
+	subAlert := "rival_penalty_behind"
+	msg := fmt.Sprintf("The car behind, %.1fs back, has %ds of time penalties: keep it within that and we stay ahead.", g.GapSec, pen)
+	values := &DirectiveValues{Behind: g, PenaltySec: pen}
+	if ahead {
+		subAlert = "rival_penalty_ahead"
+		msg = fmt.Sprintf("The car ahead, %.1fs up the road, has %ds of time penalties: finish within that and we're ahead.", g.GapSec, pen)
+		values = &DirectiveValues{Ahead: g, PenaltySec: pen}
+	}
+	return Directive{
+		ID:       "rival_penalty",
+		Category: DirectiveCategoryRivals,
+		SubAlert: subAlert,
+		Title:    "Rival Penalty",
+		Message:  msg,
+		Urgency:  UrgencyMedium,
+		Values:   values,
+	}, true
 }
 
 // defendCall warns of car i, right behind, once it comes within RivalGapSec; the same car is
@@ -276,12 +438,31 @@ func (r *RivalsRule) attackCall(ctx *EvaluationContext, i, playerPos int, is2026
 	}, true
 }
 
-// rivalGap is the gap to rival i for a battle call, with how it moved over the last laps.
+// rivalGap is the gap to rival i for a battle call, with how it moved over the last laps and
+// what is known of the rival.
 func rivalGap(ctx *EvaluationContext, i int, gapSec float64, ahead bool) *GapToCar {
-	if g := gapToCar(ctx.PlayerLaps, i, uint32(math.Round(gapSec*packets.MillisPerSecond)), ahead); g != nil {
+	g := gapToCar(ctx.PlayerLaps, i, uint32(math.Round(gapSec*packets.MillisPerSecond)), ahead)
+	if g == nil {
+		g = &GapToCar{GapSec: roundTo(gapSec, 1)}
+	}
+	return withRival(ctx, i, g)
+}
+
+// withRival adds what is known of rival i to the gap to it on a race call: who drives it, its tyre,
+// and how much older that is than the player's.
+func withRival(ctx *EvaluationContext, i int, g *GapToCar) *GapToCar {
+	g.Name = spokenName(ctx.Participants, i)
+	if ctx.Status == nil || i < 0 || i >= len(ctx.Status.CarStatusData) {
 		return g
 	}
-	return &GapToCar{GapSec: roundTo(gapSec, 1)}
+	rival := ctx.Status.CarStatusData[i]
+	if g.Compound = tyreCompoundOf(rival.VisualTyreCompound); g.Compound == "" {
+		return g
+	}
+	if player := ctx.PlayerStatus(); player != nil && player.VisualTyreCompound != 0 {
+		g.TyreAgeDiffLaps = int(rival.TyresAgeLaps) - int(player.TyresAgeLaps)
+	}
+	return g
 }
 
 // trendNote describes a battle gap's trend for the server log: ", closing 0.3s a lap".

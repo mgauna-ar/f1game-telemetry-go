@@ -30,6 +30,8 @@ export const PitAccordion: React.FC<PitAccordionProps> = ({ isExpanded, onToggle
   const setSubPitLane = useRadioSettingsStore((s) => s.setSubPitLane);
   const subPitEntryReminder = useRadioSettingsStore((s) => s.subPitEntryReminder);
   const setSubPitEntryReminder = useRadioSettingsStore((s) => s.setSubPitEntryReminder);
+  const subPitNews = useRadioSettingsStore((s) => s.subPitNews);
+  const setSubPitNews = useRadioSettingsStore((s) => s.setSubPitNews);
   const pitCallLeadM = useRadioSettingsStore((s) => s.pitCallLeadM);
   const setPitCallLeadM = useRadioSettingsStore((s) => s.setPitCallLeadM);
 
@@ -82,6 +84,12 @@ export const PitAccordion: React.FC<PitAccordionProps> = ({ isExpanded, onToggle
           label={t('ai_engineer.proactiveAlerts.pitEntryReminder')}
           checked={subPitEntryReminder}
           onChange={setSubPitEntryReminder}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.pitNews')}
+          checked={subPitNews}
+          onChange={setSubPitNews}
         />
       </div>
 
