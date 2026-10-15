@@ -1,0 +1,101 @@
+name: Edge TTS Canary
+
+# The engineer's voice comes from Microsoft's Edge Neural TTS, an endpoint we don't control.
+# When Microsoft changes what it accepts (like the Sec-MS-GEC v2 token in #27), normal CI stays
+# green and the engineer just goes silent. This checks the real endpoint once a day.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+  # Also check it live on PRs that change the TTS code or this canary
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'internal/ai/edge_tts*.go'
+      - '.github/workflows/edge-tts-canary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: Edge TTS endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Synthesize a line through the real endpoint
+        run: EDGE_TTS_LIVE=1 go test ./internal/ai -run Live -count=1 -v
+
+  upstream:
+    name: Upstream edge-tts token version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # rany2/edge-tts is where token changes get reverse-engineered first, so a new
+      # SEC_MS_GEC_VERSION there means our requests are about to be (or already are) rejected
+      - name: Compare Sec-MS-GEC-Version with rany2/edge-tts
+        run: |
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/rany2/edge-tts/master/src/edge_tts/constants.py \
+            -o "$RUNNER_TEMP/constants.py"
+          python3 -I - "$RUNNER_TEMP/constants.py" internal/ai/edge_tts.go <<'EOF'
+          import ast
+          import re
+          import sys
+
+          upstream_path, go_path = sys.argv[1], sys.argv[2]
+
+          # Read upstream's string constants without running its code: plain strings
+          # and f-strings built from earlier constants
+          consts = {}
+
+          def resolve(node):
+              if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                  return node.value
+              if isinstance(node, ast.Name):
+                  return consts[node.id]
+              if isinstance(node, ast.FormattedValue):
+                  return resolve(node.value)
+              if isinstance(node, ast.JoinedStr):
+                  return "".join(resolve(v) for v in node.values)
+              raise ValueError(ast.dump(node))
+
+          with open(upstream_path) as f:
+              tree = ast.parse(f.read())
+          for node in tree.body:
+              if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                  try:
+                      consts[node.targets[0].id] = resolve(node.value)
+                  except (KeyError, ValueError):
+                      pass
+
+          upstream = consts.get("SEC_MS_GEC_VERSION")
+          if not upstream:
+              print("::error::Couldn't read SEC_MS_GEC_VERSION from rany2/edge-tts src/edge_tts/constants.py. "
+                    "Its layout changed; compare it with edgeTTSSecVersion by hand and update this check.")
+              sys.exit(1)
+
+          with open(go_path) as f:
+              match = re.search(r'edgeTTSSecVersion\s*=\s*"([^"]+)"', f.read())
+          if not match:
+              print(f"::error file={go_path}::Couldn't find edgeTTSSecVersion in {go_path}.")
+              sys.exit(1)
+          ours = match.group(1)
+
+          print(f"rany2/edge-tts SEC_MS_GEC_VERSION: {upstream}")
+          print(f"our edgeTTSSecVersion:             {ours}")
+          if upstream != ours:
+              print(f"::error file={go_path}::rany2/edge-tts moved SEC_MS_GEC_VERSION to {upstream}, we still send {ours}. "
+                    "Microsoft has likely changed the Sec-MS-GEC token: port src/edge_tts/drm.py and constants.py "
+                    "from upstream into internal/ai/edge_tts.go.")
+              sys.exit(1)
+          EOF
