@@ -277,6 +277,12 @@ export const ai_engineer = {
     placeholder: 'ej. Franco, Campeón, Mate, Jefe...',
     desc: 'Cómo te llamará tu ingeniero de pista por la radio de forma natural',
   },
+  aiRadioLines: {
+    title: 'Palabras nuevas con IA',
+    label: 'La IA dice las llamadas de rutina',
+    desc: 'Tu modelo de radio dice las llamadas de rutina con palabras nuevas cada vez, con los mismos datos. Las urgentes siguen al instante, y si la IA tarda se dice la frase de siempre.',
+    noProvider: 'Configurá un proveedor de IA en Ajustes → Chat de IA para usarlo. Mientras tanto el ingeniero usa sus frases de siempre.',
+  },
   audio: {
     title: 'Efectos de Audio y Cockpit',
     beeps: 'Beeps de Radio F1 FOM',

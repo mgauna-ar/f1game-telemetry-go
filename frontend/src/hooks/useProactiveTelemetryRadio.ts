@@ -41,6 +41,8 @@ export function useProactiveTelemetryRadio({
 
         const isCritical = directive.urgency === 'critical' || directive.urgency === 'high';
         onTriggerAlertRef.current({
+          directiveId: directive.id,
+          wordable: directive.wordable === true,
           category,
           isCritical,
           emotion: isCritical ? CRITICAL_EMOTION : CALM_EMOTION,

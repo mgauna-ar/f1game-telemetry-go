@@ -144,6 +144,26 @@ func (s *Server) effectiveAI(ctx context.Context) (settings.EffectiveAI, bool, e
 	return s.resolveAI(saved), ok, nil
 }
 
+// refreshRadioWording tells the race engineer whether the AI may word routine calls: AI wording is
+// on in the voice settings and the chosen AI provider is ready. It follows the saved voice and AI
+// settings; a setting that can't be read leaves the calls in the catalogue's words.
+func (s *Server) refreshRadioWording(ctx context.Context) {
+	if s.engineerEngine == nil {
+		return
+	}
+	var voice settings.Voice
+	eff, _, err := s.effectiveAI(ctx)
+	if err == nil && s.repo != nil {
+		voice, _, err = settings.LoadVoice(ctx, s.repo)
+	}
+	if err != nil {
+		slog.Error("Failed to load the settings for AI-worded radio calls, leaving them off", "error", err)
+		s.engineerEngine.SetRadioWording(false)
+		return
+	}
+	s.engineerEngine.SetRadioWording(voice.WordsRadioCalls() && eff.Ready())
+}
+
 // fillAIRequest completes what a chat or model-list request left empty: the request's own values
 // win, then the saved settings, then env vars, then built-in defaults.
 func (s *Server) fillAIRequest(ctx context.Context, req settings.AIRequest) settings.AIRequest {
@@ -213,6 +233,7 @@ func (s *Server) handlePutAISettings(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "failed to save AI settings", http.StatusInternalServerError)
 		return
 	}
+	s.refreshRadioWording(r.Context())
 	s.broadcastSettingsChanged(r, settings.SectionAI, 0)
 	writeJSON(w, http.StatusOK, newAISettingsResponse(s.resolveAI(next), true))
 }
@@ -245,6 +266,7 @@ func (s *Server) handlePutVoiceSettings(w http.ResponseWriter, r *http.Request) 
 		writeJSONError(w, "failed to save voice settings", http.StatusInternalServerError)
 		return
 	}
+	s.refreshRadioWording(r.Context())
 	s.broadcastSettingsChanged(r, settings.SectionVoice, 0)
 	writeJSON(w, http.StatusOK, VoiceSettingsResponse{Saved: true, Voice: voice})
 }

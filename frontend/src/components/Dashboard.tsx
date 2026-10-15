@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import {
@@ -27,9 +27,7 @@ import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { HUB_PANELS, type HubPanel } from '../utils/raceControl';
 import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { useRadioController } from '../hooks/useRadioController';
-import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
-import { getProactiveRadioSpeech } from '../utils/radioPhrases';
-import type { RadioAlertPayload } from '../types/telemetry';
+import { useProactiveRadioCalls } from '../hooks/useProactiveRadioCalls';
 import { navigate, useRoute } from '../router/router';
 import { buildPath, storeLiveMode } from '../router/routes';
 import styles from './Dashboard.module.css';
@@ -76,29 +74,8 @@ export const Dashboard: React.FC = () => {
   const layout = useDevicePreferencesStore((s) => s.raceControlLayout);
   const changeLayout = useDevicePreferencesStore((s) => s.setRaceControlLayout);
 
-  const radioRef = useRef(radio);
-  radioRef.current = radio;
-
-  const handleProactiveAlert = useCallback((payload: RadioAlertPayload) => {
-    const r = radioRef.current;
-    // Instant pit wall radio call in the persona's words, never the same line twice in a row
-    const speech = getProactiveRadioSpeech(payload.category, {
-      language: r.effectiveLanguage,
-      persona: r.persona,
-      callsign: r.driverCallsign,
-      box: payload.box,
-      values: payload.values,
-      urgent: payload.isCritical,
-    });
-    if (speech) {
-      r.speakMessage(speech, payload.isCritical, payload.emotion, payload.ttlMs);
-    }
-  }, []);
-
-  useProactiveTelemetryRadio({
-    isRadioEnabled: radio.isRadioEnabled,
-    onTriggerAlert: handleProactiveAlert,
-  });
+  // The pit wall's calls, in the persona's words or worded afresh by the AI
+  useProactiveRadioCalls(radio);
 
   if (!connected || !session) {
     return (

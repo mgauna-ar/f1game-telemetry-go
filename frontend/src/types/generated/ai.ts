@@ -61,3 +61,16 @@ export interface ChatZoomRange {
 }
 
 export type DebriefFocus = 'pace' | 'position' | 'gap' | 'stints' | 'sectors' | 'story';
+
+/** Go: ai.RadioLineRequest */
+export interface RadioLineRequest {
+  directive_id: string;
+  language: string;
+  persona: string;
+  baseline: string;
+}
+
+/** Go: ai.RadioLineResponse */
+export interface RadioLineResponse {
+  text: string;
+}

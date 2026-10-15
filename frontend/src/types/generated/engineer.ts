@@ -46,6 +46,7 @@ export interface EngineerDirective {
   ttl_ms: number;
   box?: EngineerBoxTiming;
   values?: DirectiveValues;
+  wordable?: boolean;
 }
 
 export type EngineerDirectiveCategory = 'pit_strategy' | 'coaching' | 'weather' | 'teammate' | 'tyres' | 'damage' | 'ers' | 'brakes' | 'fuel' | 'rivals' | 'qualy' | 'flags';

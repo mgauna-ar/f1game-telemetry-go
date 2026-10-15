@@ -12,6 +12,9 @@ type chatStyle struct {
 	// maxTokens caps a quick answer from a model that doesn't think; 0 keeps the provider's
 	// default. A thinking model counts its thinking in the cap, so it is left uncapped.
 	maxTokens int64
+	// varied asks for different words each time: a warmer temperature where the provider's
+	// default is kept low for factual answers.
+	varied bool
 }
 
 // RadioAnswerMaxTokens caps a spoken radio answer. Answers are a few sentences, so it only

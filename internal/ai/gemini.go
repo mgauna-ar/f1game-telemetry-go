@@ -17,6 +17,9 @@ const geminiAPIKeyHeader = "x-goog-api-key"
 // geminiTemperature keeps radio answers factual while still sounding natural.
 const geminiTemperature = 0.35
 
+// geminiVariedTemperature words a radio call differently each time (chatStyle.varied).
+const geminiVariedTemperature = 0.9
+
 // geminiMinimalThinking is the lowest thinking level of Gemini 3 and later.
 const geminiMinimalThinking = "minimal"
 
@@ -147,6 +150,9 @@ func newGeminiChat(conn connection, model, systemPrompt string, messages []AICha
 // applyStyle sets the generation config for the turn's answer style.
 func (c *geminiChat) applyStyle(style chatStyle) {
 	config := map[string]any{"temperature": geminiTemperature}
+	if style.varied {
+		config["temperature"] = geminiVariedTemperature
+	}
 	if style.quick {
 		if thinking := geminiQuickThinking(c.model); thinking != nil {
 			config["thinkingConfig"] = thinking

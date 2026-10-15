@@ -225,6 +225,9 @@ const (
 	AIErrorNetworkError    = "NETWORK_ERROR"
 	AIErrorGeneric         = "GENERIC_ERROR"
 	AIErrorInvalidRequest  = "INVALID_REQUEST"
+	// AIErrorRadioLineRejected: the AI's line for a radio call changed its facts or broke the
+	// radio rules; the dashboard says the catalogue line.
+	AIErrorRadioLineRejected = "RADIO_LINE_REJECTED"
 )
 
 // AIErrorPayload represents a structured error returned in SSE or JSON responses.

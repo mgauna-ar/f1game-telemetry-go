@@ -234,6 +234,15 @@ func (e EffectiveAI) HasKey(provider string) bool {
 	return e.keys[provider] != ""
 }
 
+// Ready reports whether the chosen provider can answer: a cloud provider with an API key, or a
+// custom server with its address (a local one needs no key).
+func (e EffectiveAI) Ready() bool {
+	if e.Provider == ProviderCustom {
+		return strings.TrimSpace(e.BaseURL) != ""
+	}
+	return e.HasKey(e.Provider)
+}
+
 // AIRequest is the provider part of a chat or model-list request.
 type AIRequest struct {
 	Provider string

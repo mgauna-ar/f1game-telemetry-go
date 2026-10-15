@@ -444,15 +444,18 @@ func TestStreamGemini_QuickAnswerSettings(t *testing.T) {
 		style        chatStyle
 		wantThinking string
 		wantMax      any
+		wantTemp     float64
 	}{
-		{"gemini-2.5-flash", radioAnswerStyle, `{"thinkingBudget":0}`, float64(RadioAnswerMaxTokens)},
-		{"gemini-flash-lite-latest", radioAnswerStyle, `{"thinkingLevel":"minimal"}`, float64(RadioAnswerMaxTokens)},
-		{"models/gemini-3-flash-preview", radioAnswerStyle, `{"thinkingLevel":"minimal"}`, float64(RadioAnswerMaxTokens)},
-		{"gemma-3", radioAnswerStyle, "", float64(RadioAnswerMaxTokens)},
-		{"gemini-flash-lite-latest", chatStyle{}, "", nil},
+		{"gemini-2.5-flash", radioAnswerStyle, `{"thinkingBudget":0}`, float64(RadioAnswerMaxTokens), geminiTemperature},
+		{"gemini-flash-lite-latest", radioAnswerStyle, `{"thinkingLevel":"minimal"}`, float64(RadioAnswerMaxTokens), geminiTemperature},
+		{"models/gemini-3-flash-preview", radioAnswerStyle, `{"thinkingLevel":"minimal"}`, float64(RadioAnswerMaxTokens), geminiTemperature},
+		{"gemma-3", radioAnswerStyle, "", float64(RadioAnswerMaxTokens), geminiTemperature},
+		{"gemini-flash-lite-latest", chatStyle{}, "", nil, geminiTemperature},
+		// A radio line is worded differently each time.
+		{"gemini-flash-lite-latest", radioLineStyle, `{"thinkingLevel":"minimal"}`, float64(RadioLineMaxTokens), geminiVariedTemperature},
 	}
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%s quick=%v", tc.model, tc.style.quick), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s quick=%v varied=%v", tc.model, tc.style.quick, tc.style.varied), func(t *testing.T) {
 			up, url := startUpstream(t, sseReply(`{"candidates":[{"content":{"parts":[{"text":"Copy."}]}}]}`))
 			useGeminiBaseURL(t, url)
 			rec := httptest.NewRecorder()
@@ -466,8 +469,8 @@ func TestStreamGemini_QuickAnswerSettings(t *testing.T) {
 				b, _ := json.Marshal(v)
 				thinking = string(b)
 			}
-			if thinking != tc.wantThinking || config["maxOutputTokens"] != tc.wantMax || config["temperature"] != geminiTemperature {
-				t.Fatalf("got generation config %v, want thinking %s and max tokens %v", config, tc.wantThinking, tc.wantMax)
+			if thinking != tc.wantThinking || config["maxOutputTokens"] != tc.wantMax || config["temperature"] != tc.wantTemp {
+				t.Fatalf("got generation config %v, want thinking %s, max tokens %v and temperature %v", config, tc.wantThinking, tc.wantMax, tc.wantTemp)
 			}
 		})
 	}

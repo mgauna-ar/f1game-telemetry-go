@@ -197,6 +197,42 @@ describe('the radio phrase picker', () => {
     });
   });
 
+  describe('a call the AI words afresh', () => {
+    const routine = { language: 'en', persona: 'custom', callsign: 'Franco' } as const;
+
+    it('gives the catalogue line without the callsign, and addresses the AI line the same way', () => {
+      const picker = createRadioPhrasePicker(seeded(4));
+      const first = picker.prepare('tyre_cold', routine)!;
+      expect(first.speech.startsWith('Franco, ')).toBe(true);
+      expect(first.baseline).not.toMatch(/Franco|{driver}/);
+      expect(first.address('front tyres are still cold.')).toBe('Franco, front tyres are still cold.');
+
+      // The next routine call doesn't say the callsign, in either words.
+      const second = picker.prepare('tyre_cold', routine)!;
+      expect(second.speech).toBe(second.baseline);
+      expect(second.address('Fronts still cold.')).toBe('Fronts still cold.');
+    });
+
+    it('counts towards the callsign cadence once, as a call said in the catalogue words does', () => {
+      const prepared = createRadioPhrasePicker(seeded(4));
+      const said = createRadioPhrasePicker(seeded(4));
+      for (let i = 0; i < 6; i++) {
+        expect(prepared.prepare('brake_cold', routine)!.speech).toBe(said.proactive('brake_cold', routine));
+      }
+    });
+
+    it('keeps the box timing in the baseline', () => {
+      const picker = createRadioPhrasePicker(seeded(2));
+      const call = picker.prepare('tyre_wear', { ...routine, box: 'next_lap' })!;
+      const timing = boxTimingPool('tyre_wear', 'next_lap', 'en', 'custom');
+      expect(timing.some((line) => call.baseline.endsWith(line))).toBe(true);
+    });
+
+    it('is null when the call has nothing to say', () => {
+      expect(createRadioPhrasePicker().prepare('gap_report', routine)).toBeNull();
+    });
+  });
+
   describe('calls to pit', () => {
     it('end an order to pit with when to box', () => {
       const picker = createRadioPhrasePicker(seeded(6));

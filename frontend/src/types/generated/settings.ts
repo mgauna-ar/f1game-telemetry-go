@@ -48,4 +48,5 @@ export interface Voice {
   neural_voice: string;
   speech_rate: number;
   speech_pitch: number;
+  ai_radio_lines?: boolean;
 }

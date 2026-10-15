@@ -141,6 +141,39 @@ func TestResolveAI_RadioModels(t *testing.T) {
 	}
 }
 
+func TestEffectiveAIReady(t *testing.T) {
+	tests := []struct {
+		name  string
+		saved AI
+		env   AIEnv
+		want  bool
+	}{
+		{"nothing set", AI{}, AIEnv{}, false},
+		{"a saved key", AI{Provider: ProviderClaude, APIKeys: map[string]string{ProviderClaude: "k"}}, AIEnv{}, true},
+		{"a key for another provider", AI{Provider: ProviderClaude, APIKeys: map[string]string{ProviderGemini: "k"}}, AIEnv{}, false},
+		{"an env key", AI{}, AIEnv{APIKeys: map[string]string{ProviderGemini: "k"}}, true},
+		{"a custom server's address", AI{Provider: ProviderCustom, BaseURL: "http://localhost:11434/v1"}, AIEnv{}, true},
+		{"a custom server without one", AI{Provider: ProviderCustom}, AIEnv{}, false},
+	}
+	for _, tt := range tests {
+		if got := ResolveAI(tt.saved, tt.env, testDefaultModel, testDefaultRadioModel).Ready(); got != tt.want {
+			t.Errorf("%s: Ready() = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestVoiceWordsRadioCalls(t *testing.T) {
+	on, off := true, false
+	for _, tt := range []struct {
+		lines *bool
+		want  bool
+	}{{nil, true}, {&on, true}, {&off, false}} {
+		if got := (Voice{AIRadioLines: tt.lines}).WordsRadioCalls(); got != tt.want {
+			t.Errorf("AIRadioLines %v: WordsRadioCalls() = %v, want %v", tt.lines, got, tt.want)
+		}
+	}
+}
+
 func TestAIApply(t *testing.T) {
 	base := AI{
 		Provider: ProviderGemini,

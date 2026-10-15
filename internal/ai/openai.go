@@ -10,6 +10,9 @@ import (
 // openAITemperature keeps radio answers factual while still sounding natural.
 const openAITemperature = 0.4
 
+// openAIVariedTemperature words a radio call differently each time (chatStyle.varied).
+const openAIVariedTemperature = 0.9
+
 // OpenAI chat roles and tool settings.
 const (
 	openAIRoleSystem     = "system"
@@ -177,6 +180,9 @@ func (c *openAIChat) streamTurn(ctx context.Context, turn chatTurn, out textSink
 	}
 	if !c.isReasoning {
 		reqMap["temperature"] = openAITemperature
+		if turn.style.varied {
+			reqMap["temperature"] = openAIVariedTemperature
+		}
 	}
 	// A reasoning model's token cap counts its reasoning, so only its effort is lowered.
 	if turn.style.quick {

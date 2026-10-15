@@ -40,6 +40,14 @@ const (
 	// through it.
 	PauseDetectMs = 1_000
 
+	// AI-worded calls: a routine call that stays worth saying for RadioLineMinTTLMs may be worded
+	// by the AI. Wording takes about RadioLineLeadMs, so the call goes out that much earlier for a
+	// straight and keeps the radio busy that much longer. The AI is shown the last
+	// RadioLineRecentLines lines said for the call, so it words it differently.
+	RadioLineMinTTLMs    = 6_000
+	RadioLineLeadMs      = 1_500
+	RadioLineRecentLines = 3
+
 	// Quiet stretches: where on the lap the player is flat out, off the brakes and straight, learned
 	// in QuietBinM bins over QuietLearnMinLaps whole laps at racing pace (QuietMinCoverage of the
 	// bins sampled). A routine call waits for one long enough to say it, for up to QuietWaitShare

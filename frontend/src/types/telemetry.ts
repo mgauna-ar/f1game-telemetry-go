@@ -251,6 +251,10 @@ export interface RadioPhrasePool {
 
 /** A proactive radio call for the speech queue: the phrase category to speak and how urgently. */
 export interface RadioAlertPayload {
+  /** The directive the call came in, for asking the AI to word it. */
+  directiveId: string;
+  /** The AI may word the call afresh before it is said. */
+  wordable: boolean;
   category: RadioAlertCategory;
   isCritical: boolean;
   emotion: RadioEmotion;

@@ -97,6 +97,10 @@ type EngineerEngine struct {
 	history      raceHistory
 	lastPacketAt int64 // unix ms of the last processed packet
 
+	// radioWording is whether the AI may word routine calls: switched on in the voice settings,
+	// with an AI provider ready to answer (SetRadioWording).
+	radioWording bool
+
 	// now returns the current time; tests replace it.
 	now func() time.Time
 }
@@ -198,6 +202,21 @@ func (e *EngineerEngine) SetConfig(cfg EngineerConfig) {
 		cfg.EnabledCategories = make(map[string]bool)
 	}
 	e.config = cfg
+}
+
+// SetRadioWording says whether the AI may word routine calls: AI wording is on and the AI
+// provider has what it needs (a key, or a custom server's address).
+func (e *EngineerEngine) SetRadioWording(on bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.radioWording = on
+}
+
+// wordableLocked reports whether the AI may word a call that stays worth saying for ttlMs: a
+// routine call, while AI wording is on. Calls said at a moment (a battle, a sector time, an aero
+// zone) go stale before a line comes, and box calls are left out by the caller. Must hold e.mu.
+func (e *EngineerEngine) wordableLocked(urgency string, ttlMs int64) bool {
+	return e.radioWording && !isUrgent(urgency) && ttlMs >= RadioLineMinTTLMs
 }
 
 // Reset clears state when a new session starts.
@@ -1040,7 +1059,12 @@ func (e *EngineerEngine) discretionHoldLocked(alertKey, urgency string, waitedMs
 	}
 	waitLimit := int64(QuietWaitShare * float64(e.maxDelayMs(alertKey)))
 	if !e.alertRules[alertKey].BreaksRadioSilence && waitedMs < waitLimit {
-		if runway, ok := e.quietRunwayLocked(RadioDeliveryLatencyMs); ok {
+		// A call the AI words is spoken once its line comes, so it looks that much further ahead.
+		lead := int64(RadioDeliveryLatencyMs)
+		if e.wordableLocked(urgency, e.speechTTLMs(alertKey, waitedMs)) {
+			lead += RadioLineLeadMs
+		}
+		if runway, ok := e.quietRunwayLocked(lead); ok {
 			return runway < e.speechMs(alertKey)
 		}
 	}
@@ -1190,7 +1214,12 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 
 	e.lastDirectives[e.cooldownKey(alertKey, category)] = now
 	e.lastDirectives[alertKey] = now
+	directive.TTLMs = e.speechTTLMs(alertKey, heldForMs)
+	directive.Wordable = directive.BoxCall == BoxCallNone && e.wordableLocked(directive.Urgency, directive.TTLMs)
 	busyUntil := now + RadioDeliveryLatencyMs + e.speechMs(alertKey) + e.config.GlobalChatterCooldownMs
+	if directive.Wordable {
+		busyUntil += RadioLineLeadMs
+	}
 	if directive.Urgency == UrgencyCritical {
 		busyUntil += CriticalBreatherMs
 	}
@@ -1216,7 +1245,6 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	directive.ID = fmt.Sprintf("directive_%d_%s", now, alertKey)
 	directive.Type = DirectiveMessageType
 	directive.Timestamp = now
-	directive.TTLMs = e.speechTTLMs(alertKey, heldForMs)
 	if e.playerPos.known {
 		directive.lapDistance = e.playerPos.lapDistance
 	}
@@ -1250,6 +1278,9 @@ func (e *EngineerEngine) broadcastDirective(broadcaster DirectiveBroadcaster, di
 	}
 	if directive.Box != "" {
 		attrs = append(attrs, "box", string(directive.Box))
+	}
+	if directive.Wordable {
+		attrs = append(attrs, "wordable", true)
 	}
 	slog.Info("Proactive directive emitted", attrs...)
 	broadcaster.Broadcast(data)

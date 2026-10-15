@@ -277,6 +277,12 @@ export const ai_engineer = {
     placeholder: 'e.g. Max, Franco, Chief, Mate...',
     desc: 'How your race engineer naturally addresses you over the radio',
   },
+  aiRadioLines: {
+    title: 'Fresh words from the AI',
+    label: 'AI words the routine calls',
+    desc: 'Your radio model says routine calls in new words each time, with the same facts. Urgent calls stay instant, and the usual line is said if the AI is slow.',
+    noProvider: 'Set up an AI provider under Settings → AI chat to use this. Until then the engineer uses its usual lines.',
+  },
   audio: {
     title: 'Audio & Cockpit Radio Effects',
     beeps: 'F1 FOM Radio Beeps',

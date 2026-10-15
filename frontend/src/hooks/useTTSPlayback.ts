@@ -71,6 +71,8 @@ export interface UseTTSPlaybackReturn {
   testRadioTransmission: () => Promise<void>;
   testTriggerAlert: (triggerType: string) => Promise<void>;
   beginReplyStream: () => ReplySpeechStream;
+  /** Synthesizes a call's speech ahead, so it starts at once if it is said. */
+  prefetchMessage: (text: string, emotion?: SpeechEmotion) => void;
 }
 
 export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackReturn {
@@ -120,6 +122,14 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       };
     },
     [speechRate, speechPitch, volume, neuralVoice, persona, effectiveLanguage, beepsEnabled, filterEnabled, staticFxEnabled]
+  );
+
+  const prefetchMessage = useCallback(
+    (text: string, emotion?: SpeechEmotion) => {
+      const cleaned = cleanRadioSpeechText(text);
+      if (isRadioEnabled && cleaned) prefetchRadioSpeech(cleaned, speechOptions(emotion));
+    },
+    [isRadioEnabled, speechOptions]
   );
 
   const cancelReplyStream = useCallback(() => {
@@ -432,5 +442,6 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     testRadioTransmission,
     testTriggerAlert,
     beginReplyStream,
+    prefetchMessage,
   };
 }

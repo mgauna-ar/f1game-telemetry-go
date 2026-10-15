@@ -201,6 +201,10 @@ func writeRecentCalls(sb *strings.Builder, calls []RadioCallRecord) {
 	}
 	sb.WriteString("- Pit wall calls you already made (do not repeat them unprompted):\n")
 	for _, c := range calls {
+		if c.Said != "" {
+			fmt.Fprintf(sb, "  * Lap %d: %q\n", c.Lap, c.Said)
+			continue
+		}
 		fmt.Fprintf(sb, "  * Lap %d: %s\n", c.Lap, c.Message)
 	}
 }

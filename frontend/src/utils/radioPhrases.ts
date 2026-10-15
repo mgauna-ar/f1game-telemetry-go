@@ -183,6 +183,16 @@ export interface ProactiveSpeechOptions {
   urgent?: boolean;
 }
 
+/** A proactive call ready to say, in the catalogue's words or in words the AI found for it. */
+export interface ProactiveCall {
+  /** The call in the catalogue's words, with the callsign when this call says it. */
+  speech: string;
+  /** The catalogue's words without the callsign: what the AI words afresh, keeping its facts. */
+  baseline: string;
+  /** Says a line the AI worded for the call to the driver, with the callsign when `speech` has it. */
+  address: (line: string) => string;
+}
+
 /** Picks the radio's words, without saying the same line twice in a row. */
 export interface RadioPhrasePicker {
   /**
@@ -193,6 +203,11 @@ export interface RadioPhrasePicker {
    * line. A call none of whose phrases can be said (a report without its numbers) is left unsaid ('').
    */
   proactive(category: RadioAlertCategory, options?: ProactiveSpeechOptions): string;
+  /**
+   * The same call as `proactive`, with what the AI needs to word it afresh; null when it can't be
+   * said. Each call counts once towards the callsign cadence, whichever words are said.
+   */
+  prepare(category: RadioAlertCategory, options?: ProactiveSpeechOptions): ProactiveCall | null;
   /**
    * What `persona` says, addressed to the driver's callsign, in a push-to-talk exchange besides the
    * answer: ask again, say the radio isn't working, ask to stand by, or say there is no answer.
@@ -260,35 +275,46 @@ export function createRadioPhrasePicker(random: () => number = () => Math.random
     return parts.join(' ');
   };
 
-  return {
-    proactive(category, { language = 'es', persona = 'bono', callsign, box, values, urgent = false } = {}) {
-      const key = `call|${language}|${persona}|${category}`;
-      let parts: string[];
-      if (category === 'gap_report') {
-        const body = values ? gapReportBody(values, language, persona) : '';
-        if (!body) return '';
-        parts = [draw(key, radioPhrasePool(category, language, persona)), body];
-      } else {
-        const pool =
-          category === 'tyre_life' && values?.tyre_laps_left === 1
-            ? personaPhrases(REPORT_PHRASES[language].tyre_life_one_lap, persona)
-            : radioPhrasePool(category, language, persona);
-        const facts = callFacts(values, language);
-        const phrase = draw(key, mostInformative(pool, facts));
-        if (!phrase) return '';
-        parts = [fillValues(phrase, facts)];
-        if (values?.elimination) parts.push(reportPart(`elimination_${values.elimination}`, language, persona));
-        if (box) {
-          parts.push(
-            draw(`box|${language}|${persona}|${category}|${box}`, boxTimingPool(category, box, language, persona))
-          );
-        }
+  const prepare = (
+    category: RadioAlertCategory,
+    { language = 'es', persona = 'bono', callsign, box, values, urgent = false }: ProactiveSpeechOptions = {}
+  ): ProactiveCall | null => {
+    const key = `call|${language}|${persona}|${category}`;
+    let parts: string[];
+    if (category === 'gap_report') {
+      const body = values ? gapReportBody(values, language, persona) : '';
+      if (!body) return null;
+      parts = [draw(key, radioPhrasePool(category, language, persona)), body];
+    } else {
+      const pool =
+        category === 'tyre_life' && values?.tyre_laps_left === 1
+          ? personaPhrases(REPORT_PHRASES[language].tyre_life_one_lap, persona)
+          : radioPhrasePool(category, language, persona);
+      const facts = callFacts(values, language);
+      const phrase = draw(key, mostInformative(pool, facts));
+      if (!phrase) return null;
+      parts = [fillValues(phrase, facts)];
+      if (values?.elimination) parts.push(reportPart(`elimination_${values.elimination}`, language, persona));
+      if (box) {
+        parts.push(
+          draw(`box|${language}|${persona}|${category}|${box}`, boxTimingPool(category, box, language, persona))
+        );
       }
-      // An urgent call always gets the driver's attention; a routine one says the callsign now and then.
-      const sayCallsign = urgent || routineCalls++ % RADIO_PHRASE_CONSTANTS.CALLSIGN_ROUTINE_EVERY === 0;
-      parts[0] = addressDriver(parts[0], sayCallsign ? callsign : undefined);
-      return parts.filter(Boolean).join(' ');
-    },
+    }
+    // An urgent call always gets the driver's attention; a routine one says the callsign now and then.
+    const sayCallsign = urgent || routineCalls++ % RADIO_PHRASE_CONSTANTS.CALLSIGN_ROUTINE_EVERY === 0;
+    const name = sayCallsign ? callsign : undefined;
+    const say = (opening: string) => [opening, ...parts.slice(1)].filter(Boolean).join(' ');
+    return {
+      speech: say(addressDriver(parts[0], name)),
+      baseline: say(addressDriver(parts[0])),
+      address: (line) => addressDriver(line, name),
+    };
+  };
+
+  return {
+    proactive: (category, options) => prepare(category, options)?.speech ?? '',
+    prepare,
 
     exchange(line, language, persona, callsign) {
       const pool = personaPhrases(EXCHANGE_PHRASES[language][line], persona);
@@ -341,6 +367,14 @@ const radio = createRadioPhrasePicker();
 /** A proactive radio call's words, from the dashboard's picker (see RadioPhrasePicker.proactive). */
 export function getProactiveRadioSpeech(category: RadioAlertCategory, options?: ProactiveSpeechOptions): string {
   return radio.proactive(category, options);
+}
+
+/** A proactive radio call ready to say or have the AI word, from the dashboard's picker (see RadioPhrasePicker.prepare). */
+export function prepareProactiveRadioCall(
+  category: RadioAlertCategory,
+  options?: ProactiveSpeechOptions
+): ProactiveCall | null {
+  return radio.prepare(category, options);
 }
 
 /** A push-to-talk exchange line, from the dashboard's picker (see RadioPhrasePicker.exchange). */

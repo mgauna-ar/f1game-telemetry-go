@@ -14,6 +14,14 @@ type Voice struct {
 	NeuralVoice    string  `json:"neural_voice"`
 	SpeechRate     float64 `json:"speech_rate"`
 	SpeechPitch    float64 `json:"speech_pitch"`
+	// AIRadioLines lets the AI word routine radio calls afresh; nil (saved before it existed)
+	// means on.
+	AIRadioLines *bool `json:"ai_radio_lines,omitempty"`
+}
+
+// WordsRadioCalls reports whether the AI may word routine radio calls.
+func (v Voice) WordsRadioCalls() bool {
+	return v.AIRadioLines == nil || *v.AIRadioLines
 }
 
 // LoadVoice returns the saved voice settings, and false when none were saved yet.

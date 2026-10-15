@@ -101,6 +101,8 @@ func registry() *tsgen.Generator {
 		ai.AIFetchModelsResponse{},
 		ai.AIErrorPayload{},
 		ai.AIChatRequest{},
+		ai.RadioLineRequest{},
+		ai.RadioLineResponse{},
 		system.AppVersion{},
 		system.UpdateCheckResponse{},
 		system.TelemetryEndpoint{},

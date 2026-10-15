@@ -1,10 +1,11 @@
 import React, { useId } from 'react';
-import { Sparkles, User } from 'lucide-react';
+import { Shuffle, Sparkles, User } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { RADIO_PERSONAS } from '../../constants/f1';
+import { providerIsReady, useRaceEngineerState } from '../../context/RaceEngineerContextDefinitions';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import { TextArea, TextInput } from '../ui/Field';
-import { SettingSection } from './SettingControls';
+import { SettingSection, ToggleRow } from './SettingControls';
 import shared from './RadioSettings.module.css';
 import styles from './PersonaSettingsTab.module.css';
 
@@ -33,6 +34,10 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = () => {
   const setCustomPrompt = useRadioSettingsStore((s) => s.setCustomPrompt);
   const driverCallsign = useRadioSettingsStore((s) => s.driverCallsign);
   const setDriverCallsign = useRadioSettingsStore((s) => s.setDriverCallsign);
+  const aiRadioLines = useRadioSettingsStore((s) => s.aiRadioLines);
+  const setAiRadioLines = useRadioSettingsStore((s) => s.setAiRadioLines);
+  const { config, keyStatus } = useRaceEngineerState();
+  const aiReady = providerIsReady(config, keyStatus, config.provider);
   const promptId = useId();
   const callsignId = useId();
   const callsignDescId = useId();
@@ -91,6 +96,16 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = () => {
         <p id={callsignDescId} className={shared.hint}>
           {t('ai_engineer.driverCallsign.desc')}
         </p>
+      </SettingSection>
+
+      <SettingSection icon={<Shuffle size={14} />} title={t('ai_engineer.aiRadioLines.title')}>
+        <ToggleRow
+          label={t('ai_engineer.aiRadioLines.label')}
+          description={t('ai_engineer.aiRadioLines.desc')}
+          checked={aiRadioLines}
+          onChange={setAiRadioLines}
+        />
+        {aiRadioLines && !aiReady && <p className={shared.hint}>{t('ai_engineer.aiRadioLines.noProvider')}</p>}
       </SettingSection>
     </div>
   );

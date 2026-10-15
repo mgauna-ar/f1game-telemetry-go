@@ -38,6 +38,9 @@ type PromptCatalog interface {
 	// ToolUseDirective tells the engineer when to call the live race data tools.
 	ToolUseDirective() string
 
+	// RadioLineDirective tells the engineer how to word a routine radio call afresh from its facts.
+	RadioLineDirective() string
+
 	// UrgencyDirective returns the contextual prompt injection for urgent situations.
 	UrgencyDirective(level string) string
 

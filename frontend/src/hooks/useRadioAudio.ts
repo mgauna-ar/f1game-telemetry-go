@@ -50,6 +50,10 @@ export interface UseRadioAudioReturn {
   onPTTPress: (source?: PTTSource) => void;
   /** The push-to-talk button was let go. */
   onPTTRelease: (source?: PTTSource) => Promise<void>;
+  /** Whether a push-to-talk exchange is under way: the driver talking, or the answer coming. */
+  isExchangeActive: () => boolean;
+  /** Synthesizes a call's speech ahead, so it starts at once if it is said. */
+  prefetchMessage: (text: string, emotion?: RadioEmotion) => void;
 }
 
 /**
@@ -166,6 +170,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     testRadioTransmission,
     testTriggerAlert,
     beginReplyStream,
+    prefetchMessage,
   } = useTTSPlayback({
     effectiveLanguage,
     onResponseReceived,
@@ -289,6 +294,8 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     },
     [ttsSpeakMessage]
   );
+
+  const isExchangeActive = useCallback(() => exchangeRef.current !== null, []);
 
   // Handle Gamepad/PTT Press
   const onPTTPress = useCallback((source?: PTTSource) => {
@@ -477,5 +484,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     testTriggerAlert,
     onPTTPress,
     onPTTRelease,
+    isExchangeActive,
+    prefetchMessage,
   };
 }

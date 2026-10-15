@@ -40,6 +40,16 @@ type RadioCallRecord struct {
 	SessionTime float32 `json:"session_time_s"`
 	Message     string  `json:"message"`
 	Urgency     string  `json:"urgency"`
+	// Said is the line the driver heard, once a dashboard asked the AI to word the call: the AI's
+	// line, or the catalogue's when no line came.
+	Said string `json:"said,omitempty"`
+
+	id       string
+	subAlert string
+	values   *DirectiveValues
+	wordable bool
+	madeAt   int64 // unix ms the call was made
+	ttlMs    int64
 }
 
 // raceHistory accumulates what happened earlier in the session: the player's completed laps,
@@ -49,6 +59,8 @@ type raceHistory struct {
 	carHistory [packets.MaxCars]*packets.PacketSessionHistoryData
 	events     []RaceEventRecord
 	radioCalls []RadioCallRecord
+	// linesSaid are the last lines said for each call worded by the AI, by alert key, oldest first.
+	linesSaid map[string][]string
 }
 
 func appendCapped[T any](items []T, item T, maxLen int) []T {
@@ -159,6 +171,12 @@ func (e *EngineerEngine) recordRadioCallLocked(d Directive) {
 		SessionTime: d.SessionTime,
 		Message:     d.Message,
 		Urgency:     d.Urgency,
+		id:          d.ID,
+		subAlert:    d.SubAlert,
+		values:      d.Values,
+		wordable:    d.Wordable,
+		madeAt:      d.Timestamp,
+		ttlMs:       d.TTLMs,
 	}, MaxRadioCallRecords)
 }
 

@@ -270,6 +270,10 @@ type EngineerDirective struct {
 	BoxCall BoxCall `json:"-"`
 	// Values are the numbers a report says (gap report, tyre life); the dashboard speaks them.
 	Values *DirectiveValues `json:"values,omitempty"`
+	// Wordable says the dashboard may ask the AI to word the call afresh (POST /api/ai/radio-line)
+	// before saying it: a routine call that stays worth saying long enough, while AI wording is
+	// on and the AI provider is ready.
+	Wordable bool `json:"wordable,omitempty"`
 	// lapDistance is where the player was on the lap when the call was made, for the log.
 	lapDistance float32
 }

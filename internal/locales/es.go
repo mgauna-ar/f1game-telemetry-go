@@ -71,6 +71,14 @@ func (c *SpanishCatalog) ToolUseDirective() string {
 		"- No anuncies que estás chequeando. Respondé una sola vez, con la respuesta, en el mismo estilo corto de radio.\n"
 }
 
+func (c *SpanishCatalog) RadioLineDirective() string {
+	return "\nCÓMO DECIR UNA LLAMADA DE RADIO:\n" +
+		"- Estás haciendo una llamada a tu piloto por la radio del equipo; el piloto no habló. Respondé solo con la llamada, como la dirías por radio, y nada más: sin comillas, etiquetas ni notas.\n" +
+		"- Decí los datos de la llamada y solo esos. Mantené cada número del ejemplo tal cual, en cifras, y no agregues otro número.\n" +
+		"- Una o dos frases cortas, no más largas que el ejemplo. No empieces con Entendido, Copiado ni Te copio, y no uses el nombre del piloto.\n" +
+		"- Usá tus propias palabras, distintas de las que ya se dijeron para esta llamada. Hablá en español rioplatense, de vos (tenés, mantené, cuidá), como un muro de boxes real: corto, calmo, natural.\n"
+}
+
 func (c *SpanishCatalog) UrgencyDirective(level string) string {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "critical":

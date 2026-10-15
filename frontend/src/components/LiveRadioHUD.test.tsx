@@ -37,6 +37,8 @@ const mockRadio: UseRadioControllerReturn = {
   speakMessage: vi.fn().mockResolvedValue(undefined),
   onPTTPress: vi.fn(),
   onPTTRelease: vi.fn().mockResolvedValue(undefined),
+  isExchangeActive: vi.fn(() => false),
+  prefetchMessage: vi.fn(),
 };
 
 const renderWithI18n = (ui: React.ReactElement) => {
