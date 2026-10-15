@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/bits"
 	"net/http"
@@ -120,16 +121,20 @@ func (c *clockSkewTracker) refreshSkew() {
 	}
 	defer resp.Body.Close()
 
-	dateHeader := resp.Header.Get("Date")
-	if dateHeader == "" {
-		slog.Warn("Edge TTS server response missing Date header for clock skew", "url", edgeTTSHeadURL)
-		return
+	if _, err := c.adjustFromDate(resp.Header.Get("Date")); err != nil {
+		slog.Warn("Failed to read clock skew from Edge TTS server", "url", edgeTTSHeadURL, "error", err)
 	}
+}
 
+// adjustFromDate sets the skew from an Edge server's Date header and returns it.
+// Upstream edge-tts does the same with a 403's Date (DRM.handle_client_response_error).
+func (c *clockSkewTracker) adjustFromDate(dateHeader string) (float64, error) {
+	if dateHeader == "" {
+		return 0, errors.New("response has no Date header")
+	}
 	serverTime, err := http.ParseTime(dateHeader)
 	if err != nil {
-		slog.Warn("Failed to parse Date header from Edge TTS server", "dateHeader", dateHeader, "error", err)
-		return
+		return 0, fmt.Errorf("parse Date header %q: %w", dateHeader, err)
 	}
 
 	now := time.Now().UTC()
@@ -139,8 +144,14 @@ func (c *clockSkewTracker) refreshSkew() {
 	c.skewSeconds = skew
 	c.lastChecked = now
 	c.mu.Unlock()
+	return skew, nil
 }
 
+// The Sec-MS-GEC v2 token code below (the sha256* and cs64* tables and helpers,
+// and generateSecMsGecV2FromTime) is a port of rany2/edge-tts src/edge_tts/drm.py
+// and must stay byte-for-byte equal to it: Microsoft answers any other token with
+// a 403. When upstream changes drm.py, port the change and update the reference
+// vector in TestGenerateSecMsGec.
 var (
 	sha256Initial = [8]uint32{
 		0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
@@ -417,6 +428,7 @@ func cs64Digest(data, digest []byte) (r0, r1 uint32) {
 	return swapLast ^ state, swapAcc ^ acc
 }
 
+// generateSecMsGecV2FromTime is drm.py's DRM.generate_sec_ms_gec for time t.
 func generateSecMsGecV2FromTime(t time.Time) string {
 	unixSec := t.Unix()
 	ticks := unixSec + winEpochOffset
@@ -438,8 +450,8 @@ func generateSecMsGecV2FromTime(t time.Time) string {
 }
 
 // generateSecMsGec generates the timestamp-based token required by Microsoft Edge TTS.
-func generateSecMsGec() string {
-	t := globalClockTracker.getCorrectedTime()
+func generateSecMsGec(clock *clockSkewTracker) string {
+	t := clock.getCorrectedTime()
 	return generateSecMsGecV2FromTime(t)
 }
 
@@ -489,6 +501,108 @@ func BuildSSML(text, voice, lang, rate, pitch string) string {
 	)
 }
 
+// handshakeBodyLimit caps how much of a failed handshake's body goes into errors and logs.
+const handshakeBodyLimit = 200
+
+// handshakeFailure is what the server answered to a failed websocket handshake.
+type handshakeFailure struct {
+	statusCode int    // 0 when no HTTP response came back (DNS, TLS, timeout)
+	status     string // e.g. "403 Forbidden"
+	body       string // start of the body, whitespace collapsed
+	date       string // the Date header
+}
+
+func readHandshakeFailure(resp *http.Response) handshakeFailure {
+	if resp == nil {
+		return handshakeFailure{}
+	}
+	f := handshakeFailure{
+		statusCode: resp.StatusCode,
+		status:     resp.Status,
+		date:       resp.Header.Get("Date"),
+	}
+	if resp.Body != nil {
+		// gorilla/websocket has already buffered up to 1 KB of the body.
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, handshakeBodyLimit))
+		resp.Body.Close()
+		f.body = strings.Join(strings.Fields(strings.ToValidUTF8(string(b), "?")), " ")
+	}
+	return f
+}
+
+// wrap turns a dial error into one that says what the server answered,
+// e.g. "websocket dial failed: 403 Forbidden: websocket: bad handshake".
+func (f handshakeFailure) wrap(err error) error {
+	switch {
+	case f.statusCode == 0:
+		return fmt.Errorf("websocket dial failed: %w", err)
+	case f.body == "":
+		return fmt.Errorf("websocket dial failed: %s: %w", f.status, err)
+	default:
+		return fmt.Errorf("websocket dial failed: %s (%q): %w", f.status, f.body, err)
+	}
+}
+
+// dialEdgeTTS opens the synthesis websocket at baseURL with a fresh Sec-MS-GEC
+// token from clock. A 403 means Microsoft rejected the token. Like upstream
+// edge-tts (DRM.handle_client_response_error), it then takes the clock from the
+// 403's Date header, makes a new token and dials once more.
+func dialEdgeTTS(ctx context.Context, baseURL string, clock *clockSkewTracker) (*websocket.Conn, error) {
+	headers := http.Header{}
+	headers.Set("User-Agent", edgeTTSUserAgent)
+	headers.Set("Origin", edgeTTSOrigin)
+	headers.Set("Pragma", "no-cache")
+	headers.Set("Cache-Control", "no-cache")
+	headers.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	headers.Set("Accept-Language", "en-US,en;q=0.9")
+
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 5 * time.Second,
+	}
+	dial := func() (*websocket.Conn, handshakeFailure, error) {
+		wssURL := fmt.Sprintf(
+			"%s?TrustedClientToken=%s&ConnectionId=%s&Sec-MS-GEC=%s&Sec-MS-GEC-Version=%s",
+			baseURL,
+			edgeTTSClientToken,
+			generateUUID(),
+			generateSecMsGec(clock),
+			edgeTTSSecVersion,
+		)
+		conn, resp, err := dialer.DialContext(ctx, wssURL, headers)
+		if err != nil {
+			return nil, readHandshakeFailure(resp), err
+		}
+		return conn, handshakeFailure{}, nil
+	}
+
+	conn, failure, err := dial()
+	if err == nil {
+		return conn, nil
+	}
+	if failure.statusCode != http.StatusForbidden {
+		return nil, failure.wrap(err)
+	}
+
+	skew, skewErr := clock.adjustFromDate(failure.date)
+	if skewErr != nil {
+		slog.Warn("Edge TTS rejected the Sec-MS-GEC token and its clock could not be read, not retrying",
+			"status", failure.status, "body", failure.body, "error", skewErr)
+		return nil, failure.wrap(err)
+	}
+	slog.Warn("Edge TTS rejected the Sec-MS-GEC token, retrying with the server's clock",
+		"status", failure.status, "body", failure.body, "skewSeconds", skew)
+
+	conn, failure, err = dial()
+	if err == nil {
+		return conn, nil
+	}
+	if failure.statusCode == http.StatusForbidden {
+		slog.Warn("Edge TTS rejected the Sec-MS-GEC token even with the server's clock: Microsoft most likely changed the token algorithm, compare generateSecMsGecV2FromTime with rany2/edge-tts src/edge_tts/drm.py",
+			"status", failure.status, "body", failure.body, "skewSeconds", skew, "secMsGecVersion", edgeTTSSecVersion)
+	}
+	return nil, failure.wrap(err)
+}
+
 // SynthesizeEdgeNeuralTTS performs speech synthesis using Microsoft Edge Neural TTS over WebSocket.
 func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch string) ([]byte, error) {
 	trimmed := strings.TrimSpace(text)
@@ -503,34 +617,11 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 		return cached, nil
 	}
 
-	connID := generateUUID()
 	reqID := generateUUID()
-	secMsGec := generateSecMsGec()
 
-	wssURL := fmt.Sprintf(
-		"%s?TrustedClientToken=%s&ConnectionId=%s&Sec-MS-GEC=%s&Sec-MS-GEC-Version=%s",
-		edgeTTSBaseWSS,
-		edgeTTSClientToken,
-		connID,
-		secMsGec,
-		edgeTTSSecVersion,
-	)
-
-	headers := http.Header{}
-	headers.Set("User-Agent", edgeTTSUserAgent)
-	headers.Set("Origin", edgeTTSOrigin)
-	headers.Set("Pragma", "no-cache")
-	headers.Set("Cache-Control", "no-cache")
-	headers.Set("Accept-Encoding", "gzip, deflate, br, zstd")
-	headers.Set("Accept-Language", "en-US,en;q=0.9")
-
-	dialer := websocket.Dialer{
-		HandshakeTimeout: 5 * time.Second,
-	}
-
-	conn, _, err := dialer.DialContext(ctx, wssURL, headers)
+	conn, err := dialEdgeTTS(ctx, edgeTTSBaseWSS, globalClockTracker)
 	if err != nil {
-		return nil, fmt.Errorf("websocket dial failed: %w", err)
+		return nil, err
 	}
 	defer conn.Close()
 
