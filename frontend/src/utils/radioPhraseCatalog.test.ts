@@ -9,7 +9,7 @@ import {
   RADIO_PHRASE_CATALOG,
   REPORT_PHRASES,
 } from './radioPhrases';
-import { RADIO_ALERT_CATEGORIES } from '../constants/radioAlertCategories';
+import { RADIO_ALERT_CATEGORIES, TRAFFIC_CALL_CATEGORIES } from '../constants/radioAlertCategories';
 import type { RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
 import type {
@@ -331,6 +331,15 @@ describe('the radio phrase catalog', () => {
           if (!template.includes('{driver}')) continue;
           // Either "{driver}, ..." at the start, or ", {driver}" before a full stop, a comma or the end.
           expect(template, `${category}`).toMatch(/^[¡¿]?{driver}, |, {driver}[.!?,]/);
+        }
+      }
+    });
+
+    it('starts a traffic call with the warning: no callsign and no filler before it', () => {
+      for (const category of TRAFFIC_CALL_CATEGORIES) {
+        for (const template of allTemplates(catalog[category])) {
+          expect(template, `${category}: ${template}`).not.toContain('{driver}');
+          expect(template, `${category}: ${template}`).not.toMatch(/^[¡¿]?(okay|ok|ojo|vale)\b/i);
         }
       }
     });

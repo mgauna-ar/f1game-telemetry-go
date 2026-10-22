@@ -26,6 +26,9 @@ vi.mock('../utils/radioPhrases', () => ({ prepareProactiveRadioCall: prepare }))
 
 const CALM = { rateModifier: 0, pitchModifier: 0 };
 
+/** The call details the speech carries for the app log. */
+const heard = (directiveId: string, cutIn = false) => expect.objectContaining({ directiveId, cutIn });
+
 const call = (fields: Partial<RadioAlertPayload> = {}): RadioAlertPayload => ({
   directiveId: 'directive_1_tyre_wear',
   wordable: true,
@@ -99,7 +102,13 @@ describe('useProactiveRadioCalls', () => {
     );
 
     await vi.advanceTimersByTimeAsync(800);
-    expect(speak).toHaveBeenCalledWith('Max, front left at 45, ease off the exits.', false, CALM, 14200);
+    expect(speak).toHaveBeenCalledWith(
+      'Max, front left at 45, ease off the exits.',
+      false,
+      CALM,
+      14200,
+      heard('directive_1_tyre_wear')
+    );
   });
 
   it('says the catalogue line when no line comes by the deadline, with what is left of its life', async () => {
@@ -111,7 +120,13 @@ describe('useProactiveRadioCalls', () => {
     expect(speak).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
-    expect(speak).toHaveBeenCalledWith('Max, the tyre_wear line.', false, CALM, 15000 - RADIO_LINE.CLIENT_DEADLINE_MS);
+    expect(speak).toHaveBeenCalledWith(
+      'Max, the tyre_wear line.',
+      false,
+      CALM,
+      15000 - RADIO_LINE.CLIENT_DEADLINE_MS,
+      heard('directive_1_tyre_wear')
+    );
   });
 
   it('says the catalogue line at once when the AI fails', async () => {
@@ -120,7 +135,7 @@ describe('useProactiveRadioCalls', () => {
 
     send(call());
     await vi.advanceTimersByTimeAsync(0);
-    expect(speak).toHaveBeenCalledWith('Max, the tyre_wear line.', false, CALM, 15000);
+    expect(speak).toHaveBeenCalledWith('Max, the tyre_wear line.', false, CALM, 15000, heard('directive_1_tyre_wear'));
   });
 
   it('drops a call that went stale while it waited', async () => {
@@ -154,10 +169,22 @@ describe('useProactiveRadioCalls', () => {
       call({ directiveId: 'directive_2_tyre_puncture', category: 'tyre_puncture', isCritical: true, wordable: true })
     );
     expect(post).toHaveBeenCalledTimes(1);
-    expect(speak).toHaveBeenCalledWith('Max, the tyre_puncture line.', true, CALM, 15000);
+    expect(speak).toHaveBeenCalledWith(
+      'Max, the tyre_puncture line.',
+      true,
+      CALM,
+      15000,
+      heard('directive_2_tyre_puncture')
+    );
 
     await vi.advanceTimersByTimeAsync(1000);
-    expect(speak).toHaveBeenLastCalledWith('Max, worded tyre call.', false, CALM, 14000);
+    expect(speak).toHaveBeenLastCalledWith(
+      'Max, worded tyre call.',
+      false,
+      CALM,
+      14000,
+      heard('directive_1_tyre_wear')
+    );
   });
 
   it.each([
@@ -169,6 +196,65 @@ describe('useProactiveRadioCalls', () => {
     send(call(fields));
     await vi.advanceTimersByTimeAsync(0);
     expect(post).not.toHaveBeenCalled();
-    expect(speak).toHaveBeenCalledWith('Max, the tyre_wear line.', false, CALM, 15000);
+    expect(speak).toHaveBeenCalledWith('Max, the tyre_wear line.', false, CALM, 15000, heard('directive_1_tyre_wear'));
+  });
+
+  it('says a traffic call without the callsign in front, and lets it cut in', async () => {
+    const { send, speak } = setup();
+
+    send(
+      call({
+        directiveId: 'directive_3_inlap_traffic_behind',
+        category: 'inlap_traffic_behind',
+        isCritical: true,
+        wordable: false,
+      })
+    );
+    expect(prepare).toHaveBeenLastCalledWith(
+      'inlap_traffic_behind',
+      expect.objectContaining({ callsign: undefined, urgent: true })
+    );
+    expect(speak).toHaveBeenLastCalledWith(
+      'Max, the inlap_traffic_behind line.',
+      true,
+      CALM,
+      15000,
+      heard('directive_3_inlap_traffic_behind', true)
+    );
+
+    send(
+      call({
+        directiveId: 'directive_4_qualy_lap_result',
+        category: 'qualy_lap_result',
+        isCritical: true,
+        wordable: false,
+      })
+    );
+    expect(prepare).toHaveBeenLastCalledWith('qualy_lap_result', expect.objectContaining({ callsign: 'Max' }));
+    expect(speak).toHaveBeenLastCalledWith(
+      expect.any(String),
+      true,
+      CALM,
+      15000,
+      heard('directive_4_qualy_lap_result', false)
+    );
+  });
+
+  it('notes when the call came and whether the page was in front', async () => {
+    vi.setSystemTime(1_700_000_000_000);
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      const { send, speak } = setup();
+      send(call({ wordable: false }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(speak.mock.calls[0][4]).toEqual({
+        directiveId: 'directive_1_tyre_wear',
+        receivedAt: 1_700_000_000_000,
+        visible: false,
+        cutIn: false,
+      });
+    } finally {
+      visibility.mockRestore();
+    }
   });
 });

@@ -36,6 +36,9 @@ const (
 	LongSpeechMs           = 7_000 // A report with several numbers
 	CriticalBreatherMs     = 4_000
 	SCColdCallDelayMs      = 20_000
+	// RadioHeardKeptCalls: the latest calls the dashboards reported on (RecordRadioHeard) are
+	// remembered, so a second dashboard's report of the same call doesn't count again.
+	RadioHeardKeptCalls = 32
 	// PauseDetectMs: a session clock standing still this long is a pause; held calls don't age
 	// through it.
 	PauseDetectMs = 1_000

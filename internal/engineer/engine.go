@@ -100,6 +100,9 @@ type EngineerEngine struct {
 	// radioWording is whether the AI may word routine calls: switched on in the voice settings,
 	// with an AI provider ready to answer (SetRadioWording).
 	radioWording bool
+	// delivery is what the dashboards reported about delivering the calls (RecordRadioHeard). A
+	// session reset keeps it.
+	delivery radioDelivery
 
 	// now returns the current time; tests replace it.
 	now func() time.Time
@@ -1243,7 +1246,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 		}
 	}
 
-	directive.ID = fmt.Sprintf("directive_%d_%s", now, alertKey)
+	directive.ID = fmt.Sprintf("%s%d_%s", directiveIDPrefix, now, alertKey)
 	directive.Type = DirectiveMessageType
 	directive.Timestamp = now
 	if e.playerPos.known {

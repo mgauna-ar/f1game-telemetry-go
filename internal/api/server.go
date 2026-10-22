@@ -236,6 +236,7 @@ func (s *Server) setupAIRoutes(r chi.Router) {
 	r.Post("/ai/models", s.handleAIFetchModels)
 	r.Post("/ai/tts", s.handleAITTS)
 	r.Get("/ai/engineer/race-context", s.handleRaceContext)
+	r.Post("/ai/engineer/radio-heard", s.handleRadioHeard)
 }
 
 func (s *Server) setupPTTRoutes(r chi.Router) {

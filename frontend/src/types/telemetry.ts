@@ -122,7 +122,13 @@ export type {
 } from './generated/api';
 
 /** What the dashboard reports about each push-to-talk exchange, for the app log. */
-export type { PTTSource, PTTTraceOutcome, PTTTraceRequest } from './generated/api';
+export type {
+  PTTSource,
+  PTTTraceOutcome,
+  PTTTraceRequest,
+  RadioHeardOutcome,
+  RadioHeardRequest,
+} from './generated/api';
 
 export type RadioAlertCategory =
   | 'safety_car'

@@ -164,3 +164,21 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   wing_damage: 'wing_damage',
   wrong_way: 'wrong_way',
 };
+
+/**
+ * The calls about a car the driver is about to meet in a timed session (a push-lap car behind, a
+ * slow car ahead). They start with the warning: the callsign isn't said before it.
+ */
+export const TRAFFIC_CALL_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
+  'inlap_traffic_behind',
+  'qualy_traffic_ahead',
+]);
+
+/**
+ * The traffic calls that can't wait: one cuts whatever else is on the air, even an urgent call
+ * such as the lap result, which is said again after it.
+ */
+export const TRAFFIC_CUT_IN_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
+  'inlap_traffic_behind',
+  'qualy_traffic_ahead',
+]);

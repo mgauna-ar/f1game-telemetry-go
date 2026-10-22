@@ -96,7 +96,7 @@ describe('useRadioAudio hook', () => {
     vi.clearAllMocks();
     vi.spyOn(radioAudio, 'playRadioBeep').mockResolvedValue();
     vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (_text, opts) => {
-      opts?.onStart?.();
+      opts?.onStart?.(0);
       opts?.onEnd?.();
     });
   });

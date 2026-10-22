@@ -1,10 +1,12 @@
 import { useCallback, useRef } from 'react';
 import { RADIO_LINE } from '../constants/f1';
+import { TRAFFIC_CALL_CATEGORIES, TRAFFIC_CUT_IN_CATEGORIES } from '../constants/radioAlertCategories';
 import type { RadioLineRequest, RadioLineResponse } from '../types/ai';
 import type { RadioAlertPayload } from '../types/telemetry';
 import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { api } from '../utils/apiClient';
 import { prepareProactiveRadioCall } from '../utils/radioPhrases';
+import type { SpokenCall } from '../utils/radioHeardReport';
 import { useProactiveTelemetryRadio } from './useProactiveTelemetryRadio';
 import type { UseRadioControllerReturn } from './useRadioController';
 
@@ -52,7 +54,8 @@ export function useProactiveRadioCalls(radio: ProactiveRadio): void {
     const call = prepareProactiveRadioCall(payload.category, {
       language: r.effectiveLanguage,
       persona: r.persona,
-      callsign: r.driverCallsign,
+      // A traffic call starts with the warning, not the driver's name.
+      callsign: TRAFFIC_CALL_CATEGORIES.has(payload.category) ? undefined : r.driverCallsign,
       box: payload.box,
       values: payload.values,
       urgent: payload.isCritical,
@@ -61,10 +64,16 @@ export function useProactiveRadioCalls(radio: ProactiveRadio): void {
     if (!call) return;
 
     const madeAt = Date.now();
+    const spoken: SpokenCall = {
+      directiveId: payload.directiveId,
+      receivedAt: madeAt,
+      visible: typeof document === 'undefined' || document.visibilityState === 'visible',
+      cutIn: payload.isCritical && TRAFFIC_CUT_IN_CATEGORIES.has(payload.category),
+    };
     const say = (text: string) => {
       const ttlMs = payload.ttlMs === undefined ? undefined : payload.ttlMs - (Date.now() - madeAt);
       if (ttlMs !== undefined && ttlMs <= 0) return;
-      void radioRef.current.speakMessage(text, payload.isCritical, payload.emotion, ttlMs);
+      void radioRef.current.speakMessage(text, payload.isCritical, payload.emotion, ttlMs, spoken);
     };
     if (payload.isCritical) {
       say(call.speech);

@@ -139,6 +139,21 @@ export interface PTTTraceRequest {
   calls_held: number;
 }
 
+export type RadioHeardOutcome = 'said' | 'cut' | 'stale' | 'failed';
+
+/** Go: api.RadioHeardRequest */
+export interface RadioHeardRequest {
+  directive_id: string;
+  urgent: boolean;
+  outcome: RadioHeardOutcome;
+  wait_ms: number;
+  start_ms: number;
+  synth_ms: number;
+  cached: boolean;
+  speech_ms: number;
+  visible: boolean;
+}
+
 /** Go: api.SetPlayerCarRequest */
 export interface SetPlayerCarRequest {
   car_index: number | null;

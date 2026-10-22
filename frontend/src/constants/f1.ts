@@ -644,7 +644,14 @@ export const RADIO_AUDIO_CONSTANTS = {
   BEEP_END_FREQ_START: 750,
   BEEP_END_FREQ_END: 350,
   BEEP_END_DURATION_S: 0.12,
+  /** Gap between the two tones of the start beep. */
+  BEEP_START_GAP_S: 0.02,
   BEEP_GAIN: 0.15,
+  /**
+   * A beep ends when its last tone does (an audio event, which a hidden page doesn't delay); a
+   * page whose audio never ran gets this long past the beep's length instead.
+   */
+  AUDIO_END_FALLBACK_MS: 1000,
   FILTER_CENTER_FREQ_HZ: 1400,
   FILTER_Q: 1.2,
   DEFAULT_VOLUME: 0.8,

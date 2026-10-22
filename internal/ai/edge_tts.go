@@ -31,6 +31,11 @@ const (
 	defaultAudioFormat = "audio-24khz-48kbitrate-mono-mp3"
 	winEpochOffset     = 11644473600
 
+	// edgeTTSReadTimeout is the longest one read of the synthesis stream waits for a frame, and
+	// edgeTTSSynthesisTimeout the longest the whole answer takes.
+	edgeTTSReadTimeout      = 5 * time.Second
+	edgeTTSSynthesisTimeout = 12 * time.Second
+
 	// Default Neural Voices for Personas (aliased from locales)
 	VoiceColapintoArgentine = locales.VoiceColapintoArgentine
 	VoiceBonoBritish        = locales.VoiceBonoBritish
@@ -605,6 +610,12 @@ func dialEdgeTTS(ctx context.Context, baseURL string, clock *clockSkewTracker) (
 
 // SynthesizeEdgeNeuralTTS performs speech synthesis using Microsoft Edge Neural TTS over WebSocket.
 func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch string) ([]byte, error) {
+	return synthesizeEdgeTTS(ctx, edgeTTSBaseWSS, globalClockTracker, text, voice, rate, pitch)
+}
+
+// synthesizeEdgeTTS speaks text through the Edge TTS WebSocket at baseURL, signing with clock's
+// time. Only a whole answer is cached: audio that broke off midway is said once, not kept.
+func synthesizeEdgeTTS(ctx context.Context, baseURL string, clock *clockSkewTracker, text, voice, rate, pitch string) ([]byte, error) {
 	trimmed := strings.TrimSpace(text)
 	if trimmed == "" {
 		return nil, errors.New("empty text for synthesis")
@@ -619,7 +630,7 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 
 	reqID := generateUUID()
 
-	conn, err := dialEdgeTTS(ctx, edgeTTSBaseWSS, globalClockTracker)
+	conn, err := dialEdgeTTS(ctx, baseURL, clock)
 	if err != nil {
 		return nil, err
 	}
@@ -645,46 +656,60 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 		return nil, fmt.Errorf("failed to send ssml: %w", err)
 	}
 
-	// 3. Read loop collecting binary MP3 frames
-	var audioData []byte
-	readCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	// 3. Collect the MP3 frames
+	audioData, complete, err := readEdgeTTSAudio(ctx, conn, edgeTTSReadTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if complete {
+		globalTTSCache.Set(cacheKey, audioData)
+	}
+	return audioData, nil
+}
+
+// readEdgeTTSAudio collects the MP3 frames of one synthesis until the turn ends. Each read waits at
+// most readTimeout, so a stream that stalls fails instead of holding the driver's radio. complete
+// is false when the stream broke off after some audio: that audio is still returned.
+func readEdgeTTSAudio(ctx context.Context, conn *websocket.Conn, readTimeout time.Duration) (audio []byte, complete bool, err error) {
+	readCtx, cancel := context.WithTimeout(ctx, edgeTTSSynthesisTimeout)
 	defer cancel()
 
 	for {
-		select {
-		case <-readCtx.Done():
-			return nil, fmt.Errorf("tts synthesis timed out: %w", readCtx.Err())
-		default:
+		if err := readCtx.Err(); err != nil {
+			return nil, false, fmt.Errorf("tts synthesis timed out: %w", err)
+		}
+		deadline := time.Now().Add(readTimeout)
+		if d, ok := readCtx.Deadline(); ok && d.Before(deadline) {
+			deadline = d
+		}
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			return nil, false, fmt.Errorf("failed to set the tts read deadline: %w", err)
 		}
 
 		msgType, message, err := conn.ReadMessage()
 		if err != nil {
-			if len(audioData) > 0 {
-				break
+			if len(audio) > 0 {
+				return audio, false, nil
 			}
-			return nil, fmt.Errorf("failed reading from tts stream: %w", err)
+			return nil, false, fmt.Errorf("failed reading from tts stream: %w", err)
 		}
 
-		if msgType == websocket.BinaryMessage {
+		switch msgType {
+		case websocket.BinaryMessage:
 			if len(message) > 2 {
 				headerLen := binary.BigEndian.Uint16(message[:2])
 				dataOffset := 2 + int(headerLen)
 				if len(message) > dataOffset {
-					audioData = append(audioData, message[dataOffset:]...)
+					audio = append(audio, message[dataOffset:]...)
 				}
 			}
-		} else if msgType == websocket.TextMessage {
-			textStr := string(message)
-			if strings.Contains(textStr, "Path:turn.end") {
-				break
+		case websocket.TextMessage:
+			if strings.Contains(string(message), "Path:turn.end") {
+				if len(audio) == 0 {
+					return nil, false, errors.New("tts synthesis returned empty audio")
+				}
+				return audio, true, nil
 			}
 		}
 	}
-
-	if len(audioData) == 0 {
-		return nil, errors.New("tts synthesis returned empty audio")
-	}
-
-	globalTTSCache.Set(cacheKey, audioData)
-	return audioData, nil
 }
