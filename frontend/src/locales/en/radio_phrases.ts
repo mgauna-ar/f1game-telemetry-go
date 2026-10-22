@@ -873,6 +873,114 @@ export const radio_phrases = {
       'Car right ahead, slow. Watch it.',
     ],
   },
+  race_car_behind: {
+    bono: [
+      'Car coming behind, with you in {reach} seconds.',
+      'Car closing fast behind, {reach} seconds to you.',
+      'Traffic behind, on you in {reach} seconds.',
+      'Car coming behind. Stay off the line.',
+    ],
+    colapinto: [
+      'Car coming, with you in {reach}! Careful!',
+      'Car behind, {reach} seconds! Hold your line!',
+      'Traffic behind, on you in {reach}! Eyes up!',
+      'Car coming behind! Careful!',
+    ],
+    standard: [
+      'A car is coming behind, {reach} seconds to you.',
+      'Car approaching behind, with you in {reach} seconds. Take care.',
+      'Traffic closing behind, on you in {reach} seconds.',
+      'A car is coming behind. Keep off the line.',
+    ],
+  },
+  race_car_behind_two: {
+    bono: [
+      'Two cars coming, with you in {reach} seconds.',
+      'Two cars behind, {reach} seconds to you.',
+      'Two cars closing, on you in {reach} seconds.',
+      'Two cars coming behind. Stay off the line.',
+    ],
+    colapinto: [
+      'Two cars, with you in {reach}! Careful!',
+      'Two cars behind, {reach} seconds! Hold your line!',
+      'Two coming, on you in {reach}! Eyes up!',
+      'Two cars coming! Careful!',
+    ],
+    standard: [
+      'Two cars approaching, with you in {reach} seconds.',
+      'Two cars behind you, {reach} seconds away.',
+      'Two cars closing, on you in {reach} seconds. Take care.',
+      'Two cars are coming behind. Keep off the line.',
+    ],
+  },
+  race_car_behind_now: {
+    bono: [
+      'Car right behind you now. Hold your line.',
+      'Car right there behind. Careful.',
+      'Car on you now, stay predictable.',
+    ],
+    colapinto: [
+      'Car right behind! Hold your line!',
+      'Car on you! Careful!',
+      'Right there behind you! Eyes up!',
+    ],
+    standard: [
+      'A car is right behind you now. Hold your line.',
+      'Car right behind, careful now.',
+      'A car is on you now. Stay predictable.',
+    ],
+  },
+  race_car_behind_close: {
+    bono: [
+      'On you now, hold your line.',
+      'Here it comes, stay predictable.',
+      'Car with you now. Easy.',
+    ],
+    colapinto: [
+      'On you now! Hold your line!',
+      'Here it comes! Careful!',
+      'With you now! Eyes up!',
+    ],
+    standard: [
+      'The car is on you now. Hold your line.',
+      'Here it comes now. Stay predictable.',
+      'It is with you now. Take care.',
+    ],
+  },
+  race_car_behind_clear: {
+    bono: [
+      "Clear, it's through.",
+      'Clear now. Back up to speed.',
+      'Through. Clear behind.',
+    ],
+    colapinto: [
+      "Clear! It's through!",
+      'All clear! Go!',
+      'Through! Clear behind!',
+    ],
+    standard: [
+      'Clear, the car is through.',
+      'Clear behind now. Back up to speed.',
+      'It has gone through. Clear.',
+    ],
+  },
+  race_pit_exit_traffic: {
+    bono: [
+      'Car coming past the pit exit, careful joining.',
+      'Traffic at the pit exit. Careful as you join.',
+      'Car on track at the exit. Watch the white line.',
+    ],
+    colapinto: [
+      'Car at the pit exit! Careful joining!',
+      'Traffic coming past the exit! Eyes up!',
+      'Car on track at the exit! Careful!',
+    ],
+    standard: [
+      'A car is coming past the pit exit. Careful as you join.',
+      'Traffic at the pit exit, take care joining.',
+      'Car on track at the exit. Mind the white line.',
+    ],
+  },
   qualy_pit_exit_traffic: {
     bono: [
       'Push-lap car coming past the exit, careful joining.',

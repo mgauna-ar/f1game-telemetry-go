@@ -286,6 +286,26 @@ describe('useProactiveRadioCalls', () => {
     expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
   });
 
+  it('says the cars coming on a slow driver without the callsign; the ones with no number outlast push-to-talk', () => {
+    const { send, speak } = setup();
+    send(call({ directiveId: 'directive_14_race_car_behind', category: 'race_car_behind_two', isCritical: true }));
+    expect(prepare).toHaveBeenLastCalledWith('race_car_behind_two', expect.objectContaining({ callsign: undefined }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: false }));
+    send(
+      call({ directiveId: 'directive_15_race_car_behind_close', category: 'race_car_behind_close', isCritical: true })
+    );
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
+    send(
+      call({ directiveId: 'directive_16_race_car_behind_clear', category: 'race_car_behind_clear', isCritical: true })
+    );
+    expect(prepare).toHaveBeenLastCalledWith('race_car_behind_clear', expect.objectContaining({ callsign: undefined }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: false, keptOnPtt: false }));
+    send(
+      call({ directiveId: 'directive_17_race_pit_exit_traffic', category: 'race_pit_exit_traffic', isCritical: true })
+    );
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
+  });
+
   it('notes when the call came and whether the page was in front', async () => {
     vi.setSystemTime(1_700_000_000_000);
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');

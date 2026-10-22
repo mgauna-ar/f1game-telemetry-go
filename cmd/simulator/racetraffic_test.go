@@ -114,3 +114,57 @@ func TestRaceTrafficSim_SlowCars(t *testing.T) {
 		t.Errorf("after the passes car 4's result status is %d, car 5's share %.2f; want inactive, and race pace", gone.ResultStatus, rs.cars[5].share)
 	}
 }
+
+// On lap 5 the player spins and stands while cars 6 and 7 go by; on lap 6 car 8 makes a stop the
+// engineer can learn the pit exit from, then the player stops and car 9 comes past the pit exit
+// racePitExitAfterSec after them, and goes by on their out-lap.
+func TestRaceTrafficSim_SpinAndPitStops(t *testing.T) {
+	rs := newRaceTrafficSim()
+	spunAt, joinedAt, car9ExitAt := -1.0, -1.0, -1.0
+	var standAt float64
+	sawBox, sawCar8Box := false, false
+	for k := 0; k < 20*900 && !(joinedAt > 0 && rs.cars[0].share == raceShare); k++ {
+		prev9 := rs.cars[9].lapM
+		rs.step(0.05)
+		p := rs.cars[0]
+		if rs.spinning {
+			if spunAt < 0 {
+				spunAt, standAt = rs.clock, p.lapM
+			}
+			if p.lapM != standAt || rs.speedKmh(0) != 0 {
+				t.Fatalf("the player moved from %.0f m to %.0f m while standing", standAt, p.lapM)
+			}
+		}
+		var l packets.LapData
+		rs.applyLap(0, &l)
+		if l.PitStatus == packets.PitStatusInPitArea && l.PitStopTimerInMS > 0 && l.PitLaneTimerActive == 1 && rs.playerLimiter() == 1 {
+			sawBox = true
+		}
+		sawCar8Box = sawCar8Box || rs.cars[8].pit == packets.PitStatusInPitArea
+		if joinedAt < 0 && rs.stopped[0] && p.pit == packets.PitStatusNone {
+			joinedAt = rs.clock
+		}
+		if car9ExitAt < 0 && rs.active[9] && prev9 < simPitExitM && rs.cars[9].lapM >= simPitExitM && rs.cars[9].lapM < simTrackLengthM/2 {
+			car9ExitAt = rs.clock
+		}
+	}
+	if spunAt < 0 || !rs.passed[6] || !rs.passed[7] || rs.spinning {
+		t.Fatalf("spun at %v s, cars 6 and 7 went by %v %v, still standing %v", spunAt, rs.passed[6], rs.passed[7], rs.spinning)
+	}
+	if math.Abs(standAt-(raceSpinAtM-raceSpinStepBackM)) > 3 {
+		t.Errorf("stood at %.1f m, want about %.0f m", standAt, raceSpinAtM-raceSpinStepBackM)
+	}
+	if !sawCar8Box || rs.cars[8].pit != packets.PitStatusNone {
+		t.Errorf("car 8 stopped in its box %v, out of the pit lane %v", sawCar8Box, rs.cars[8].pit == packets.PitStatusNone)
+	}
+	if !sawBox || joinedAt < 0 || !rs.passed[9] {
+		t.Fatalf("the player stopped in the box %v, joined at %v s, car 9 went by %v", sawBox, joinedAt, rs.passed[9])
+	}
+	if d := car9ExitAt - joinedAt; math.Abs(d-racePitExitAfterSec) > 0.2 {
+		t.Errorf("car 9 passed the pit exit %.2f s after the player, want %v", d, racePitExitAfterSec)
+	}
+	// The player is up to race pace once car 9 is well ahead: room for "clear".
+	if ahead := simTrackLengthM - rs.gapBehind(9); ahead < raceOutLapClearM {
+		t.Errorf("car 9 is %.0f m ahead as the player gets up to race pace, want %v", ahead, raceOutLapClearM)
+	}
+}

@@ -10,8 +10,9 @@ import (
 )
 
 // RaceTrafficRule says, in a race, the cars the player meets on the road: the cars lapping them
-// when the game shows the blue flag, and "clear" once they went by; and a slow or stopped car
-// ahead, by when the player reaches it.
+// when the game shows the blue flag, and "clear" once they went by; a slow or stopped car ahead,
+// by when the player reaches it; and, when the player is slow or leaving the pits, the cars
+// coming from behind.
 type RaceTrafficRule struct {
 	mu sync.Mutex
 	// lapping is where the rule stands with each car lapping the player.
@@ -29,6 +30,8 @@ type RaceTrafficRule struct {
 	// said there is no pace profile to time them on.
 	ahead           [packets.MaxCars]trafficApproach
 	noProfileLogged bool
+	// The cars coming from behind a slow player, and the pit exit call.
+	carsBehind
 	// motionEpoch is the motion samples' epoch the road gaps were worked out in.
 	motionEpoch int
 }
@@ -65,7 +68,7 @@ func (r *RaceTrafficRule) Category() string {
 }
 
 func (r *RaceTrafficRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap}
+	return []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhasePitLane}
 }
 
 func (r *RaceTrafficRule) AlertKeys() map[string]AlertKeyConfig {
@@ -100,6 +103,48 @@ func (r *RaceTrafficRule) AlertKeys() map[string]AlertKeyConfig {
 			SpeechMs:      TrafficSpeechMs,
 			CooldownGroup: cooldownRaceTraffic,
 		},
+		// The cars coming from behind a slow player: the warning, "on you now" and "clear"; the
+		// follow-ups also in the pit lane, after the pit exit call.
+		"race_car_behind": {
+			Category:      DirectiveCategoryFlags,
+			ValidPhases:   []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    TrafficMaxDelayMs,
+			MinRepeatMs:   TrafficMinRepeatMs,
+			SpeechMs:      TrafficSpeechMs,
+			CooldownGroup: cooldownRaceTraffic,
+		},
+		"race_car_behind_close": {
+			Category:      DirectiveCategoryFlags,
+			ValidPhases:   []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhasePitLane},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    TrafficMaxDelayMs,
+			MinRepeatMs:   TrafficMinRepeatMs,
+			SpeechMs:      TrafficCloseSpeechMs,
+			CooldownGroup: cooldownRaceTraffic,
+			PitLaneCall:   true,
+		},
+		"race_car_behind_clear": {
+			Category:      DirectiveCategoryFlags,
+			ValidPhases:   []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhasePitLane},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    TrafficMaxDelayMs,
+			MinRepeatMs:   TrafficMinRepeatMs,
+			SpeechMs:      TrafficCloseSpeechMs,
+			CooldownGroup: cooldownRaceTraffic,
+			PitLaneCall:   true,
+		},
+		// A car coming past the pit exit as the player leaves their box after a stop.
+		"race_pit_exit_traffic": {
+			Category:      DirectiveCategoryFlags,
+			ValidPhases:   []DrivingPhase{PhasePitLane},
+			DedupScope:    DedupScopeNone,
+			MaxDelayMs:    TrafficMaxDelayMs,
+			MinRepeatMs:   TrafficMinRepeatMs,
+			SpeechMs:      TrafficSpeechMs,
+			CooldownGroup: cooldownRaceTraffic,
+			PitLaneCall:   true,
+		},
 	}
 }
 
@@ -112,6 +157,7 @@ func (r *RaceTrafficRule) Reset(scope DedupScope) {
 		r.flag, r.blueAt, r.blueCalled, r.fallbackAt = packets.VehicleFIAFlagNone, 0, false, 0
 		r.clearAt, r.motionEpoch = 0, 0
 		r.ahead, r.noProfileLogged = [packets.MaxCars]trafficApproach{}, false
+		r.carsBehind = carsBehind{}
 	}
 }
 
@@ -126,11 +172,14 @@ func (r *RaceTrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 		return nil
 	}
 	r.followLocked(ctx)
-	dirs := r.evaluateBlueFlag(ctx, player)
-	if d := r.evaluateSlowCarAhead(ctx, player); d != nil {
-		dirs = append(dirs, *d)
+	var dirs []Directive
+	if ctx.Phase != PhasePitLane {
+		dirs = append(dirs, r.evaluateBlueFlag(ctx, player)...)
+		if d := r.evaluateSlowCarAhead(ctx, player); d != nil {
+			dirs = append(dirs, *d)
+		}
 	}
-	return dirs
+	return append(dirs, r.evaluateCarsComing(ctx, player)...)
 }
 
 // followLocked forgets what was worked out from motion samples since dropped (a flashback), and
@@ -141,9 +190,11 @@ func (r *RaceTrafficRule) followLocked(ctx *EvaluationContext) {
 		r.motionEpoch = ctx.Motion.epoch
 		r.lapping = [packets.MaxCars]lappingCar{}
 		r.ahead = [packets.MaxCars]trafficApproach{}
+		r.behind = [packets.MaxCars]trafficApproach{}
 		r.clearAt = 0
 	}
 	confirmTraffic(ctx, &r.ahead, "race_slow_car_ahead", raceTrafficLog)
+	r.followBehindLocked(ctx, raceBehindKeys, raceTrafficLog)
 	for i := range r.lapping {
 		c := &r.lapping[i]
 		if !c.warned || c.confirmed {
@@ -200,7 +251,8 @@ func (r *RaceTrafficRule) evaluateBlueFlag(ctx *EvaluationContext, player *packe
 }
 
 // blueFlagCallLocked is the call for the blue flag shown now: the nearest car lapping the player
-// within BlueFlagRoadSec not called yet, with the next one when it is BlueFlagTrainSec behind it.
+// within BlueFlagRoadSec not called yet (nor warned of as coming behind a slow player), with the
+// next one when it is BlueFlagTrainSec behind it.
 // With none that close, the flag itself is said once per flag, at most every BlueFlagMinRepeatMs
 // and not while a car called is still on its way, and the nearest lapping car counts as called.
 func (r *RaceTrafficRule) blueFlagCallLocked(ctx *EvaluationContext, cars []lapper) *Directive {
@@ -209,14 +261,14 @@ func (r *RaceTrafficRule) blueFlagCallLocked(ctx *EvaluationContext, cars []lapp
 		if c.roadSec > BlueFlagRoadSec {
 			break
 		}
-		if !r.lapping[c.idx].warned {
+		if !r.lapping[c.idx].warned && !r.behind[c.idx].warned {
 			first = k
 			break
 		}
 	}
 	if first < 0 {
 		last, said := ctx.LastSaid["flags_blue"]
-		if r.blueCalled || r.waitingLocked() || (said && ctx.Now-last < BlueFlagMinRepeatMs) {
+		if r.blueCalled || r.waitingLocked(cars) || (said && ctx.Now-last < BlueFlagMinRepeatMs) {
 			return nil
 		}
 		r.blueCalled, r.fallbackAt = true, ctx.Now
@@ -238,7 +290,7 @@ func (r *RaceTrafficRule) blueFlagCallLocked(ctx *EvaluationContext, cars []lapp
 
 	second := -1
 	for k := first + 1; k < len(cars) && cars[k].roadSec-cars[first].roadSec <= BlueFlagTrainSec; k++ {
-		if !r.lapping[cars[k].idx].warned {
+		if !r.lapping[cars[k].idx].warned && !r.behind[cars[k].idx].warned {
 			second = k
 			break
 		}
@@ -270,14 +322,15 @@ func (r *RaceTrafficRule) blueFlagCallLocked(ctx *EvaluationContext, cars []lapp
 	}
 }
 
-// waitingLocked reports whether a car called is still on its way past the player.
-func (r *RaceTrafficRule) waitingLocked() bool {
+// waitingLocked reports whether a car called is still on its way past the player: one the blue
+// flag named, or one of cars warned of as coming behind.
+func (r *RaceTrafficRule) waitingLocked(cars []lapper) bool {
 	for _, c := range r.lapping {
 		if c.warned && c.passedAt == 0 {
 			return true
 		}
 	}
-	return false
+	return slices.ContainsFunc(cars, func(l lapper) bool { return r.behind[l.idx].warned })
 }
 
 // trackLappingLocked moves the called cars on: one that went by (its gap wrapped past half a lap)

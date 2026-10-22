@@ -138,7 +138,7 @@ var alertGates = []alertGate{
 	{"flagsPensAlertsEnabled", "subTrackLimits", []string{"track_limits"}},
 	{"flagsPensAlertsEnabled", "subPenalties", []string{"penalties", "penalty_served"}},
 	{"flagsPensAlertsEnabled", "subFlags", []string{"flags_blue", "flags_blue_clear", "flags_yellow", "flags_green", "flags_sc_in", "flags_drs_enabled", "flags_drs_disabled"}},
-	{"flagsPensAlertsEnabled", "subRaceTraffic", []string{"race_slow_car_ahead"}},
+	{"flagsPensAlertsEnabled", "subRaceTraffic", []string{"race_slow_car_ahead", "race_car_behind", "race_car_behind_close", "race_car_behind_clear", "race_pit_exit_traffic"}},
 	{"flagsPensAlertsEnabled", "subRaceEvents", []string{"car_collision", "car_retirement", "race_fastest_lap", "race_final_lap"}},
 }
 

@@ -104,6 +104,11 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   qualy_traffic: 'qualy_traffic',
   qualy_traffic_ahead: 'qualy_traffic_ahead',
   qualy_traffic_ahead_now: 'qualy_traffic_ahead_now',
+  race_car_behind: 'race_car_behind',
+  race_car_behind_clear: 'race_car_behind_clear',
+  race_car_behind_close: 'race_car_behind_close',
+  race_car_behind_now: 'race_car_behind_now',
+  race_car_behind_two: 'race_car_behind_two',
   race_fastest_lap: 'race_fastest_lap',
   race_final_lap: 'race_final_lap',
   race_final_lap_lead: 'race_final_lap_lead',
@@ -111,6 +116,7 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   race_finish_podium: 'race_finish_podium',
   race_finish_points: 'race_finish_points',
   race_finish_win: 'race_finish_win',
+  race_pit_exit_traffic: 'race_pit_exit_traffic',
   race_slow_car_ahead: 'race_slow_car_ahead',
   race_slow_car_ahead_now: 'race_slow_car_ahead_now',
   race_stopped_car_ahead: 'race_stopped_car_ahead',
@@ -178,9 +184,10 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
 
 /**
  * The calls about a car the driver is about to meet (in a timed session: a push-lap car behind, a
- * slow car ahead, one coming past the pit exit; in a race: a slow or stopped car ahead): in how
- * many seconds they meet, that it is right there or on them now, and that it went by. They start
- * with the warning: the callsign isn't said before it.
+ * slow car ahead, one coming past the pit exit; in a race: a slow or stopped car ahead, a car
+ * coming on a slow driver, one coming past the pit exit): in how many seconds they meet, that it
+ * is right there or on them now, and that it went by. They start with the warning: the callsign
+ * isn't said before it.
  */
 export const TRAFFIC_CALL_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'inlap_traffic_behind',
@@ -194,6 +201,12 @@ export const TRAFFIC_CALL_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<
   'race_slow_car_ahead',
   'race_stopped_car_ahead',
   'race_slow_car_ahead_now',
+  'race_car_behind',
+  'race_car_behind_two',
+  'race_car_behind_now',
+  'race_car_behind_close',
+  'race_car_behind_clear',
+  'race_pit_exit_traffic',
 ]);
 
 /**
@@ -226,6 +239,11 @@ export const TRAFFIC_CUT_IN_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Se
   'race_slow_car_ahead',
   'race_stopped_car_ahead',
   'race_slow_car_ahead_now',
+  'race_car_behind',
+  'race_car_behind_two',
+  'race_car_behind_now',
+  'race_car_behind_close',
+  'race_pit_exit_traffic',
   'flags_blue',
   'flags_blue_two',
 ]);
@@ -240,6 +258,9 @@ export const TRAFFIC_KEPT_ON_PTT_CATEGORIES: ReadonlySet<RadioAlertCategory> = n
   'qualy_traffic_ahead_now',
   'qualy_pit_exit_traffic',
   'race_slow_car_ahead_now',
+  'race_car_behind_now',
+  'race_car_behind_close',
+  'race_pit_exit_traffic',
   'flags_blue',
   'flags_blue_two',
 ]);

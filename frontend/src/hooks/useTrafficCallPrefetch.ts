@@ -27,7 +27,8 @@ const PREFETCHED: readonly PrefetchedCall[] = [
 
 /**
  * The calls synthesized ahead in a race: the blue flag, with one car or two, and "clear" after it;
- * a slow or stopped car ahead at the warning time, and right there.
+ * a slow or stopped car ahead at the warning time, and right there; the cars coming on a slow
+ * driver, with their follow-ups, and the pit exit.
  */
 const RACE_PREFETCHED: readonly PrefetchedCall[] = [
   { category: 'flags_blue' },
@@ -36,6 +37,12 @@ const RACE_PREFETCHED: readonly PrefetchedCall[] = [
   { category: 'race_slow_car_ahead', side: 'ahead' },
   { category: 'race_stopped_car_ahead', side: 'ahead' },
   { category: 'race_slow_car_ahead_now' },
+  { category: 'race_car_behind', side: 'behind' },
+  { category: 'race_car_behind_two', side: 'behind' },
+  { category: 'race_car_behind_now' },
+  { category: 'race_car_behind_close' },
+  { category: 'race_car_behind_clear' },
+  { category: 'race_pit_exit_traffic' },
 ];
 
 /** Every line the calls may say when they come at the driver's warning time. */

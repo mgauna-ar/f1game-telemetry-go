@@ -125,10 +125,13 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	// 1. Pit Limiter Exit Directive (from CarStatusData). Not "push now" just after a warning of a
-	// push-lap car coming past the pit exit.
+	// car coming past the pit exit.
 	if status != nil {
-		warnedAt, warned := ctx.LastSaid["qualy_pit_exit_traffic"]
-		pitExitWarned := warned && ctx.Now-warnedAt < PitExitCallFreshMs
+		pitExitWarned := false
+		for _, key := range []string{"qualy_pit_exit_traffic", "race_pit_exit_traffic"} {
+			warnedAt, warned := ctx.LastSaid[key]
+			pitExitWarned = pitExitWarned || (warned && ctx.Now-warnedAt < PitExitCallFreshMs)
+		}
 		if r.lastPitLimiterStatus == 1 && status.PitLimiterStatus == 0 && !pitExitWarned &&
 			(ctx.Phase == PhasePitLane || ctx.Phase == PhaseOutLap || ctx.Phase == PhaseRacing) {
 			directives = append(directives, Directive{

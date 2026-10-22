@@ -177,7 +177,7 @@ type SimulatorConfig struct {
 func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
-	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1), traffic (Q1 in real time: push-lap traffic), racetraffic (a race in real time: a battle, blue flags, a stopped and a slow car ahead)")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1), traffic (Q1 in real time: push-lap traffic), racetraffic (a race in real time: a battle, blue flags, a stopped and a slow car ahead, a spin, a pit stop)")
 	targetFlag := flag.String("target", getEnv("F1T_SIM_TARGET", defaultSimTarget()), "UDP address to send packets to (defaults to the server's F1T_UDP_ADDR port on 127.0.0.1)")
 	flag.Parse()
 
@@ -959,6 +959,9 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 		pitLimiter := uint8(0)
 		if i == 0 && cfg.Scenario == "pit" && simPitStatus(st.lapNum, st.lapDist, simPlayerPitLap) != packets.PitStatusNone {
 			pitLimiter = 1
+		}
+		if i == 0 && st.raceTraffic != nil {
+			pitLimiter = st.raceTraffic.playerLimiter()
 		}
 		tyreAge := uint8(3 + i*2)
 		if i == 0 && cfg.Scenario == "strategy" {

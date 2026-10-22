@@ -449,7 +449,7 @@ export const ai_engineer = {
     penalties: 'Sanciones Aplicadas al Piloto (DT / Stop & Go / Tiempo)',
     penaltiesIncurred: 'Sanciones Aplicadas al Piloto (DT / Stop & Go / Tiempo)',
     flagsGeneral: 'Banderas Azul, Amarilla y Verde, DRS, Fin del Auto de Seguridad',
-    raceTraffic: 'Autos Lentos o Parados Adelante (Carrera)',
+    raceTraffic: 'Autos Lentos Adelante y Autos que Vienen (Carrera)',
     raceEvents: 'Choques, Abandonos, Vueltas Rápidas y la Última Vuelta',
     rainHorizon: 'Horizonte Radar de Lluvia',
     rainProbability: 'Umbral Probabilidad de Lluvia',

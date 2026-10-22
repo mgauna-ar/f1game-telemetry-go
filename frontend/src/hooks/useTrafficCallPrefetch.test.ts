@@ -79,7 +79,7 @@ describe('useTrafficCallPrefetch', () => {
     expect(prefetchMessage).toHaveBeenLastCalledWith(trafficCallLines('en', 'bono', 11)[0], CRITICAL_EMOTION);
   });
 
-  it('synthesizes the blue flag and slow car calls in a race', async () => {
+  it('synthesizes the blue flag, slow car and cars coming calls in a race', async () => {
     inSession(SESSION_TYPES.RACE);
     const { radio, prefetchMessage, finishOne } = fakeRadio();
     renderHook(() => useTrafficCallPrefetch(radio));
@@ -99,6 +99,15 @@ describe('useTrafficCallPrefetch', () => {
         );
       }
       expect(lines).toContain(picker.proactive('race_slow_car_ahead_now', { language: 'en', persona: 'bono' }));
+      const behind = { behind: { gap_sec: 10.8, reach_sec: 8 } };
+      for (const category of ['race_car_behind', 'race_car_behind_two'] as const) {
+        expect(lines).toContain(
+          picker.proactive(category, { language: 'en', persona: 'bono', urgent: true, values: behind })
+        );
+      }
+      for (const category of ['race_car_behind_close', 'race_car_behind_clear', 'race_pit_exit_traffic'] as const) {
+        expect(lines).toContain(picker.proactive(category, { language: 'en', persona: 'bono' }));
+      }
     }
   });
 

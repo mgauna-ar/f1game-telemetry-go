@@ -18,24 +18,15 @@ type QualifyingRule struct {
 	sessionTimeCalled    bool
 	elimCalled           bool
 	elimLeftZone         bool // out of the danger zone since the last elimination call
-	// Where the rule stands with each car on a push lap behind and each slow car ahead, and the
-	// motion samples (carMotion.epoch) that was worked out from.
-	behind      [packets.MaxCars]trafficApproach
+	// Where the rule stands with each car on a push lap behind (and the pit exit call) and each
+	// slow car ahead, and the motion samples (carMotion.epoch) that was worked out from.
+	carsBehind
 	ahead       [packets.MaxCars]trafficApproach
 	motionEpoch int
 	// inLapShare is the player's pace share on their in-laps this session, from inLapSamples
 	// packets (0: none yet).
 	inLapShare   float64
 	inLapSamples int
-	// The pit exit call: made at pitExitAt for car pitExitCar and waiting for the radio (0: none),
-	// or done for this pit exit.
-	pitExitAt   int64
-	pitExitCar  int
-	pitExitDone bool
-	// The player's pit status on the last lap data, and when they last came out of the pit lane
-	// (unix ms, 0: not this session): for a while after, their pace still has the pit lane in it.
-	playerPit uint8
-	joinedAt  int64
 	// The push lap the player is on (0: none) and whether it was invalidated; the player's best
 	// valid push lap this session; and when the lap just finished is reported (0: none due).
 	pushLap        uint8

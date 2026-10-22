@@ -205,10 +205,12 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	playerPos := int(playerLap.CarPosition)
+	// A slow player (a spin, damage) hears the cars coming instead: no battle to fight.
+	slow := slowInRace(ctx)
 
 	// 1. Defend: the car right behind, out on track (not one pitting or out of the race).
 	behindIdx := racingCarAt(ctx, playerPos+1)
-	if behindIdx >= 0 {
+	if behindIdx >= 0 && !slow {
 		if d, ok := r.defendCall(ctx, behindIdx, playerPos, is2026); ok {
 			directives = append(directives, d)
 		}
@@ -221,7 +223,7 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	// 2. Attack: the car right ahead. Not the teammate while its own call covers it.
 	aheadIdx := racingCarAt(ctx, playerPos-1)
 	teammateCalled := aheadIdx == ctx.TeammateCarIndex && ctx.Config.IsAlertEnabled(string(DirectiveCategoryTeammate), "teammate_ahead")
-	if aheadIdx >= 0 && !teammateCalled {
+	if aheadIdx >= 0 && !teammateCalled && !slow {
 		if d, ok := r.attackCall(ctx, aheadIdx, playerPos, is2026); ok {
 			directives = append(directives, d)
 		}

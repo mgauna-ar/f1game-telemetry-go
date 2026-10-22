@@ -877,6 +877,114 @@ export const radio_phrases = {
       'Auto lento encima ya, atención.',
     ],
   },
+  race_car_behind: {
+    bono: [
+      'Auto viniendo atrás, te alcanza en {reach} segundos.',
+      'Auto rápido atrás, a {reach} segundos de vos.',
+      'Tráfico atrás, te agarra en {reach} segundos.',
+      'Auto viniendo atrás. Fuera de la línea.',
+    ],
+    colapinto: [
+      '¡Auto viniendo, te alcanza en {reach}! ¡Cuidado!',
+      '¡Auto atrás, {reach} segundos! ¡Mantené la línea!',
+      '¡Tráfico atrás, te agarra en {reach}! ¡Atento!',
+      '¡Auto viniendo atrás! ¡Cuidado!',
+    ],
+    standard: [
+      'Viene un auto atrás, llega en {reach} segundos.',
+      'Auto acercándose atrás, a {reach} segundos.',
+      'Tráfico atrás, llega en {reach} segundos. Atención.',
+      'Viene un auto atrás. Dejá libre la línea.',
+    ],
+  },
+  race_car_behind_two: {
+    bono: [
+      'Dos autos viniendo, te alcanzan en {reach} segundos.',
+      'Dos autos atrás, a {reach} segundos.',
+      'Dos autos acercándose, llegan en {reach} segundos.',
+      'Dos autos viniendo atrás. Fuera de la línea.',
+    ],
+    colapinto: [
+      '¡Dos autos, te alcanzan en {reach}! ¡Cuidado!',
+      '¡Dos atrás, {reach} segundos! ¡Mantené la línea!',
+      '¡Vienen dos, llegan en {reach}! ¡Atento!',
+      '¡Dos autos viniendo! ¡Cuidado!',
+    ],
+    standard: [
+      'Vienen dos autos atrás, llegan en {reach} segundos.',
+      'Dos autos acercándose, a {reach} segundos.',
+      'Dos autos atrás, llegan en {reach} segundos. Atención.',
+      'Vienen dos autos atrás. Dejá libre la línea.',
+    ],
+  },
+  race_car_behind_now: {
+    bono: [
+      'Auto justo atrás ya. Mantené la línea.',
+      'Auto encima, atrás. Cuidado.',
+      'Lo tenés encima ya, sé predecible.',
+    ],
+    colapinto: [
+      '¡Auto justo atrás! ¡Mantené la línea!',
+      '¡Lo tenés encima! ¡Cuidado!',
+      '¡Ahí atrás, encima! ¡Atento!',
+    ],
+    standard: [
+      'Hay un auto justo atrás. Mantené la línea.',
+      'Auto encima ahora, atención.',
+      'Lo tenés encima. Sé predecible.',
+    ],
+  },
+  race_car_behind_close: {
+    bono: [
+      'Ya te alcanza, mantené la línea.',
+      'Ahí llega, sé predecible.',
+      'Encima ya. Tranquilo.',
+    ],
+    colapinto: [
+      '¡Ya llega! ¡Mantené la línea!',
+      '¡Ahí viene! ¡Cuidado!',
+      '¡Encima ya! ¡Atento!',
+    ],
+    standard: [
+      'El auto ya te alcanza. Mantené la línea.',
+      'Ahí llega ahora. Sé predecible.',
+      'Ya lo tenés encima. Atención.',
+    ],
+  },
+  race_car_behind_clear: {
+    bono: [
+      'Libre, ya pasó.',
+      'Libre atrás. A recuperar ritmo.',
+      'Pasó. Libre atrás.',
+    ],
+    colapinto: [
+      '¡Ya pasó, libre!',
+      '¡Todo libre! ¡Dale!',
+      '¡Pasó! ¡Libre atrás!',
+    ],
+    standard: [
+      'Libre, el auto ya pasó.',
+      'Libre atrás. Recuperá el ritmo.',
+      'Ya pasó. Libre.',
+    ],
+  },
+  race_pit_exit_traffic: {
+    bono: [
+      'Auto pasando por la salida de boxes, cuidado al salir.',
+      'Tráfico en la salida de boxes. Cuidado al entrar a pista.',
+      'Auto en pista en la salida. Ojo la línea blanca.',
+    ],
+    colapinto: [
+      '¡Auto en la salida de boxes! ¡Cuidado al salir!',
+      '¡Tráfico pasando la salida! ¡Atento!',
+      '¡Auto en pista en la salida! ¡Cuidado!',
+    ],
+    standard: [
+      'Viene un auto por la salida de boxes. Cuidado al salir.',
+      'Tráfico en la salida de boxes, atención al salir.',
+      'Auto en pista en la salida. Respetá la línea blanca.',
+    ],
+  },
   qualy_pit_exit_traffic: {
     bono: [
       'Auto lanzado llegando a la salida de boxes, cuidado al salir.',

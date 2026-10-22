@@ -449,7 +449,7 @@ export const ai_engineer = {
     penalties: 'Driver Penalties Received (DT / Stop & Go / Time)',
     penaltiesIncurred: 'Driver Penalties Received (DT / Stop & Go / Time)',
     flagsGeneral: 'Blue, Yellow & Green Flags, DRS, Safety Car In',
-    raceTraffic: 'Slow & Stopped Cars Ahead (Race)',
+    raceTraffic: 'Slow Cars Ahead & Cars Coming (Race)',
     raceEvents: 'Collisions, Retirements, Fastest Laps & the Last Lap',
     rainHorizon: 'Rain Radar Horizon',
     rainProbability: 'Rain Probability Threshold',
