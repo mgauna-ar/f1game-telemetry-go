@@ -23,7 +23,8 @@ const (
 	CollisionMinRepeatMs  = 15_000
 	BlueFlagMinRepeatMs   = 20_000
 	EngineTempMinRepeatMs = 60_000
-	TrafficMinRepeatMs    = 3_000 // a second car on a push lap gets its own call
+	TrafficMinRepeatMs    = 1_500 // a second car on a push lap gets its own call
+	TrafficMaxDelayMs     = 2_500 // a traffic call says when a car arrives: a few seconds later it is wrong
 	MaxSpeechTTLMs        = 15_000
 	MinSpeechTTLMs        = 2_000
 	SilenceMaxHoldMs      = 180_000 // the longest a condition call waits out radio silence (a formation lap and the start)
@@ -34,8 +35,21 @@ const (
 	RadioDeliveryLatencyMs = 1_000 // From the server to speech starting: phrase, synthesis, beep
 	DefaultSpeechMs        = 4_500
 	LongSpeechMs           = 7_000 // A report with several numbers
+	TrafficSpeechMs        = 2_500 // "Push-lap car behind, with you in 8 seconds."
 	CriticalBreatherMs     = 4_000
 	SCColdCallDelayMs      = 20_000
+	// RadioHeardKeptCalls: the latest calls the dashboards reported on (RecordRadioHeard) are
+	// remembered, so a second dashboard's report of the same call doesn't count again.
+	RadioHeardKeptCalls = 32
+	// Delivery lead: how long a traffic call takes from the server to its first word, the
+	// TrafficLeadPercentile of the latest TrafficLeadSamples traffic calls said at once (none
+	// waiting behind other speech), clamped to [TrafficLeadMinMs, TrafficLeadMaxMs].
+	// RadioDeliveryLatencyMs stands in until TrafficLeadMinSamples were reported.
+	TrafficLeadSamples    = 20
+	TrafficLeadMinSamples = 5
+	TrafficLeadPercentile = 0.8
+	TrafficLeadMinMs      = 300
+	TrafficLeadMaxMs      = 3_000
 	// PauseDetectMs: a session clock standing still this long is a pause; held calls don't age
 	// through it.
 	PauseDetectMs = 1_000
@@ -222,14 +236,72 @@ const (
 	QualyTimeWarnDefaultSec             = 180.0
 	QualyElimDangerTimeSec              = 300.0
 	FinalSectorTrackDistanceFraction    = 0.70
-	QualyCarBehindDefaultSec            = 6.0   // A car on a push lap this close behind (at its pace) is called on an out-lap or in-lap
-	QualyTrafficAheadWarnSec            = 5.0   // A slow car this close ahead (at the player's pace) is called on the player's push lap
+	QualyTrafficWarnDefaultSec          = 8.0   // A push-lap car behind, or a slow car ahead on a push lap, is called this long before the player meets it
 	PushPaceMaxOffBest                  = 1.07  // A car's best lap more than this times the session's best isn't its push pace
 	QualyLapResultSettleMs              = 2_000 // The lap result waits this long after the line for the positions to settle
 	InLapCooldownFromLapPct             = 0.10  // The in-lap cool-down call comes this far into the lap, after the lap result
 	QualyQ1EliminationPositionThreshold = 15    // Last safe Q1 place on a 20-car grid, when the car count is unknown
 	QualyQ2EliminationPositionThreshold = 10
 	QualyQ3Cars                         = 10 // Cars in Q3; Q1 and Q2 knock out half of the rest each
+
+	// Push-lap traffic timing. Each car's pace share is how fast it runs against the track's pace
+	// profile, measured over the last PaceWindowShortMs and PaceWindowLongMs of lap data. A step
+	// faster than MaxCarSpeedMps is a teleport (the garage, a flashback), not driving.
+	PaceWindowShortMs = 500
+	PaceWindowLongMs  = 3_000
+	MaxCarSpeedMps    = 110.0
+	// A pushing car is taken at its push pace unless it runs AbortMarginShare slower (backing
+	// off). The player on an in-lap is taken at their in-lap pace at most, since they are about to
+	// slow down: InLapPaceShare until their own was measured, from InLapLearnFromLapPct into an
+	// in-lap. Two cars whose shares differ by less than MinClosingShare of the faster one's aren't
+	// closing.
+	AbortMarginShare     = 0.15
+	InLapPaceShare       = 0.65
+	InLapLearnFromLapPct = 0.20
+	InLapLearnSamples    = 200 // The learned pace averages about this many lap data packets
+	MinClosingShare      = 0.04
+	// The number in a traffic call is heard about TrafficNumberHeardMs after its first word, so it
+	// is said for then. Closer than TrafficNowRoadSec on the road, or a number under
+	// TrafficNowMinSec, the call says the car is right there instead.
+	TrafficNumberHeardMs = 2_000
+	TrafficNowRoadSec    = 1.0
+	TrafficNowMinSec     = 2.0
+	// A warned car that falls back to TrafficRearmSec past the warning time for TrafficRearmMs (the
+	// player sped up, it backed off) is warned again when it comes back.
+	TrafficRearmSec = 4.0
+	TrafficRearmMs  = 3_000
+	// A car on its out-lap within PrePushToLineM of the line at PrePushShare of its push pace is
+	// about to start a push lap.
+	PrePushToLineM = 1_000.0
+	PrePushShare   = 0.97
+	// Follow-ups: "on you now" is heard QualyTrafficCloseSec before the car arrives (its words
+	// heard TrafficKeyHeardMs in), only after a warning that said TrafficCloseMinSaidSec or more.
+	// "Clear" comes once the car is QualyClearAheadM ahead, within TrafficClearWithinMs of the pass.
+	// A second push-lap car reaching the player within QualyTrainSec after the first is named in
+	// the warning.
+	QualyTrafficCloseSec   = 3.0
+	TrafficKeyHeardMs      = 800
+	TrafficCloseMinSaidSec = 6
+	QualyClearAheadM       = 30.0
+	TrafficClearWithinMs   = 10_000
+	QualyTrainSec          = 3.0
+	TrafficCloseSpeechMs   = 2_000
+	// The pit exit: a push-lap car reaching the pit exit between PitExitWindowBeforeSec before and
+	// PitExitWindowSec after the player leaving the pit lane is warned of. The player is taken at
+	// the pit speed limit (DefaultPitSpeedLimitKmh when the game sends none) from at most
+	// PitExitMaxDistM before the exit. "Push now" isn't said within PitExitCallFreshMs after it.
+	PitExitWindowBeforeSec  = 1.0
+	PitExitWindowSec        = 4.0
+	DefaultPitSpeedLimitKmh = 80
+	PitExitMaxDistM         = 1_000.0
+	PitExitCallFreshMs      = 15_000
+
+	// The track's push-lap speeds are learned from every car on a push lap: the mean of a QuietBinM
+	// bin's first PushSpeedMeanSamples steps, then each step weighing PushSpeedWeight. They are used
+	// once PushMinCoverage of the bins were seen.
+	PushSpeedMeanSamples = 50
+	PushSpeedWeight      = 0.1
+	PushMinCoverage      = 0.9
 
 	// Race results
 	PodiumPositions       = 3

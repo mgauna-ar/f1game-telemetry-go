@@ -112,10 +112,13 @@ func registry() *tsgen.Generator {
 		desktop.DesktopUpdate{},
 		desktop.InstallUpdateResponse{},
 		api.PTTTraceRequest{},
+		api.RadioHeardRequest{},
 	)
 	// What the dashboard reports about each push-to-talk exchange, for the app log.
 	g.TypeAlias("api", "PTTTraceOutcome", stringUnion(api.PTTTraceOutcomes))
 	g.TypeAlias("api", "PTTSource", stringUnion(api.PTTSources))
+	// What the dashboard reports about each proactive call it handled, for the app log.
+	g.TypeAlias("api", "RadioHeardOutcome", stringUnion(api.RadioHeardOutcomes))
 
 	// An AI chat request names what it is about; the server builds the prompt data.
 	g.TypeAlias("ai", "ChatContextMode", stringUnion(ai.ChatContextModes))

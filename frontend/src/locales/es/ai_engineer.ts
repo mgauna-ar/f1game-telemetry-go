@@ -421,7 +421,8 @@ export const ai_engineer = {
     // 7. Qualy y Prácticas
     qualyTitle: 'Suite de Clasificación y Prácticas',
     qualyDesc: 'Tráfico en pista, resultados de vuelta, vueltas anuladas, el reloj de la sesión y el corte',
-    qualyTraffic: 'Tráfico: Auto Lanzado Detrás, Hueco en la Vuelta de Salida, Auto Lento Adelante',
+    qualyTraffic: 'Tráfico: Auto Lanzado Detrás, Hueco en la Vuelta de Salida, Auto Lento Adelante, Salida de Boxes',
+    qualyTrafficFollowUps: 'Avisos de Encima y Libre',
     qualyInvalid: 'Vuelta Anulada por Límites de Pista',
     qualyDeletedLap: 'Vuelta Anulada por Límites de Pista',
     qualyTime: 'Cuenta Regresiva Final de Sesión (<3 min)',
@@ -431,7 +432,7 @@ export const ai_engineer = {
     qualyLapResult: 'Resultado de Vuelta (Posición y Diferencia con P1)',
     qualyCleanAirThreshold: 'Distancia Mínima Aire Limpio',
     qualyCleanAirGap: 'Distancia Mínima Aire Limpio',
-    qualyCarBehindGap: 'Aviso de Auto Lanzado Detrás',
+    qualyTrafficWarn: 'Aviso de tráfico: segundos antes de cruzarse',
     qualyTimeThreshold: 'Aviso Tiempo Restante Sesión',
     // 8. Banderas y Penalizaciones
     flagsTitle: 'Safety Car, Banderas y Sanciones',

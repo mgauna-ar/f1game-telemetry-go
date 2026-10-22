@@ -20,6 +20,8 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
   const setQualyAlertsEnabled = useRadioSettingsStore((s) => s.setQualyAlertsEnabled);
   const subQualyTraffic = useRadioSettingsStore((s) => s.subQualyTraffic);
   const setSubQualyTraffic = useRadioSettingsStore((s) => s.setSubQualyTraffic);
+  const subQualyTrafficFollowUps = useRadioSettingsStore((s) => s.subQualyTrafficFollowUps);
+  const setSubQualyTrafficFollowUps = useRadioSettingsStore((s) => s.setSubQualyTrafficFollowUps);
   const subQualyInvalid = useRadioSettingsStore((s) => s.subQualyInvalid);
   const setSubQualyInvalid = useRadioSettingsStore((s) => s.setSubQualyInvalid);
   const subQualyTime = useRadioSettingsStore((s) => s.subQualyTime);
@@ -30,8 +32,8 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
   const setSubQualyResult = useRadioSettingsStore((s) => s.setSubQualyResult);
   const qualyCleanAirSec = useRadioSettingsStore((s) => s.qualyCleanAirSec);
   const setQualyCleanAirSec = useRadioSettingsStore((s) => s.setQualyCleanAirSec);
-  const qualyCarBehindSec = useRadioSettingsStore((s) => s.qualyCarBehindSec);
-  const setQualyCarBehindSec = useRadioSettingsStore((s) => s.setQualyCarBehindSec);
+  const qualyTrafficWarnSec = useRadioSettingsStore((s) => s.qualyTrafficWarnSec);
+  const setQualyTrafficWarnSec = useRadioSettingsStore((s) => s.setQualyTrafficWarnSec);
 
   return (
     <SubsystemAccordion
@@ -52,6 +54,12 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
           label={t('ai_engineer.proactiveAlerts.qualyTraffic')}
           checked={subQualyTraffic}
           onChange={setSubQualyTraffic}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualyTrafficFollowUps')}
+          checked={subQualyTrafficFollowUps}
+          onChange={setSubQualyTrafficFollowUps}
         />
         <ToggleRow
           compact
@@ -91,14 +99,14 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
           onChange={setQualyCleanAirSec}
         />
         <ThresholdSlider
-          label={t('ai_engineer.proactiveAlerts.qualyCarBehindGap')}
-          value={qualyCarBehindSec}
+          label={t('ai_engineer.proactiveAlerts.qualyTrafficWarn')}
+          value={qualyTrafficWarnSec}
           unit="s"
-          min={3}
-          max={10}
-          step={0.5}
-          formatValue={(v) => `${v.toFixed(1)}s`}
-          onChange={setQualyCarBehindSec}
+          min={4}
+          max={15}
+          step={1}
+          formatValue={(v) => `${v.toFixed(0)}s`}
+          onChange={setQualyTrafficWarnSec}
         />
       </div>
     </SubsystemAccordion>

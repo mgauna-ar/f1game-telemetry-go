@@ -122,7 +122,13 @@ export type {
 } from './generated/api';
 
 /** What the dashboard reports about each push-to-talk exchange, for the app log. */
-export type { PTTSource, PTTTraceOutcome, PTTTraceRequest } from './generated/api';
+export type {
+  PTTSource,
+  PTTTraceOutcome,
+  PTTTraceRequest,
+  RadioHeardOutcome,
+  RadioHeardRequest,
+} from './generated/api';
 
 export type RadioAlertCategory =
   | 'safety_car'
@@ -157,6 +163,8 @@ export type RadioAlertCategory =
   | 'qualy_clean_air'
   | 'qualy_deleted_lap'
   | 'qualy_traffic_ahead'
+  | 'qualy_traffic_ahead_now'
+  | 'qualy_pit_exit_traffic'
   | 'qualy_session_time'
   | 'qualy_session_time_garage'
   | 'qualy_elimination_danger'
@@ -180,6 +188,10 @@ export type RadioAlertCategory =
   | 'wrong_way'
   | 'race_finish'
   | 'inlap_traffic_behind'
+  | 'inlap_traffic_behind_now'
+  | 'inlap_traffic_behind_two'
+  | 'inlap_traffic_close'
+  | 'inlap_traffic_clear'
   | 'inlap_cooldown'
   | 'rival_defend_override'
   | 'rival_attack_override'

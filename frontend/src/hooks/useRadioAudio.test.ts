@@ -96,7 +96,7 @@ describe('useRadioAudio hook', () => {
     vi.clearAllMocks();
     vi.spyOn(radioAudio, 'playRadioBeep').mockResolvedValue();
     vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (_text, opts) => {
-      opts?.onStart?.();
+      opts?.onStart?.(0);
       opts?.onEnd?.();
     });
   });
@@ -558,6 +558,44 @@ describe('useRadioAudio hook', () => {
         });
 
         expect(spoken()).toEqual(['Puncture, box now.', 'Tyres look good.']);
+      });
+
+      it('keep a traffic call with no number through the press, and drop one with a number', async () => {
+        // The first call stays on the air until the press cuts it.
+        vi.mocked(radioAudio.speakRadioResponse).mockImplementationOnce(async (_text, opts) => {
+          opts?.onStart?.(0);
+        });
+        const traffic = (directiveId: string, keptOnPtt: boolean) => ({
+          directiveId,
+          receivedAt: now,
+          visible: true,
+          cutIn: true,
+          keptOnPtt,
+        });
+        const { result } = renderHook(() => useRadioAudio());
+        await act(async () => {
+          await result.current.speakMessage('On you now.', true, undefined, 2500, traffic('directive_1_inlap_traffic_close', true));
+          await result.current.speakMessage(
+            'Push-lap car behind, with you in 8 seconds.',
+            true,
+            undefined,
+            2500,
+            traffic('directive_2_inlap_traffic_behind', false)
+          );
+        });
+        expect(spoken()).toEqual(['On you now.']);
+
+        act(() => {
+          result.current.onPTTPress();
+        });
+        act(() => {
+          FakeSpeechRecognition.say('How are the tyres?');
+        });
+        await act(async () => {
+          await result.current.onPTTRelease();
+        });
+
+        expect(spoken()).toEqual(['On you now.', 'On you now.', 'Tyres look good.']);
       });
 
       it('are said right away when no question is under way', async () => {

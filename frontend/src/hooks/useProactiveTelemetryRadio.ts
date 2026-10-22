@@ -9,7 +9,8 @@ export interface UseProactiveTelemetryRadioOptions {
   onTriggerAlert: (payload: RadioAlertPayload) => void;
 }
 
-const CRITICAL_EMOTION: RadioEmotion = { rateModifier: 12, pitchModifier: 5 };
+/** How an urgent call is said: faster and higher. */
+export const CRITICAL_EMOTION: RadioEmotion = { rateModifier: 12, pitchModifier: 5 };
 const CALM_EMOTION: RadioEmotion = { rateModifier: 0, pitchModifier: 0 };
 
 /**

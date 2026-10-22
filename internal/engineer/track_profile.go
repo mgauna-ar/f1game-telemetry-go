@@ -28,7 +28,9 @@ const trackProfileSettingKey = "engineer_pit_lanes"
 //     pitting), where it ends (where their pit lane timer stops) and how long a stop keeps a car
 //     in it, so what a stop costs is known;
 //   - the quiet stretches of a lap: where the player is flat out, off the brakes and straight, so
-//     routine calls can be said there.
+//     routine calls can be said there;
+//   - how fast a push lap goes round each stretch of the lap, from every car on one, so when two
+//     cars meet can be worked out wherever they are.
 //
 // Each value is the median of the latest samples, or an average over laps, so one odd sample
 // doesn't move it.
@@ -38,12 +40,16 @@ type trackProfiles struct {
 
 	lane [packets.MaxCars]pitLaneVisit // each car's pit lane visit under way
 	lap  quietLap                      // the player's lap being sampled
+	// pushSaveLap is the player's lap when push speeds were last saved; pushDirty says some were
+	// learned since. They are saved once a lap.
+	pushSaveLap int
+	pushDirty   bool
 }
 
 // trackProfile is what was learned about one track.
 type trackProfile struct {
 	entryM []float32 // lap distances cars started pitting at, oldest first
-	exitM  []float32 // lap distances race stops left the pit lane at
+	exitM  []float32 // lap distances cars left the pit lane at: race stops, and runs out of the garage
 	laneMs []float32 // time race stops spent in the pit lane, ms
 	// quiet is, for each QuietBinM stretch of the lap, the share of the player's samples there
 	// that were flat out, off the brakes and straight, averaged over laps; speed is the player's
@@ -51,6 +57,10 @@ type trackProfile struct {
 	quiet     []float32
 	speed     []float32
 	quietLaps int
+	// push is the speed of the cars on push laps in each QuietBinM bin, m/s (0: none seen there),
+	// from pushN samples (counted up to PushSpeedMeanSamples, and not saved).
+	push  []float32
+	pushN []uint16
 }
 
 // pitLaneVisit follows one car through the pit lane, from when its pit lane timer starts.
@@ -83,6 +93,7 @@ type savedTrackProfile struct {
 	Quiet     []float32 `json:"quiet,omitempty"`
 	SpeedMps  []float32 `json:"speed_mps,omitempty"`
 	QuietLaps int       `json:"quiet_laps,omitempty"`
+	PushMps   []float32 `json:"push_mps,omitempty"`
 }
 
 func newTrackProfiles() *trackProfiles {
@@ -119,6 +130,14 @@ func (t *trackProfile) entry() float32 {
 	return median(t.entryM)
 }
 
+// exit is the learned pit exit of the track as a lap distance in metres, or 0 when not known yet.
+func (t *trackProfile) exit() float32 {
+	if t == nil {
+		return 0
+	}
+	return median(t.exitM)
+}
+
 // median is the middle of samples (the mean of the middle two for an even count), or 0 for none.
 func median(samples []float32) float32 {
 	if len(samples) == 0 {
@@ -144,7 +163,8 @@ func addSample(samples []float32, v float32, keep int) []float32 {
 
 // learnPitLane records the pit lanes of the cars between prev and next: where cars started
 // pitting, and in a race, how long a stop kept them in the pit lane and where they left it. A
-// stop to serve a penalty, a drive-through and a car going to its garage aren't timed.
+// stop to serve a penalty, a drive-through and a car going to its garage aren't timed. Outside
+// races the pit exit is where a car leaving its garage comes out of the pit lane.
 func (p *trackProfiles) learnPitLane(session *packets.PacketSessionData, prev, next *packets.PacketLapData) {
 	if session == nil || prev == nil || session.TrackId < 0 || session.TrackLength == 0 {
 		return
@@ -161,6 +181,11 @@ func (p *trackProfiles) learnPitLane(session *packets.PacketSessionData, prev, n
 			learned = true
 		}
 		if !race {
+			if leftPitLane(prev.LapData[i], after) && onLap(after.LapDistance) {
+				t := p.learning(session.TrackId)
+				t.exitM = addSample(t.exitM, after.LapDistance, PitLaneMaxSamples)
+				learned = true
+			}
 			continue
 		}
 
@@ -205,7 +230,7 @@ func (t *trackProfile) pitLossSec(trackLength float32, paceMps float64) (float64
 	}
 	racingSec := float64(stretch) / paceMps
 	if t.quietLearned() {
-		racingSec = float64(t.stretchMs(entry, stretch)) / 1000
+		racingSec = float64(t.stretchMs(trackLength, entry, stretch)) / 1000
 	}
 	loss := float64(median(t.laneMs))/1000 - racingSec
 	if loss < PitLossMinSec || loss > PitLossMaxSec {
@@ -298,25 +323,118 @@ func (t *trackProfile) quietLearned() bool {
 
 // binSpeed is the player's learned speed in bin b, in m/s.
 func (t *trackProfile) binSpeed(b int) float64 {
-	if s := float64(t.speed[b]); s >= 1 {
+	return binSpeedOf(t.speed, b)
+}
+
+// binSpeedOf is speeds' value in bin b, or QuietUnknownSpeedMps where it isn't known.
+func binSpeedOf(speeds []float32, b int) float64 {
+	if s := float64(speeds[b]); s >= 1 {
 		return s
 	}
 	return QuietUnknownSpeedMps
 }
 
-// stretchMs is how long the player takes over length metres of lap from lapDistance, at the
-// learned speeds.
-func (t *trackProfile) stretchMs(lapDistance, length float32) int64 {
-	bins := len(t.speed)
-	b := int(lapDistance/QuietBinM) % bins
-	pos := float64(lapDistance) - float64(b)*QuietBinM
+// learnPushSpeed adds a car on a push lap going mps at lap distance lapM to track's push speeds.
+func (p *trackProfiles) learnPushSpeed(track int8, trackLength, lapM float32, mps float64) {
+	if track < 0 || trackLength <= 0 || mps <= 0 {
+		return
+	}
+	bins := quietBins(trackLength)
+	t := p.learning(track)
+	if len(t.push) != bins {
+		t.push = make([]float32, bins)
+	}
+	if len(t.pushN) != bins {
+		// Saved speeds count as fully learned.
+		t.pushN = make([]uint16, bins)
+		for b, v := range t.push {
+			if v > 0 {
+				t.pushN[b] = PushSpeedMeanSamples
+			}
+		}
+	}
+	// The first samples in a bin are averaged, so one odd sample (a step across a braking point)
+	// doesn't set it; then each weighs PushSpeedWeight.
+	b := min(int(trackGapM(0, lapM, trackLength)/QuietBinM), bins-1)
+	t.pushN[b] = min(t.pushN[b]+1, PushSpeedMeanSamples)
+	weight := max(1/float32(t.pushN[b]), PushSpeedWeight)
+	t.push[b] += weight * (float32(mps) - t.push[b])
+	p.pushDirty = true
+}
+
+// savePushSpeeds saves the push speeds learned since the last save, once the player is on another
+// lap than then.
+func (p *trackProfiles) savePushSpeeds(playerLap int) {
+	if p.pushDirty && playerLap != p.pushSaveLap {
+		p.pushDirty, p.pushSaveLap = false, playerLap
+		p.queueSave()
+	}
+}
+
+// pushSpeeds is the push speeds round a lap of trackLength, a bin without one taking the next
+// known bin's; nil until PushMinCoverage of the bins were seen.
+func (t *trackProfile) pushSpeeds(trackLength float32) []float32 {
+	if t == nil || len(t.push) == 0 || len(t.push) != quietBins(trackLength) {
+		return nil
+	}
+	known := 0
+	for _, v := range t.push {
+		if v > 0 {
+			known++
+		}
+	}
+	if float64(known) < PushMinCoverage*float64(len(t.push)) {
+		return nil
+	}
+	filled := slices.Clone(t.push)
+	for b := range filled {
+		for k := 1; filled[b] == 0 && k < len(filled); k++ {
+			filled[b] = t.push[(b+k)%len(filled)]
+		}
+	}
+	return filled
+}
+
+// speedLearned reports whether the player's speeds round a lap of trackLength were learned: a
+// whole lap was sampled, with one bin per QuietBinM of it.
+func (t *trackProfile) speedLearned(trackLength float32) bool {
+	return t != nil && t.quietLaps >= 1 && len(t.speed) > 0 && len(t.speed) == quietBins(trackLength)
+}
+
+// stretchMs is how long the player takes over length metres of a lap of trackLength from
+// lapDistance, at the learned speeds.
+func (t *trackProfile) stretchMs(trackLength, lapDistance, length float32) int64 {
+	return stretchMsAt(t.speed, trackLength, lapDistance, length)
+}
+
+// stretchMsAt is how long length metres of a lap of trackLength from lapDistance take at speeds,
+// one per QuietBinM bin (QuietUnknownSpeedMps where unknown). A lap distance off the lap (below
+// zero before the line) wraps round it.
+func stretchMsAt(speeds []float32, trackLength, lapDistance, length float32) int64 {
+	bins := len(speeds)
+	if bins == 0 || trackLength <= 0 || length <= 0 {
+		return 0
+	}
+	pos := float64(trackGapM(0, lapDistance, trackLength))
+	lap := float64(trackLength)
+	if pos >= lap {
+		pos = 0
+	}
 	left := float64(length)
 	var ms float64
 	for left > 0 {
-		step := min(QuietBinM-pos, left)
-		ms += step / t.binSpeed(b) * 1000
+		b := min(int(pos/QuietBinM), bins-1)
+		end := min(float64(b+1)*QuietBinM, lap)
+		if b == bins-1 {
+			end = lap
+		}
+		step := min(end-pos, left)
+		ms += step / binSpeedOf(speeds, b) * 1000
 		left -= step
-		pos, b = 0, (b+1)%bins
+		pos += step
+		if pos >= lap {
+			pos = 0
+		}
 	}
 	return int64(ms)
 }
@@ -384,7 +502,8 @@ func (p *trackProfiles) load(raw string) error {
 		if len(s.Quiet) > 0 && len(s.Quiet) == len(s.SpeedMps) {
 			t.quiet, t.speed, t.quietLaps = slices.Clone(s.Quiet), slices.Clone(s.SpeedMps), s.QuietLaps
 		}
-		if len(t.entryM) == 0 && len(t.laneMs) == 0 && len(t.quiet) == 0 {
+		t.push = slices.Clone(s.PushMps)
+		if len(t.entryM) == 0 && len(t.exitM) == 0 && len(t.laneMs) == 0 && len(t.quiet) == 0 && len(t.push) == 0 {
 			continue
 		}
 		p.tracks[int8(track)] = t
@@ -413,6 +532,7 @@ func (p *trackProfiles) snapshot() string {
 			Quiet:     round(t.quiet, 2),
 			SpeedMps:  round(t.speed, 1),
 			QuietLaps: t.quietLaps,
+			PushMps:   round(t.push, 1),
 		}
 	}
 	raw, _ := json.Marshal(saved)

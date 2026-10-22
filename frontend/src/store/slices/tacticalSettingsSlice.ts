@@ -60,6 +60,7 @@ export interface TacticalSettingsSlice {
   subTeammateAhead: boolean;
   subTeammatePit: boolean;
   subQualyTraffic: boolean;
+  subQualyTrafficFollowUps: boolean;
   subQualyInvalid: boolean;
   subQualyTime: boolean;
   subQualyElim: boolean;
@@ -127,6 +128,7 @@ export interface TacticalSettingsSlice {
   setSubTeammateAhead: (enabled: boolean) => void;
   setSubTeammatePit: (enabled: boolean) => void;
   setSubQualyTraffic: (enabled: boolean) => void;
+  setSubQualyTrafficFollowUps: (enabled: boolean) => void;
   setSubQualyInvalid: (enabled: boolean) => void;
   setSubQualyTime: (enabled: boolean) => void;
   setSubQualyElim: (enabled: boolean) => void;
@@ -195,6 +197,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubTeammateAhead'
   | 'setSubTeammatePit'
   | 'setSubQualyTraffic'
+  | 'setSubQualyTrafficFollowUps'
   | 'setSubQualyInvalid'
   | 'setSubQualyTime'
   | 'setSubQualyElim'
@@ -294,6 +297,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubTeammateAhead: createBoolAction('subTeammateAhead', true),
     setSubTeammatePit: createBoolAction('subTeammatePit', true),
     setSubQualyTraffic: createBoolAction('subQualyTraffic', true),
+    setSubQualyTrafficFollowUps: createBoolAction('subQualyTrafficFollowUps', true),
     setSubQualyInvalid: createBoolAction('subQualyInvalid', true),
     setSubQualyTime: createBoolAction('subQualyTime', true),
     setSubQualyElim: createBoolAction('subQualyElim', true),

@@ -6,6 +6,7 @@ import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { AIChatRequest } from '../types/ai';
 import type { ExchangeLine, PTTSource, PTTTraceOutcome, PTTTraceRequest, RadioEmotion } from '../types/telemetry';
+import type { SpokenCall } from '../utils/radioHeardReport';
 import { resolveRadioLanguage } from '../utils/chatContext';
 import { api } from '../utils/apiClient';
 import { chatStreamErrorFromResponse, readChatStream } from '../utils/sseUtils';
@@ -41,7 +42,8 @@ export interface UseRadioAudioReturn {
     text: string,
     forceInterrupt?: boolean,
     emotion?: { rateModifier?: number; pitchModifier?: number },
-    ttlMs?: number
+    ttlMs?: number,
+    call?: SpokenCall
   ) => Promise<void>;
   stopRadio: () => void;
   testRadioTransmission: () => Promise<void>;
@@ -53,7 +55,7 @@ export interface UseRadioAudioReturn {
   /** Whether a push-to-talk exchange is under way: the driver talking, or the answer coming. */
   isExchangeActive: () => boolean;
   /** Synthesizes a call's speech ahead, so it starts at once if it is said. */
-  prefetchMessage: (text: string, emotion?: RadioEmotion) => void;
+  prefetchMessage: (text: string, emotion?: RadioEmotion) => Promise<void>;
 }
 
 /**
@@ -81,6 +83,8 @@ interface HeldCall {
   emotion?: RadioEmotion;
   /** Epoch ms after which the call is stale and is dropped instead of spoken. */
   expiresAt?: number;
+  /** The pit wall call, followed for the app log. */
+  call?: SpokenCall;
 }
 
 /** Why a transmission came through without words. */
@@ -232,7 +236,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
           continue;
         }
         const ttlMs = call.expiresAt === undefined ? undefined : call.expiresAt - now;
-        void ttsSpeakMessage(call.text, call.urgent, call.emotion, ttlMs);
+        void ttsSpeakMessage(call.text, call.urgent, call.emotion, ttlMs, call.call);
       }
       heldCallsRef.current = waiting;
     },
@@ -281,16 +285,17 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       text: string,
       forceInterrupt = false,
       emotion?: { rateModifier?: number; pitchModifier?: number },
-      ttlMs?: number
+      ttlMs?: number,
+      call?: SpokenCall
     ) => {
       const exchange = exchangeRef.current;
       if (exchange && (exchange.transmitting || !forceInterrupt)) {
         const expiresAt = ttlMs ? Date.now() + ttlMs : undefined;
-        heldCallsRef.current.push({ text, urgent: forceInterrupt, emotion, expiresAt });
+        heldCallsRef.current.push({ text, urgent: forceInterrupt, emotion, expiresAt, call });
         exchange.trace.calls_held += 1;
         return;
       }
-      await ttsSpeakMessage(text, forceInterrupt, emotion, ttlMs);
+      await ttsSpeakMessage(text, forceInterrupt, emotion, ttlMs, call);
     },
     [ttsSpeakMessage]
   );
@@ -300,10 +305,12 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   // Handle Gamepad/PTT Press
   const onPTTPress = useCallback((source?: PTTSource) => {
     if (!isRadioEnabledRef.current || exchangeRef.current?.transmitting) return;
-    // A new transmission replaces an answer still being generated or spoken.
+    // A new transmission replaces an answer still being generated or spoken. A traffic call with no
+    // number ("on you now") is still true after it, so it waits for the release; one with a number
+    // would be wrong by then.
     activeAbortControllerRef.current?.abort();
     activeAbortControllerRef.current = null;
-    stopSpeech();
+    const kept = stopSpeech({ keep: (call) => call.keptOnPtt === true });
     stopRadioSpeech();
     setError(null);
     setRadioState('transmitting');
@@ -315,6 +322,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       ended: false,
       trace: { ...newTrace(), press_source: source },
     };
+    for (const call of kept) heldCallsRef.current.push(call);
 
     if (beepsEnabledRef.current) {
       playRadioBeep('start');

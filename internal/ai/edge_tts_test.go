@@ -336,3 +336,100 @@ func TestDialEdgeTTSDoesNotRetryOtherStatuses(t *testing.T) {
 		t.Errorf("expected the body cut to %d bytes, got %q", handshakeBodyLimit, err)
 	}
 }
+
+// newEdgeTTSStreamServer stands in for the Edge TTS websocket once connected: it reads the
+// speech config and the SSML, then serve answers on the connection.
+func newEdgeTTSStreamServer(t *testing.T, serve func(conn *websocket.Conn)) *edgeTTSTestServer {
+	t.Helper()
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	s := &edgeTTSTestServer{}
+	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade failed: %v", err)
+			return
+		}
+		defer conn.Close()
+		for range 2 {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+		serve(conn)
+	}))
+	t.Cleanup(s.Close)
+	return s
+}
+
+// edgeAudioFrame is a binary Edge TTS frame: a 2-byte header length, the header, then MP3 bytes.
+func edgeAudioFrame(audio string) []byte {
+	header := "Path:audio\r\n"
+	frame := []byte{byte(len(header) >> 8), byte(len(header))}
+	frame = append(frame, header...)
+	return append(frame, audio...)
+}
+
+func TestReadEdgeTTSAudioGivesUpOnAStalledStream(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	srv := newEdgeTTSStreamServer(t, func(conn *websocket.Conn) {
+		_ = conn.WriteMessage(websocket.BinaryMessage, edgeAudioFrame("mp3-part"))
+		<-release // the stream stalls
+	})
+	conn, _, err := websocket.DefaultDialer.Dial(srv.wsURL(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	for _, msg := range []string{"config", "ssml"} {
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	start := time.Now()
+	audio, complete, err := readEdgeTTSAudio(context.Background(), conn, 100*time.Millisecond)
+	if err != nil {
+		t.Fatalf("audio received before the stall should be returned, got %v", err)
+	}
+	if string(audio) != "mp3-part" || complete {
+		t.Errorf("got %q (complete %v), want the partial audio, not complete", audio, complete)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("a stalled stream held the read for %v", elapsed)
+	}
+}
+
+func TestSynthesizeEdgeTTSCachesOnlyWholeAnswers(t *testing.T) {
+	voiceName, _ := ResolveVoice("", "", "")
+	cached := func(text string) bool {
+		_, ok := globalTTSCache.Get(voiceName + "|||" + text)
+		return ok
+	}
+
+	whole := newEdgeTTSStreamServer(t, func(conn *websocket.Conn) {
+		_ = conn.WriteMessage(websocket.BinaryMessage, edgeAudioFrame("mp3-whole"))
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("X-RequestId:1\r\nPath:turn.end\r\n\r\n{}"))
+	})
+	text := "Push-lap car behind, whole answer " + generateUUID()
+	audio, err := synthesizeEdgeTTS(context.Background(), whole.wsURL(), newTestClock(), text, "", "", "")
+	if err != nil || string(audio) != "mp3-whole" {
+		t.Fatalf("got %q, %v; want the whole answer", audio, err)
+	}
+	if !cached(text) {
+		t.Error("a whole answer should be cached")
+	}
+
+	brokenOff := newEdgeTTSStreamServer(t, func(conn *websocket.Conn) {
+		_ = conn.WriteMessage(websocket.BinaryMessage, edgeAudioFrame("mp3-half"))
+		// The connection closes before the turn ends.
+	})
+	text = "Push-lap car behind, broken off " + generateUUID()
+	audio, err = synthesizeEdgeTTS(context.Background(), brokenOff.wsURL(), newTestClock(), text, "", "", "")
+	if err != nil || string(audio) != "mp3-half" {
+		t.Fatalf("got %q, %v; want the audio that came", audio, err)
+	}
+	if cached(text) {
+		t.Error("audio that broke off midway should not be cached")
+	}
+}

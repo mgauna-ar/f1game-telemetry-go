@@ -75,144 +75,6 @@ func TestTrackGapM(t *testing.T) {
 	}
 }
 
-func TestQualifyingRule_CarBehindOnAPushLap(t *testing.T) {
-	tests := []struct {
-		name        string
-		sessionType uint8
-		phase       DrivingPhase
-		rival       packets.LapData
-		player      packets.LapData
-		wantGap     float64 // 0: no call
-	}{
-		{
-			// Session distances say nothing about track position in qualifying: the rival has
-			// driven far less this session but is 150 m behind on track.
-			name:        "close behind on track whatever the session distances",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 30000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 850, 12000),
-			wantGap:     2.3,
-		},
-		{
-			name:        "ahead in session distance but behind on track",
-			sessionType: packets.SessionQ2,
-			phase:       PhaseInLap,
-			player:      qualyCar(packets.DriverStatusInLap, 1000, 10000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 900, 45000),
-			wantGap:     1.5,
-		},
-		{
-			name:        "behind across the line",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 100, 9000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 4950, 4950),
-			wantGap:     2.3,
-		},
-		{
-			name:        "in practice too",
-			sessionType: packets.SessionP2,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 850, 850),
-			wantGap:     2.3,
-		},
-		{
-			name:        "earlier than the line was",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 650, 650),
-			wantGap:     5.4,
-		},
-		{
-			name:        "too far back",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 500, 500),
-		},
-		{
-			name:        "just ahead, so not behind",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 1050, 1050),
-		},
-		{
-			name:        "not on a push lap",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusOutLap, 900, 900),
-		},
-		{
-			name:        "in the pit lane",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival: func() packets.LapData {
-				l := qualyCar(packets.DriverStatusFlyingLap, 900, 900)
-				l.PitStatus = packets.PitStatusPitting
-				return l
-			}(),
-		},
-		{
-			name:        "the player is pushing too",
-			sessionType: packets.SessionQ1,
-			phase:       PhaseFlyingLap,
-			player:      qualyCar(packets.DriverStatusFlyingLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 900, 900),
-		},
-		{
-			name:        "not in a race",
-			sessionType: packets.SessionRace,
-			phase:       PhaseOutLap,
-			player:      qualyCar(packets.DriverStatusOutLap, 1000, 1000),
-			rival:       qualyCar(packets.DriverStatusFlyingLap, 900, 900),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rule := NewQualifyingRule()
-			dirs := rule.Evaluate(qualyCtx(tt.sessionType, tt.phase, tt.player, tt.rival))
-			d := directiveFor(dirs, "inlap_traffic_behind")
-			if tt.wantGap == 0 {
-				if d != nil {
-					t.Fatalf("expected no car behind call, got %+v", d)
-				}
-				return
-			}
-			if d == nil {
-				t.Fatalf("expected a car behind call, got %v", subAlerts(dirs))
-			}
-			if d.Values == nil || d.Values.Behind == nil || d.Values.Behind.GapSec != tt.wantGap {
-				t.Fatalf("gap = %+v, want %v s", d.Values, tt.wantGap)
-			}
-		})
-	}
-}
-
-func TestQualifyingRule_CarBehindOncePerCar(t *testing.T) {
-	rule := NewQualifyingRule()
-	player := qualyCar(packets.DriverStatusOutLap, 1000, 1000)
-	first := qualyCar(packets.DriverStatusFlyingLap, 850, 850)
-	second := qualyCar(packets.DriverStatusFlyingLap, 500, 500)
-
-	if dirs := rule.Evaluate(qualyCtx(packets.SessionQ1, PhaseOutLap, player, first, second)); directiveFor(dirs, "inlap_traffic_behind") == nil {
-		t.Fatalf("expected the first car to be called, got %v", subAlerts(dirs))
-	}
-	if dirs := rule.Evaluate(qualyCtx(packets.SessionQ1, PhaseOutLap, player, first, second)); directiveFor(dirs, "inlap_traffic_behind") != nil {
-		t.Fatalf("the same car was called twice on one lap")
-	}
-	second.LapDistance = 800 // now close behind too
-	dirs := rule.Evaluate(qualyCtx(packets.SessionQ1, PhaseOutLap, player, first, second))
-	if d := directiveFor(dirs, "inlap_traffic_behind"); d == nil || d.Values.Behind.GapSec != 3.1 {
-		t.Fatalf("expected the second car to get its own call at 3.1 s, got %+v", d)
-	}
-}
-
 // qualyHistory is a session history whose best lap is bestMS.
 func qualyHistory(bestMS uint32) *packets.PacketSessionHistoryData {
 	h := &packets.PacketSessionHistoryData{BestLapTimeLapNum: 1}
@@ -255,68 +117,10 @@ func TestPushPaceMps(t *testing.T) {
 	}
 }
 
-// The car behind is called at the gap the driver set, measured at its own pace: a fast car from
-// further back, a slow one closer.
-func TestQualifyingRule_CarBehindAtItsPace(t *testing.T) {
-	player := qualyCar(packets.DriverStatusOutLap, 1000, 1000)
-	pushing := func(lapDist float32) packets.LapData {
-		return qualyCar(packets.DriverStatusFlyingLap, lapDist, lapDist)
-	}
-	tests := []struct {
-		name    string
-		warnSec float32        // the driver's setting (0: a setup saved without it)
-		bests   map[int]uint32 // best lap by car
-		rivals  []packets.LapData
-		wantCar int     // car called (0: none)
-		wantGap float64 // its gap
-	}{
-		{"a fast car from further back", 6, map[int]uint32{1: 68_000}, []packets.LapData{pushing(580)}, 1, 5.7},
-		{"a slow car only closer", 6, map[int]uint32{1: 100_000}, []packets.LapData{pushing(650)}, 0, 0},
-		{"no setting: the default", 0, nil, []packets.LapData{pushing(650)}, 1, 5.4},
-		{"the driver's shortest gap", 3, nil, []packets.LapData{pushing(750)}, 0, 0},
-		{"the driver's longest gap", 10, nil, []packets.LapData{pushing(400)}, 1, 9.2},
-		{
-			"the car that gets there first, not the nearest",
-			6, map[int]uint32{1: 85_000, 2: 79_500},
-			[]packets.LapData{pushing(700), pushing(690)}, 2, 4.9,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := withBestLaps(qualyCtx(packets.SessionQ1, PhaseOutLap, append([]packets.LapData{player}, tt.rivals...)...), tt.bests)
-			ctx.Config.QualyCarBehindSec = tt.warnSec
-			rule := NewQualifyingRule()
-			d := directiveFor(rule.Evaluate(ctx), "inlap_traffic_behind")
-			if tt.wantCar == 0 {
-				if d != nil {
-					t.Fatalf("expected no car behind call, got %+v", d)
-				}
-				return
-			}
-			if d == nil || d.Values == nil || d.Values.Behind == nil || d.Values.Behind.GapSec != tt.wantGap {
-				t.Fatalf("expected a car behind call at %v s, got %+v", tt.wantGap, d)
-			}
-			if rule.behindCalled[tt.wantCar] != player.CurrentLapNum {
-				t.Fatalf("car %d wasn't the one called", tt.wantCar)
-			}
-		})
-	}
-}
-
-// Traffic ahead is measured at the player's own pace.
-func TestQualifyingRule_TrafficAheadAtThePlayersPace(t *testing.T) {
+// Out-lap traffic is measured at the player's own push pace.
+func TestQualifyingRule_OutLapTrafficAtThePlayersPace(t *testing.T) {
 	fast := map[int]uint32{0: 68_000} // 73.5 m/s on qualyTrackLen
 
-	t.Run("slow car ahead on a push lap", func(t *testing.T) {
-		ctx := withBestLaps(qualyCtx(packets.SessionQ1, PhaseFlyingLap,
-			qualyCar(packets.DriverStatusFlyingLap, 2000, 2000), qualyCar(packets.DriverStatusInLap, 2350, 2350)), fast)
-		ctx.Telemetry = &packets.PacketCarTelemetryData{}
-		ctx.Telemetry.CarTelemetryData[0].Speed, ctx.Telemetry.CarTelemetryData[1].Speed = 280, 160
-		d := directiveFor(NewQualifyingRule().Evaluate(ctx), "qualy_traffic_ahead")
-		if d == nil || d.Values.Ahead.GapSec != 4.8 {
-			t.Fatalf("expected the slow car at 4.8 s, got %+v", d)
-		}
-	})
 	t.Run("out-lap gap", func(t *testing.T) {
 		ctx := withBestLaps(qualyCtx(packets.SessionQ1, PhaseOutLap,
 			qualyCar(packets.DriverStatusOutLap, 4000, 4000), qualyCar(packets.DriverStatusOutLap, 4280, 4280)), fast)
@@ -397,50 +201,6 @@ func TestQualifyingRule_OutLapTrafficAhead(t *testing.T) {
 			t.Fatalf("expected no call mid-lap, got %v", subAlerts(dirs))
 		}
 	})
-}
-
-func TestQualifyingRule_SlowCarAheadOnAPushLap(t *testing.T) {
-	withSpeeds := func(ctx *EvaluationContext, speeds ...uint16) *EvaluationContext {
-		ctx.Telemetry = &packets.PacketCarTelemetryData{}
-		for i, s := range speeds {
-			ctx.Telemetry.CarTelemetryData[i].Speed = s
-		}
-		return ctx
-	}
-	player := qualyCar(packets.DriverStatusFlyingLap, 2000, 2000)
-	tests := []struct {
-		name    string
-		player  packets.LapData
-		rival   packets.LapData
-		speeds  []uint16
-		wantGap float64
-	}{
-		{"slow car on an in-lap ahead", player, qualyCar(packets.DriverStatusInLap, 2200, 9000), []uint16{280, 160}, 3.1},
-		{"car on an out-lap ahead", player, qualyCar(packets.DriverStatusOutLap, 2100, 100), []uint16{280, 200}, 1.5},
-		{"car ahead also pushing", player, qualyCar(packets.DriverStatusFlyingLap, 2200, 2200), []uint16{280, 160}, 0},
-		{"car ahead going faster", player, qualyCar(packets.DriverStatusOutLap, 2200, 2200), []uint16{180, 250}, 0},
-		{"too far ahead", player, qualyCar(packets.DriverStatusInLap, 2400, 2400), []uint16{280, 160}, 0},
-		{"past the line, not on this lap", qualyCar(packets.DriverStatusFlyingLap, 4950, 4950), qualyCar(packets.DriverStatusInLap, 100, 100), []uint16{280, 160}, 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rule := NewQualifyingRule()
-			ctx := withSpeeds(qualyCtx(packets.SessionQ1, PhaseFlyingLap, tt.player, tt.rival), tt.speeds...)
-			d := directiveFor(rule.Evaluate(ctx), "qualy_traffic_ahead")
-			if tt.wantGap == 0 {
-				if d != nil {
-					t.Fatalf("expected no call, got %+v", d)
-				}
-				return
-			}
-			if d == nil || d.Values == nil || d.Values.Ahead == nil || d.Values.Ahead.GapSec != tt.wantGap {
-				t.Fatalf("expected a slow car ahead call at %v s, got %+v", tt.wantGap, d)
-			}
-			if again := rule.Evaluate(ctx); directiveFor(again, "qualy_traffic_ahead") != nil {
-				t.Fatalf("the same car was called twice on one lap")
-			}
-		})
-	}
 }
 
 func TestQualifyingRule_InvalidLap(t *testing.T) {
@@ -612,18 +372,27 @@ func TestEngineerEngine_QualifyingRunCalls(t *testing.T) {
 		return p
 	}
 
-	e.ProcessPacket(ctx, lap(qualyCar(packets.DriverStatusOutLap, 1000, 30000), qualyCar(packets.DriverStatusFlyingLap, 850, 12000)))
-	if e.currentPhase != PhaseOutLap || spoken(t, b, "inlap_traffic_behind") != 1 {
-		t.Fatalf("phase %v, car behind calls %d: want the call on the out-lap", e.currentPhase, spoken(t, b, "inlap_traffic_behind"))
+	// Half a second of lap data, so the player's pace is known.
+	laps := func(cars ...packets.LapData) {
+		for range 6 {
+			h.SessionTime += 0.1
+			e.ProcessPacket(ctx, lap(cars...))
+		}
+	}
+
+	// Close behind a standing player: it is right there.
+	laps(qualyCar(packets.DriverStatusOutLap, 1000, 30000), qualyCar(packets.DriverStatusFlyingLap, 850, 12000))
+	if e.currentPhase != PhaseOutLap || spoken(t, b, "inlap_traffic_behind_now") != 1 {
+		t.Fatalf("phase %v, car behind calls %d: want the call on the out-lap", e.currentPhase, spoken(t, b, "inlap_traffic_behind_now"))
 	}
 
 	clock.advance(30 * time.Second)
 	player := qualyCar(packets.DriverStatusFlyingLap, 2000, 32000)
 	player.CurrentLapNum = 4
 	e.ProcessPacket(ctx, &packets.PacketCarTelemetryData{Header: h, CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{{Speed: 280}, {Speed: 150}}})
-	e.ProcessPacket(ctx, lap(player, qualyCar(packets.DriverStatusInLap, 2200, 14000)))
-	if e.currentPhase != PhaseFlyingLap || spoken(t, b, "qualy_traffic_ahead") != 1 {
-		t.Fatalf("phase %v, slow car ahead calls %d: want the call on the push lap", e.currentPhase, spoken(t, b, "qualy_traffic_ahead"))
+	laps(player, qualyCar(packets.DriverStatusInLap, 2200, 14000))
+	if e.currentPhase != PhaseFlyingLap || spoken(t, b, "qualy_traffic_ahead_now") != 1 {
+		t.Fatalf("phase %v, slow car ahead calls %d: want the call on the push lap", e.currentPhase, spoken(t, b, "qualy_traffic_ahead_now"))
 	}
 
 	clock.advance(5 * time.Second)

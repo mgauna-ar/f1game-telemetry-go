@@ -32,11 +32,6 @@ func onTrack(l *packets.LapData) bool {
 		l.PitStatus == packets.PitStatusNone
 }
 
-// pushLapGapSec is a gap on track in seconds at push-lap pace paceMps.
-func pushLapGapSec(gapM float32, paceMps float64) float64 {
-	return float64(gapM) / paceMps
-}
-
 // pushPaceMps is car idx's push-lap pace in metres a second: the track length over its best lap.
 // A car without a lap yet, or whose best is more than PushPaceMaxOffBest off the session's best
 // (an out-lap, a lap with a spin), runs at the session's best; before anyone has set a lap, at

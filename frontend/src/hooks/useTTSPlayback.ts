@@ -9,6 +9,8 @@ import {
   type RadioSpeechOptions,
 } from '../utils/radioAudio';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import type { RadioHeardOutcome } from '../types/telemetry';
+import { reportRadioHeard, type SpokenCall } from '../utils/radioHeardReport';
 
 export interface UseTTSPlaybackOptions {
   effectiveLanguage: 'es' | 'en';
@@ -36,8 +38,52 @@ interface SpeechQueueItem {
   stream?: ReplyStreamState;
   /** Epoch ms after which a queued pit wall call is stale and is skipped instead of spoken. */
   expiresAt?: number;
+  /** How long the call stays worth saying (ms): an urgent call cut off is said again with this much life. */
+  ttlMs?: number;
   /** A high or critical pit wall call: it goes ahead of routine calls and cuts them off. */
   urgent?: boolean;
+  /** The pit wall call this is, followed for the app log. */
+  call?: SpokenCall;
+  /** How the call fared on the radio, for its report. */
+  heard: HeardTimings;
+  /**
+   * Cut off midway by a traffic warning: it doesn't age while the warnings are said, and gets its
+   * whole useful life again when its turn comes back.
+   */
+  resumed?: boolean;
+}
+
+/** When a pit wall call got the radio and was said, in epoch ms, and how long its voice took. */
+interface HeardTimings {
+  turnAt?: number;
+  synthMs: number;
+  cached: boolean;
+  speechAt?: number;
+  speechEndedAt?: number;
+  /** Its report was sent: a call is reported once, with what finally became of it. */
+  reported?: boolean;
+}
+
+const newHeard = (): HeardTimings => ({ synthMs: 0, cached: false });
+
+/** Tells the app log what became of a pit wall call; replies and test lines aren't reported. */
+function reportCall(item: SpeechQueueItem, outcome: RadioHeardOutcome): void {
+  const { call, heard } = item;
+  if (!call || heard.reported) return;
+  heard.reported = true;
+  const turnAt = heard.turnAt ?? Date.now();
+  reportRadioHeard({
+    directive_id: call.directiveId,
+    urgent: item.urgent === true,
+    outcome,
+    wait_ms: Math.max(0, Math.round(turnAt - call.receivedAt)),
+    start_ms: heard.speechAt ? Math.max(0, Math.round(heard.speechAt - call.receivedAt)) : 0,
+    synth_ms: Math.round(heard.synthMs),
+    cached: heard.cached,
+    speech_ms:
+      heard.speechAt && heard.speechEndedAt ? Math.max(0, Math.round(heard.speechEndedAt - heard.speechAt)) : 0,
+    visible: call.visible,
+  });
 }
 
 interface ReplyStreamState {
@@ -57,6 +103,22 @@ interface ReplyStreamState {
 
 const newQueueItemId = () => Math.random().toString(36).substring(2, 9);
 
+/** A pit wall call stopSpeech kept to say later instead of cutting it. */
+export interface KeptSpeech {
+  text: string;
+  urgent: boolean;
+  emotion?: SpeechEmotion;
+  /** Epoch ms after which it is stale. */
+  expiresAt?: number;
+  call: SpokenCall;
+}
+
+/** How stopSpeech stops. */
+export interface StopSpeechOptions {
+  /** The pit wall calls, playing or queued, to hand back instead of cutting. */
+  keep?: (call: SpokenCall) => boolean;
+}
+
 export interface UseTTSPlaybackReturn {
   isSpeaking: boolean;
   lastResponse: string | null;
@@ -65,14 +127,17 @@ export interface UseTTSPlaybackReturn {
     text: string,
     forceInterrupt?: boolean,
     emotion?: { rateModifier?: number; pitchModifier?: number },
-    ttlMs?: number
+    ttlMs?: number,
+    call?: SpokenCall
   ) => Promise<void>;
-  stopSpeech: () => void;
+  /** Stops all speech; the calls `keep` picks are handed back, not cut, so they can be said later. */
+  stopSpeech: (options?: StopSpeechOptions) => KeptSpeech[];
   testRadioTransmission: () => Promise<void>;
   testTriggerAlert: (triggerType: string) => Promise<void>;
   beginReplyStream: () => ReplySpeechStream;
   /** Synthesizes a call's speech ahead, so it starts at once if it is said. */
-  prefetchMessage: (text: string, emotion?: SpeechEmotion) => void;
+  /** Synthesizes a message ahead of saying it; resolves once it is cached, or couldn't be. */
+  prefetchMessage: (text: string, emotion?: SpeechEmotion) => Promise<void>;
 }
 
 export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackReturn {
@@ -103,6 +168,14 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const speakingUrgentRef = useRef(false);
   const queueRef = useRef<SpeechQueueItem[]>([]);
   const streamRef = useRef<ReplyStreamState | null>(null);
+  /** The item on the air, if any. */
+  const currentRef = useRef<SpeechQueueItem | null>(null);
+  /**
+   * Goes up whenever an item takes the radio or the radio is stopped: an item that was cut off
+   * still ends (its closing beep, a late callback), and must not then start the next one over the
+   * call that took the radio.
+   */
+  const tokenRef = useRef(0);
   const MAX_QUEUE_SIZE = 3;
 
   const speechOptions = useCallback(
@@ -127,7 +200,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const prefetchMessage = useCallback(
     (text: string, emotion?: SpeechEmotion) => {
       const cleaned = cleanRadioSpeechText(text);
-      if (isRadioEnabled && cleaned) prefetchRadioSpeech(cleaned, speechOptions(emotion));
+      return isRadioEnabled && cleaned ? prefetchRadioSpeech(cleaned, speechOptions(emotion)) : Promise.resolve();
     },
     [isRadioEnabled, speechOptions]
   );
@@ -158,9 +231,14 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const playNext = useCallback(async () => {
     // A pit wall call that waited too long behind other speech is no longer worth saying.
     const now = Date.now();
-    queueRef.current = queueRef.current.filter((item) => item.expiresAt === undefined || item.expiresAt > now);
+    queueRef.current = queueRef.current.filter((item) => {
+      if (item.resumed || item.expiresAt === undefined || item.expiresAt > now) return true;
+      reportCall(item, 'stale');
+      return false;
+    });
 
     if (!isRadioEnabled || queueRef.current.length === 0) {
+      currentRef.current = null;
       const stream = streamRef.current;
       if (isRadioEnabled && stream && !stream.finished && !stream.cancelled) {
         // Keep the radio open while the rest of the reply is generated.
@@ -175,6 +253,13 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     }
 
     const item = queueRef.current.shift()!;
+    const token = ++tokenRef.current;
+    currentRef.current = item;
+    item.heard.turnAt ??= now;
+    if (item.resumed) {
+      item.resumed = false;
+      item.expiresAt = item.ttlMs ? now + item.ttlMs : undefined;
+    }
     const stream = item.stream;
     // The next pit wall call waiting is synthesized while this one plays, so it starts without delay.
     const upcoming = queueRef.current[0];
@@ -200,31 +285,106 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     }
 
     const next = async () => {
+      // An item cut off ends anyway: the radio already belongs to what cut it.
+      if (token !== tokenRef.current) return;
       if (stream) {
         if (stream.cancelled) return;
         if (stream.finished && !hasQueuedSentences(stream)) {
           await closeReplyStream(stream);
+          if (token !== tokenRef.current) return;
         }
       }
+      if (item.heard.speechEndedAt) reportCall(item, 'said');
       playNext();
+    };
+    const failed = () => {
+      if (token === tokenRef.current) reportCall(item, 'failed');
+      next();
     };
 
     try {
-      await speakRadioResponse(item.text, { ...options, onEnd: next, onError: next });
+      await speakRadioResponse(item.text, {
+        ...options,
+        onSynthesized: (synthMs, cached) => {
+          item.heard.synthMs = synthMs;
+          item.heard.cached = cached;
+        },
+        onStart: (startsInMs) => {
+          item.heard.speechAt = Date.now() + startsInMs;
+        },
+        onSpeechEnd: () => {
+          item.heard.speechEndedAt = Date.now();
+        },
+        onStale: () => reportCall(item, 'stale'),
+        onEnd: next,
+        onError: failed,
+      });
     } catch {
-      next();
+      failed();
     }
   }, [isRadioEnabled, beepsEnabled, speechOptions, closeReplyStream]);
 
-  const stopSpeech = useCallback(() => {
-    cancelReplyStream();
-    queueRef.current = [];
-    isSpeakingRef.current = false;
-    speakingUrgentRef.current = false;
-    stopRadioSpeech();
-    setIsSpeaking(false);
-    onSpeakingChangeRef.current?.(false);
-  }, [cancelReplyStream]);
+  /**
+   * Takes the radio from the item on the air. Speech that hadn't ended is cut off; with `after`,
+   * an urgent call cut off midway is said again once `after` has been, its useful life starting
+   * over then (a traffic warning cutting into the lap result).
+   */
+  const cutCurrent = useCallback(
+    (after?: SpeechQueueItem) => {
+      const current = currentRef.current;
+      tokenRef.current++;
+      currentRef.current = null;
+      if (current && !current.stream) {
+        const unfinished = !current.heard.speechEndedAt;
+        const queue = queueRef.current;
+        const at = after ? queue.indexOf(after) : -1;
+        if (unfinished && current.urgent && current.ttlMs && at >= 0) {
+          current.resumed = true;
+          current.heard.speechAt = undefined;
+          queue.splice(at + 1, 0, current);
+        } else {
+          reportCall(current, unfinished ? 'cut' : 'said');
+        }
+      }
+      cancelReplyStream();
+      stopRadioSpeech();
+      isSpeakingRef.current = false;
+    },
+    [cancelReplyStream]
+  );
+
+  const stopSpeech = useCallback(
+    (options: StopSpeechOptions = {}): KeptSpeech[] => {
+      const kept: KeptSpeech[] = [];
+      const stop = (item: SpeechQueueItem, outcome: RadioHeardOutcome) => {
+        if (item.call && outcome === 'cut' && typeof options.keep === 'function' && options.keep(item.call)) {
+          kept.push({
+            text: item.text,
+            urgent: !!item.urgent,
+            emotion: item.emotion,
+            expiresAt: item.expiresAt,
+            call: item.call,
+          });
+          return;
+        }
+        reportCall(item, outcome);
+      };
+      const current = currentRef.current;
+      if (current && !current.stream) stop(current, current.heard.speechEndedAt ? 'said' : 'cut');
+      for (const queued of queueRef.current) stop(queued, 'cut');
+      tokenRef.current++;
+      currentRef.current = null;
+      cancelReplyStream();
+      queueRef.current = [];
+      isSpeakingRef.current = false;
+      speakingUrgentRef.current = false;
+      stopRadioSpeech();
+      setIsSpeaking(false);
+      onSpeakingChangeRef.current?.(false);
+      return kept;
+    },
+    [cancelReplyStream]
+  );
 
   const beginReplyStream = useCallback((): ReplySpeechStream => {
     // A new reply supersedes one still being spoken.
@@ -254,7 +414,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
         const queue = queueRef.current;
         let insertAt = 0;
         while (insertAt < queue.length && queue[insertAt].stream === stream) insertAt++;
-        queue.splice(insertAt, 0, { id: newQueueItemId(), text: cleaned, stream });
+        queue.splice(insertAt, 0, { id: newQueueItemId(), text: cleaned, stream, heard: newHeard() });
 
         if (!isSpeakingRef.current || stream.awaiting) {
           stream.awaiting = false;
@@ -267,8 +427,10 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
         if (stream.awaiting || (!stream.started && !hasQueuedSentences(stream))) {
           const wasAwaiting = stream.awaiting;
           stream.awaiting = false;
+          // A call that took the radio during the closing beep keeps it.
+          const token = tokenRef.current;
           closeReplyStream(stream).then(() => {
-            if (wasAwaiting) playNext();
+            if (wasAwaiting && token === tokenRef.current) playNext();
           });
         }
       },
@@ -280,39 +442,64 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       text: string,
       urgent = false,
       emotion?: { rateModifier?: number; pitchModifier?: number },
-      ttlMs?: number
+      ttlMs?: number,
+      call?: SpokenCall
     ) => {
       const cleaned = cleanRadioSpeechText(text);
       if (!isRadioEnabled || !cleaned) return;
       const expiresAt = ttlMs ? Date.now() + ttlMs : undefined;
+      const item: SpeechQueueItem = {
+        id: newQueueItemId(),
+        text: cleaned,
+        emotion,
+        expiresAt,
+        ttlMs,
+        call,
+        heard: newHeard(),
+      };
 
       if (urgent) {
-        // An urgent call goes next, after the urgent calls already waiting.
-        const item: SpeechQueueItem = { id: newQueueItemId(), text: cleaned, emotion, expiresAt, urgent: true };
+        item.urgent = true;
+        // A traffic warning goes next, after the warnings already waiting; another urgent call after
+        // the urgent calls waiting.
+        const cutIn = call?.cutIn === true;
+        const goesAfter = (queued: SpeechQueueItem) => (cutIn ? queued.call?.cutIn === true : queued.urgent === true);
         const queue = queueRef.current;
         let insertAt = 0;
-        while (insertAt < queue.length && queue[insertAt].urgent) insertAt++;
+        while (insertAt < queue.length && goesAfter(queue[insertAt])) insertAt++;
         queue.splice(insertAt, 0, item);
-        // Another urgent call on the air is finished first; a routine call or the driver's answer
-        // is cut off for it. Routine calls waiting stay queued, until they go stale.
-        if (isSpeakingRef.current && speakingUrgentRef.current) return;
-        cancelReplyStream();
-        stopRadioSpeech();
-        isSpeakingRef.current = false;
+        // A warning on the air is finished first, and so is an urgent call for an urgent call that
+        // isn't a warning: this one is synthesized meanwhile. Anything else is cut off for it (an
+        // urgent call a warning cut midway is said again after it). Routine calls waiting stay
+        // queued, until they go stale.
+        const onAir = currentRef.current;
+        const waits = isSpeakingRef.current && (cutIn ? onAir?.call?.cutIn === true : speakingUrgentRef.current);
+        if (waits) {
+          prefetchRadioSpeech(cleaned, speechOptions(emotion));
+          return;
+        }
+        cutCurrent(cutIn ? item : undefined);
         await playNext();
         return;
       }
 
       // Non-critical directive: if already speaking, queue it sequentially up to MAX_QUEUE_SIZE
       if (isSpeakingRef.current) {
-        const item: SpeechQueueItem = { id: newQueueItemId(), text: cleaned, emotion, expiresAt };
         const now = Date.now();
-        queueRef.current = queueRef.current.filter((queued) => queued.expiresAt === undefined || queued.expiresAt > now);
+        queueRef.current = queueRef.current.filter((queued) => {
+          if (queued.expiresAt === undefined || queued.expiresAt > now) return true;
+          reportCall(queued, 'stale');
+          return false;
+        });
         const queuedCalls = queueRef.current.filter((queued) => !queued.stream);
         if (queuedCalls.length >= MAX_QUEUE_SIZE) {
           // A full queue makes room by dropping its oldest routine call: the newest is what is true now.
           const oldest = queuedCalls.find((queued) => !queued.urgent);
-          if (!oldest) return;
+          if (!oldest) {
+            reportCall(item, 'stale');
+            return;
+          }
+          reportCall(oldest, 'stale');
           queueRef.current = queueRef.current.filter((queued) => queued !== oldest);
         }
         queueRef.current.push(item);
@@ -323,10 +510,10 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       }
 
       // Not currently speaking, play immediately
-      queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
+      queueRef.current.push(item);
       await playNext();
     },
-    [isRadioEnabled, playNext, cancelReplyStream, speechOptions]
+    [isRadioEnabled, playNext, cutCurrent, speechOptions]
   );
 
   const testTriggerAlert = useCallback(

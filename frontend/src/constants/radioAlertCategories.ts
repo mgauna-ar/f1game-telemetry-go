@@ -57,6 +57,10 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   grid_approach: 'grid_approach',
   inlap_cooldown: 'inlap_cooldown',
   inlap_traffic_behind: 'inlap_traffic_behind',
+  inlap_traffic_behind_now: 'inlap_traffic_behind_now',
+  inlap_traffic_behind_two: 'inlap_traffic_behind_two',
+  inlap_traffic_clear: 'inlap_traffic_clear',
+  inlap_traffic_close: 'inlap_traffic_close',
   leader_pitted: 'leader_pitted',
   nearby_pitted: 'nearby_pitted_ahead',
   nearby_pitted_ahead: 'nearby_pitted_ahead',
@@ -91,11 +95,13 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   qualy_lap_no_improvement: 'qualy_lap_no_improvement',
   qualy_lap_pole: 'qualy_lap_pole',
   qualy_lap_result: 'qualy_lap_result',
+  qualy_pit_exit_traffic: 'qualy_pit_exit_traffic',
   qualy_session_time: 'qualy_session_time',
   qualy_session_time_garage: 'qualy_session_time_garage',
   qualy_time: 'qualy_session_time',
   qualy_traffic: 'qualy_traffic',
   qualy_traffic_ahead: 'qualy_traffic_ahead',
+  qualy_traffic_ahead_now: 'qualy_traffic_ahead_now',
   race_fastest_lap: 'race_fastest_lap',
   race_final_lap: 'race_final_lap',
   race_final_lap_lead: 'race_final_lap_lead',
@@ -164,3 +170,45 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   wing_damage: 'wing_damage',
   wrong_way: 'wrong_way',
 };
+
+/**
+ * The calls about a car the driver is about to meet in a timed session (a push-lap car behind, a
+ * slow car ahead, one coming past the pit exit): in how many seconds they meet, that it is right
+ * there or on them now, and that it went by. They start with the warning: the callsign isn't said
+ * before it.
+ */
+export const TRAFFIC_CALL_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
+  'inlap_traffic_behind',
+  'inlap_traffic_behind_now',
+  'inlap_traffic_behind_two',
+  'inlap_traffic_close',
+  'inlap_traffic_clear',
+  'qualy_traffic_ahead',
+  'qualy_traffic_ahead_now',
+  'qualy_pit_exit_traffic',
+]);
+
+/**
+ * The traffic calls that can't wait: one cuts whatever else is on the air, even an urgent call
+ * such as the lap result, which is said again after it.
+ */
+export const TRAFFIC_CUT_IN_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
+  'inlap_traffic_behind',
+  'inlap_traffic_behind_now',
+  'inlap_traffic_behind_two',
+  'inlap_traffic_close',
+  'qualy_traffic_ahead',
+  'qualy_traffic_ahead_now',
+  'qualy_pit_exit_traffic',
+]);
+
+/**
+ * The traffic calls that say no number: still true a moment later, so a push-to-talk press keeps
+ * them and they are said once the driver lets go. A call with a number would be wrong by then.
+ */
+export const TRAFFIC_KEPT_ON_PTT_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
+  'inlap_traffic_behind_now',
+  'inlap_traffic_close',
+  'qualy_traffic_ahead_now',
+  'qualy_pit_exit_traffic',
+]);

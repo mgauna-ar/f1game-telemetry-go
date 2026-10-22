@@ -28,6 +28,7 @@ import { HUB_PANELS, type HubPanel } from '../utils/raceControl';
 import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveRadioCalls } from '../hooks/useProactiveRadioCalls';
+import { useTrafficCallPrefetch } from '../hooks/useTrafficCallPrefetch';
 import { navigate, useRoute } from '../router/router';
 import { buildPath, storeLiveMode } from '../router/routes';
 import styles from './Dashboard.module.css';
@@ -76,6 +77,8 @@ export const Dashboard: React.FC = () => {
 
   // The pit wall's calls, in the persona's words or worded afresh by the AI
   useProactiveRadioCalls(radio);
+  // Its qualifying traffic warnings, synthesized ahead so they start at once
+  useTrafficCallPrefetch(radio);
 
   if (!connected || !session) {
     return (

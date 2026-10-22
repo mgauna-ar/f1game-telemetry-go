@@ -156,6 +156,18 @@ describe('the radio phrase picker', () => {
       expect(callFacts({ ...closing, laps_to_range: 1 }, 'en')).toEqual({ gap: '2.6', rate: '0.4' });
     });
 
+    it('says when a traffic call meets the car in whole seconds, and the line with no number below two', () => {
+      expect(callFacts({ behind: { gap_sec: 1.6, reach_sec: 8 } }, 'en')).toEqual({ gap: '1.6', reach: '8' });
+      expect(callFacts({ ahead: { gap_sec: 0.4, reach_sec: 1 } }, 'en')).toEqual({ gap: '0.4' });
+      const speech = createRadioPhrasePicker(seeded(1)).proactive('inlap_traffic_behind', {
+        language: 'en',
+        persona: 'custom',
+        urgent: true,
+        values: { behind: { gap_sec: 1.6, reach_sec: 8 } },
+      });
+      expect(speech).toMatch(/ 8 seconds/);
+    });
+
     it("says a track temperature change in the listener's unit, without its sign", () => {
       expect(callFacts({ track_temp_delta_c: 7 }, 'en')).toEqual({ temp_delta: '7' });
       expect(callFacts({ track_temp_delta_c: -7 }, 'es', 'c')).toEqual({ temp_delta: '7' });

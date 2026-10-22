@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   playRadioBeep,
   makeDistortionCurve,
@@ -104,6 +104,7 @@ describe('radioAudio utils', () => {
         connect: vi.fn(),
         start: vi.fn(),
         stop: vi.fn(),
+        onended: null as (() => void) | null,
       };
       const mockAudioContext = {
         currentTime: 0,
@@ -125,7 +126,46 @@ describe('radioAudio utils', () => {
       const promise = playRadioBeep('start', 0.8);
       expect(mockAudioContext.createGain).toHaveBeenCalled();
       expect(mockAudioContext.createOscillator).toHaveBeenCalled();
+      // The beep is over when its last tone ends: an audio event, not a timer.
+      mockOscNode.onended?.();
       await promise;
+    });
+
+    it('still ends when the audio never runs, so nothing waits on it forever', async () => {
+      vi.useFakeTimers();
+      const mockOscNode = {
+        type: 'sine',
+        frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        onended: null as (() => void) | null,
+      };
+      const mockAudioContext = {
+        currentTime: 0,
+        destination: {},
+        state: 'suspended',
+        createGain: vi.fn(() => ({
+          gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        })),
+        createOscillator: vi.fn(() => mockOscNode),
+        resume: vi.fn().mockResolvedValue(undefined),
+      };
+      class MockAudioContext {
+        constructor() {
+          return mockAudioContext;
+        }
+      }
+      vi.stubGlobal('AudioContext', MockAudioContext);
+
+      let done = false;
+      void playRadioBeep('end').then(() => (done = true));
+      await vi.advanceTimersByTimeAsync(RADIO_AUDIO_CONSTANTS.AUDIO_END_FALLBACK_MS - 1);
+      expect(done).toBe(false);
+      await vi.advanceTimersByTimeAsync(RADIO_AUDIO_CONSTANTS.BEEP_END_DURATION_S * 1000 + 1);
+      expect(done).toBe(true);
+      vi.useRealTimers();
     });
   });
 
@@ -464,6 +504,165 @@ describe('radioAudio utils', () => {
       prefetchRadioSpeech('Sentence 0.');
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(limit + 2);
+    });
+  });
+
+  describe('getting a call to the driver without timers', () => {
+    interface MockSource {
+      buffer: unknown;
+      connect: ReturnType<typeof vi.fn>;
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+      onended: (() => void) | null;
+    }
+
+    /** An audio context on the audio clock at `currentTime`, decoding at once unless `holdDecode`. */
+    function mockRadioContext(currentTime: number, holdDecode = false) {
+      const sources: MockSource[] = [];
+      const oscillators: { start: ReturnType<typeof vi.fn>; onended: (() => void) | null }[] = [];
+      const decodes: (() => void)[] = [];
+      const param = () => ({ setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() });
+      const ctx = {
+        currentTime,
+        destination: {},
+        state: 'running',
+        decodeAudioData: vi.fn((_buf: ArrayBuffer, success: (b: AudioBuffer) => void) => {
+          const decoded = () => success({ duration: 2 } as AudioBuffer);
+          if (holdDecode) decodes.push(decoded);
+          else decoded();
+        }),
+        createBufferSource: vi.fn(() => {
+          const src: MockSource = {
+            buffer: null,
+            connect: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+            disconnect: vi.fn(),
+            onended: null,
+          };
+          sources.push(src);
+          return src;
+        }),
+        createOscillator: vi.fn(() => {
+          const osc = {
+            type: 'sine',
+            frequency: param(),
+            connect: vi.fn(),
+            start: vi.fn(),
+            stop: vi.fn(),
+            onended: null,
+          };
+          oscillators.push(osc);
+          return osc;
+        }),
+        createGain: vi.fn(() => ({ gain: param(), connect: vi.fn() })),
+        createBiquadFilter: vi.fn(() => ({
+          type: '',
+          frequency: param(),
+          Q: param(),
+          gain: param(),
+          connect: vi.fn(),
+        })),
+        createWaveShaper: vi.fn(() => ({ curve: null, oversample: '', connect: vi.fn() })),
+        resume: vi.fn().mockResolvedValue(undefined),
+      };
+      class MockAudioContext {
+        constructor() {
+          return ctx;
+        }
+      }
+      vi.stubGlobal('AudioContext', MockAudioContext);
+      return { sources, oscillators, decodes };
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('schedules the opening beep and the speech on the audio clock, with no timer before the first word', async () => {
+      vi.useFakeTimers();
+      const { sources, oscillators } = mockRadioContext(10);
+      const onStart = vi.fn();
+
+      void playRadioAudioBuffer(new ArrayBuffer(8), { enableBeeps: true, onStart });
+
+      const beep = RADIO_AUDIO_CONSTANTS.BEEP_START_DURATION_S * 2 + RADIO_AUDIO_CONSTANTS.BEEP_START_GAP_S;
+      expect(oscillators[0].start).toHaveBeenCalledWith(10);
+      expect(sources[0].start).toHaveBeenCalledTimes(1);
+      expect(sources[0].start.mock.calls[0][0]).toBeCloseTo(10 + beep, 6);
+      expect(onStart.mock.calls[0][0]).toBeCloseTo(beep * 1000, 3);
+      expect(vi.getTimerCount()).toBe(1); // only the safety net for a context whose audio never runs
+    });
+
+    it('closes with the end beep, timed by the audio clock, then ends', async () => {
+      const { sources, oscillators } = mockRadioContext(0);
+      const onSpeechEnd = vi.fn();
+      const onEnd = vi.fn();
+      void playRadioAudioBuffer(new ArrayBuffer(8), { enableBeeps: true, onSpeechEnd, onEnd });
+
+      sources[0].onended?.();
+      expect(onSpeechEnd).toHaveBeenCalledTimes(1);
+      expect(onEnd).not.toHaveBeenCalled(); // the end beep is still playing
+      oscillators[oscillators.length - 1].onended?.();
+      expect(onEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not play a message another one replaced while it was decoded', async () => {
+      const { sources, decodes } = mockRadioContext(0, true);
+      const onStart = vi.fn();
+      const onEnd = vi.fn();
+      const onError = vi.fn();
+
+      const playing = playRadioAudioBuffer(new ArrayBuffer(8), { enableBeeps: true, onStart, onEnd, onError });
+      stopRadioSpeech(); // an urgent call took the radio
+      decodes[0]();
+      await playing;
+
+      expect(sources).toHaveLength(0);
+      expect(onStart).not.toHaveBeenCalled();
+      expect(onEnd).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('skips a call whose voice is still being made when its useful life ends', async () => {
+      vi.useFakeTimers({ now: 1_000_000 });
+      globalThis.fetch = vi.fn(() => new Promise<Response>(() => {}));
+      const onStart = vi.fn();
+      const onStale = vi.fn();
+      const onEnd = vi.fn();
+
+      void speakRadioResponse('Push-lap car behind', { onStart, onStale, onEnd, expiresAt: 1_000_000 + 2000 });
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(onEnd).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(onStale).toHaveBeenCalledTimes(1);
+      expect(onEnd).toHaveBeenCalledTimes(1); // the speech queue moves on
+      expect(onStart).not.toHaveBeenCalled();
+    });
+
+    it('says how long the voice took, and whether it came from the cache', async () => {
+      mockRadioContext(0);
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+      } as unknown as Response);
+      const onSynthesized = vi.fn();
+
+      await speakRadioResponse('Clean air ahead', {
+        enableBeeps: false,
+        onSynthesized,
+        onStart: () => stopRadioSpeech(),
+      });
+      await speakRadioResponse('Clean air ahead', {
+        enableBeeps: false,
+        onSynthesized,
+        onStart: () => stopRadioSpeech(),
+      });
+
+      expect(onSynthesized.mock.calls.map((call) => call[1])).toEqual([false, true]);
+      expect(onSynthesized.mock.calls[0][0]).toBeGreaterThanOrEqual(0);
     });
   });
 });

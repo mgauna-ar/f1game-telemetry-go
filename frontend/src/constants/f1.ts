@@ -644,7 +644,14 @@ export const RADIO_AUDIO_CONSTANTS = {
   BEEP_END_FREQ_START: 750,
   BEEP_END_FREQ_END: 350,
   BEEP_END_DURATION_S: 0.12,
+  /** Gap between the two tones of the start beep. */
+  BEEP_START_GAP_S: 0.02,
   BEEP_GAIN: 0.15,
+  /**
+   * A beep ends when its last tone does (an audio event, which a hidden page doesn't delay); a
+   * page whose audio never ran gets this long past the beep's length instead.
+   */
+  AUDIO_END_FALLBACK_MS: 1000,
   FILTER_CENTER_FREQ_HZ: 1400,
   FILTER_Q: 1.2,
   DEFAULT_VOLUME: 0.8,
@@ -699,6 +706,12 @@ export const RADIO_CONVERSATION_LIMITS = {
 export const RADIO_LINE = {
   /** How long a call waits for the AI's line before the catalogue's words are said instead. */
   CLIENT_DEADLINE_MS: 2500,
+} as const;
+
+/** The qualifying traffic calls' lines, synthesized ahead so a warning starts at once. */
+export const TRAFFIC_PREFETCH = {
+  /** They are synthesized again this often: the dashboard's audio cache keeps only the latest lines. */
+  REFRESH_MS: 120_000,
 } as const;
 
 export const RADIO_PHRASE_CONSTANTS = {
@@ -782,7 +795,7 @@ export const RADIO_ALERT_CONSTANTS = {
   // Qualifying defaults
   QUALY_CLEAN_AIR_MIN_GAP_SEC: 4.0,
   DEFAULT_QUALY_CLEAN_AIR_SEC: 4.0,
-  DEFAULT_QUALY_CAR_BEHIND_SEC: 6.0,
+  DEFAULT_QUALY_TRAFFIC_WARN_SEC: 8,
   QUALY_CLEAN_AIR_DISTANCE_METERS: 250,
   QUALY_OUTLAP_SECTOR_TRIGGER: 3,
   // Flags & Penalties defaults

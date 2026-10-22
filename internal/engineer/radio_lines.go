@@ -109,6 +109,9 @@ func describeValues(v *DirectiveValues) string {
 		} else if gap.Trend == GapStable {
 			text += ", stable"
 		}
+		if gap.ReachSec > 0 {
+			text += fmt.Sprintf(", meeting in %d s", gap.ReachSec)
+		}
 		if gap.Name != "" {
 			text += ", " + gap.Name
 		}
