@@ -55,7 +55,7 @@ export interface UseRadioAudioReturn {
   /** Whether a push-to-talk exchange is under way: the driver talking, or the answer coming. */
   isExchangeActive: () => boolean;
   /** Synthesizes a call's speech ahead, so it starts at once if it is said. */
-  prefetchMessage: (text: string, emotion?: RadioEmotion) => void;
+  prefetchMessage: (text: string, emotion?: RadioEmotion) => Promise<void>;
 }
 
 /**

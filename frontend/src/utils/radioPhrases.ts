@@ -93,7 +93,7 @@ function personaPhrases(catPool: RadioPhrasePool, persona: RadioPersona): readon
 
 /** The placeholders a phrase can fill from its call's values; `{driver}` is the callsign. */
 const VALUE_PLACEHOLDER =
-  /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec|sector|delta|reaction|wheel|axle|compound|pct|rain_pct|fuel_laps|temp_delta)}/g;
+  /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec|sector|delta|reaction|wheel|axle|compound|pct|rain_pct|fuel_laps|temp_delta|reach)}/g;
 
 /**
  * What a call's values say, written the listener's way, by placeholder: numbers as digits, the
@@ -140,6 +140,8 @@ export function callFacts(
   const car = values.ahead ?? values.behind;
   if (car) facts.gap = formatTenths(car.gap_sec, language);
   if (car?.trend === 'closing' && car.per_lap_sec) facts.rate = formatTenths(car.per_lap_sec, language);
+  // When a qualifying traffic call's two cars meet, in whole seconds: the phrases say "seconds".
+  if (car?.reach_sec && car.reach_sec > 1) facts.reach = String(car.reach_sec);
   return facts;
 }
 
@@ -383,6 +385,21 @@ export function addressDriver(template: string, callsign?: string): string {
       CAPITALISED_WORDS.test(first + rest) ? match : mark + first.toLowerCase() + rest
   );
   return `${name}, ${opening}`;
+}
+
+/**
+ * Every line the picker may say for a call of `category` with these values, filled in, without the
+ * callsign: the phrases that say the most of them. What is synthesized ahead of a call that must
+ * start at once.
+ */
+export function possibleProactiveLines(
+  category: RadioAlertCategory,
+  { language = 'es', persona = 'bono', values }: Pick<ProactiveSpeechOptions, 'language' | 'persona' | 'values'> = {}
+): string[] {
+  const facts = callFacts(values, language);
+  return mostInformative(radioPhrasePool(category, language, persona), facts).map((t) =>
+    addressDriver(fillValues(t, facts))
+  );
 }
 
 const radio = createRadioPhrasePicker();

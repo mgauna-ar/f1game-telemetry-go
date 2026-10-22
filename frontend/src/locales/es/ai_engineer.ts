@@ -431,7 +431,7 @@ export const ai_engineer = {
     qualyLapResult: 'Resultado de Vuelta (Posición y Diferencia con P1)',
     qualyCleanAirThreshold: 'Distancia Mínima Aire Limpio',
     qualyCleanAirGap: 'Distancia Mínima Aire Limpio',
-    qualyCarBehindGap: 'Aviso de Auto Lanzado Detrás',
+    qualyTrafficWarn: 'Aviso de tráfico: segundos antes de cruzarse',
     qualyTimeThreshold: 'Aviso Tiempo Restante Sesión',
     // 8. Banderas y Penalizaciones
     flagsTitle: 'Safety Car, Banderas y Sanciones',

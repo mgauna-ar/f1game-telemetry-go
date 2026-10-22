@@ -76,6 +76,8 @@ type EngineerEngine struct {
 
 	// What was learned about each track (pit lane, quiet stretches), kept across sessions.
 	profiles *trackProfiles
+	// motion is how each car moved over the last seconds, for the qualifying traffic calls.
+	motion carMotion
 
 	// Box calls: where the player is, calls to box waiting for the line, and the lap a call told
 	// the player to box on (0: none).
@@ -261,6 +263,7 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.radioBusyUntil = 0
 	e.clockSessionTime, e.clockSeenAt, e.clockRuns, e.clockStill = 0, 0, false, false
 	e.profiles.resetSession()
+	e.motion = carMotion{}
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
 	e.latestSession = nil
@@ -320,6 +323,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 			e.pending = make(map[string]pendingDirective)
 			e.lineWait = make(map[string]lineWaitDirective)
 			e.profiles.spoilQuietLap()
+			e.motion.reset()
 		}
 		e.recordRaceEventLocked(p)
 	case *packets.PacketParticipantsData:
@@ -346,6 +350,15 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 			e.profiles.endQuietLap(int(p.LapData[e.playerCarIndex].CurrentLapNum))
 		}
 		e.pitEntries = pitLaneEntries(e.latestLapData, p)
+		if s := e.latestSession; s != nil {
+			trackLen := float32(s.TrackLength)
+			e.motion.sample(p, header.SessionTime, trackLen, func(lapM float32, mps float64) {
+				e.profiles.learnPushSpeed(s.TrackId, trackLen, lapM, mps)
+			})
+			if e.playerCarIndex >= 0 && e.playerCarIndex < len(p.LapData) {
+				e.profiles.savePushSpeeds(int(p.LapData[e.playerCarIndex].CurrentLapNum))
+			}
+		}
 		e.endRedFlagOnRestartLocked(p)
 		e.latestLapData = p
 	case *packets.PacketCarDamageData:
@@ -429,6 +442,8 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		ChequeredFlag:    e.chequeredFlagReceived,
 		TrackProfile:     e.trackProfileLocked(),
 		LastSaid:         e.lastDirectives,
+		Motion:           &e.motion,
+		DeliveryLeadMs:   e.delivery.leadMs(),
 	}
 	if _, ok := pkt.(*packets.PacketLapData); ok {
 		ctx.PitEntries = e.pitEntries

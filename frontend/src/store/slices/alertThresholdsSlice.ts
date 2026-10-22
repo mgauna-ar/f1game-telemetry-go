@@ -27,7 +27,7 @@ export interface AlertThresholdsSlice {
   rainProbPct: number;
   pitCallLeadM: number;
   gapReportLaps: number;
-  qualyCarBehindSec: number;
+  qualyTrafficWarnSec: number;
 
   setTyreWearWarningPct: (pct: number) => void;
   setTyreWearCriticalPct: (pct: number) => void;
@@ -49,7 +49,7 @@ export interface AlertThresholdsSlice {
   setRainProbPct: (pct: number) => void;
   setPitCallLeadM: (meters: number) => void;
   setGapReportLaps: (laps: number) => void;
-  setQualyCarBehindSec: (sec: number) => void;
+  setQualyTrafficWarnSec: (sec: number) => void;
 }
 
 export function getInitialAlertThresholds(): Omit<
@@ -74,7 +74,7 @@ export function getInitialAlertThresholds(): Omit<
   | 'setRainProbPct'
   | 'setPitCallLeadM'
   | 'setGapReportLaps'
-  | 'setQualyCarBehindSec'
+  | 'setQualyTrafficWarnSec'
 > {
   return {
     tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
@@ -97,7 +97,7 @@ export function getInitialAlertThresholds(): Omit<
     rainProbPct: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT,
     pitCallLeadM: RADIO_ALERT_CONSTANTS.DEFAULT_PIT_CALL_LEAD_M,
     gapReportLaps: RADIO_ALERT_CONSTANTS.DEFAULT_GAP_REPORT_LAPS,
-    qualyCarBehindSec: RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_CAR_BEHIND_SEC,
+    qualyTrafficWarnSec: RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_TRAFFIC_WARN_SEC,
   };
 }
 
@@ -129,7 +129,7 @@ export function thresholdsFromSettings(
     rainProbPct: cfg.rain_prob_pct ?? fallback.rainProbPct,
     pitCallLeadM: cfg.pit_call_lead_m ?? fallback.pitCallLeadM,
     gapReportLaps: cfg.gap_report_laps ?? fallback.gapReportLaps,
-    qualyCarBehindSec: cfg.qualy_car_behind_sec ?? fallback.qualyCarBehindSec,
+    qualyTrafficWarnSec: cfg.qualy_traffic_warn_sec ?? fallback.qualyTrafficWarnSec,
   };
 }
 
@@ -173,6 +173,6 @@ export const createAlertThresholdsSlice: StateCreator<
     setRainProbPct: createThresholdAction('rainProbPct', 20, 80),
     setPitCallLeadM: createThresholdAction('pitCallLeadM', 200, 1500),
     setGapReportLaps: createThresholdAction('gapReportLaps', 1, 10),
-    setQualyCarBehindSec: createThresholdAction('qualyCarBehindSec', 3, 10),
+    setQualyTrafficWarnSec: createThresholdAction('qualyTrafficWarnSec', 4, 15),
   };
 };

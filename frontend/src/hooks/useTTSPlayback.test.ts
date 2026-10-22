@@ -172,7 +172,7 @@ describe('useTTSPlayback hook', () => {
       spokenMessages.push(text);
       activeOnEnd = opts?.onEnd;
     });
-    vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockImplementation(() => {});
+    vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockResolvedValue();
     const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
     const { result } = renderHook(() => useTTSPlayback({ effectiveLanguage: 'en' }));
 
@@ -217,7 +217,7 @@ describe('useTTSPlayback hook', () => {
       expiries.push(opts?.expiresAt);
       activeOnEnd = opts?.onEnd;
     });
-    const prefetch = vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockImplementation(() => {});
+    const prefetch = vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockResolvedValue();
     vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
     const { result } = renderHook(() => useTTSPlayback({ effectiveLanguage: 'en' }));
 
@@ -269,7 +269,7 @@ describe('useTTSPlayback hook', () => {
       clips = [];
       beeps = [];
       vi.spyOn(radioAudio, 'stopRadioSpeech').mockImplementation(() => {});
-      vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockImplementation(() => {});
+      vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockResolvedValue();
       vi.spyOn(radioAudio, 'playRadioBeep').mockImplementation(async (type) => {
         beeps.push(type);
       });
@@ -406,7 +406,7 @@ describe('useTTSPlayback hook', () => {
     beforeEach(() => {
       clips = [];
       vi.spyOn(radioAudio, 'stopRadioSpeech').mockImplementation(() => {});
-      vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockImplementation(() => {});
+      vi.spyOn(radioAudio, 'prefetchRadioSpeech').mockResolvedValue();
       vi.spyOn(radioAudio, 'playRadioBeep').mockResolvedValue();
       vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (text, opts) => {
         clips.push({ text, opts });

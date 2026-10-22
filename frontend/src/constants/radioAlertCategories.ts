@@ -57,6 +57,7 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   grid_approach: 'grid_approach',
   inlap_cooldown: 'inlap_cooldown',
   inlap_traffic_behind: 'inlap_traffic_behind',
+  inlap_traffic_behind_now: 'inlap_traffic_behind_now',
   leader_pitted: 'leader_pitted',
   nearby_pitted: 'nearby_pitted_ahead',
   nearby_pitted_ahead: 'nearby_pitted_ahead',
@@ -96,6 +97,7 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   qualy_time: 'qualy_session_time',
   qualy_traffic: 'qualy_traffic',
   qualy_traffic_ahead: 'qualy_traffic_ahead',
+  qualy_traffic_ahead_now: 'qualy_traffic_ahead_now',
   race_fastest_lap: 'race_fastest_lap',
   race_final_lap: 'race_final_lap',
   race_final_lap_lead: 'race_final_lap_lead',
@@ -167,11 +169,14 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
 
 /**
  * The calls about a car the driver is about to meet in a timed session (a push-lap car behind, a
- * slow car ahead). They start with the warning: the callsign isn't said before it.
+ * slow car ahead): in how many seconds they meet, or that it is right there. They start with the
+ * warning: the callsign isn't said before it.
  */
 export const TRAFFIC_CALL_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'inlap_traffic_behind',
+  'inlap_traffic_behind_now',
   'qualy_traffic_ahead',
+  'qualy_traffic_ahead_now',
 ]);
 
 /**
@@ -180,5 +185,7 @@ export const TRAFFIC_CALL_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<
  */
 export const TRAFFIC_CUT_IN_CATEGORIES: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'inlap_traffic_behind',
+  'inlap_traffic_behind_now',
   'qualy_traffic_ahead',
+  'qualy_traffic_ahead_now',
 ]);

@@ -93,16 +93,16 @@ describe('alert sections', () => {
     expect(useRadioSettingsStore.getState().gapReportLaps).toBe(10);
   });
 
-  it('sets how early the push-lap car behind is called', () => {
+  it('sets how long before meeting a push-lap car or a slow car the driver hears it', () => {
     renderSection(<QualyAccordion {...sectionProps} />);
 
-    expect(screen.getByText('Push-Lap Car Behind Warning')).toBeInTheDocument();
-    expect(screen.getByText('6.0s')).toBeInTheDocument();
-    act(() => useRadioSettingsStore.getState().setQualyCarBehindSec(1));
-    expect(useRadioSettingsStore.getState().qualyCarBehindSec).toBe(3);
-    act(() => useRadioSettingsStore.getState().setQualyCarBehindSec(15));
-    expect(useRadioSettingsStore.getState().qualyCarBehindSec).toBe(10);
-    expect(screen.getByText('10.0s')).toBeInTheDocument();
+    expect(screen.getByText('Traffic Warning: Seconds Before You Meet')).toBeInTheDocument();
+    expect(screen.getByText('8s')).toBeInTheDocument();
+    act(() => useRadioSettingsStore.getState().setQualyTrafficWarnSec(1));
+    expect(useRadioSettingsStore.getState().qualyTrafficWarnSec).toBe(4);
+    act(() => useRadioSettingsStore.getState().setQualyTrafficWarnSec(20));
+    expect(useRadioSettingsStore.getState().qualyTrafficWarnSec).toBe(15);
+    expect(screen.getByText('15s')).toBeInTheDocument();
   });
 
   it('sets hot and cold tyre calls with one margin', () => {

@@ -37,9 +37,11 @@ const CATEGORIES = [...new Set(Object.values(RADIO_ALERT_CATEGORIES))].sort();
  */
 const CALL_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues[]>> = {
   tyre_life: [{ tyre_laps_left: 6, wheel: 'rear_left' }],
-  inlap_traffic_behind: [{ behind: { gap_sec: 2.3 } }],
+  inlap_traffic_behind: [{ behind: { gap_sec: 2.3, reach_sec: 8 } }],
+  inlap_traffic_behind_now: [{ behind: { gap_sec: 0.6 } }],
   qualy_traffic: [{ ahead: { gap_sec: 1.5 } }],
-  qualy_traffic_ahead: [{ ahead: { gap_sec: 3.1 } }],
+  qualy_traffic_ahead: [{ ahead: { gap_sec: 3.1, reach_sec: 8 } }],
+  qualy_traffic_ahead_now: [{ ahead: { gap_sec: 0.8 } }],
   qualy_session_time: [{ minutes: 3 }],
   qualy_session_time_garage: [{ minutes: 3 }],
   qualy_elimination_danger: [{ position: 16, minutes: 3 }, { position: 16 }],
@@ -215,7 +217,9 @@ const URGENT: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
   'qualy_deleted_lap',
   'qualy_traffic',
   'qualy_traffic_ahead',
+  'qualy_traffic_ahead_now',
   'inlap_traffic_behind',
+  'inlap_traffic_behind_now',
   'qualy_session_time',
   'qualy_session_time_garage',
   'qualy_elimination_danger',
@@ -340,6 +344,17 @@ describe('the radio phrase catalog', () => {
         for (const template of allTemplates(catalog[category])) {
           expect(template, `${category}: ${template}`).not.toContain('{driver}');
           expect(template, `${category}: ${template}`).not.toMatch(/^[¡¿]?(okay|ok|ojo|vale)\b/i);
+        }
+      }
+    });
+
+    it("says when a traffic call's cars meet early in it, and never the gap on the road", () => {
+      for (const category of TRAFFIC_CALL_CATEGORIES) {
+        for (const template of allTemplates(catalog[category])) {
+          expect(template, `${category}: ${template}`).not.toContain('{gap}');
+          const reachAt = template.split(/\s+/).findIndex((w) => w.includes('{reach}'));
+          // The number is heard about two seconds in (TrafficNumberHeardMs on the server).
+          if (reachAt >= 0) expect(reachAt, `${category}: ${template}`).toBeLessThan(7);
         }
       }
     });

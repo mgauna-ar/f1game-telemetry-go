@@ -18,10 +18,15 @@ type QualifyingRule struct {
 	sessionTimeCalled    bool
 	elimCalled           bool
 	elimLeftZone         bool // out of the danger zone since the last elimination call
-	// The player's lap each car was last called on, as a car on a push lap behind or as a slow car
-	// ahead (0: not called).
-	behindCalled [packets.MaxCars]uint8
-	aheadCalled  [packets.MaxCars]uint8
+	// Where the rule stands with each car on a push lap behind and each slow car ahead, and the
+	// motion samples (carMotion.epoch) that was worked out from.
+	behind      [packets.MaxCars]trafficApproach
+	ahead       [packets.MaxCars]trafficApproach
+	motionEpoch int
+	// inLapShare is the player's pace share on their in-laps this session, from inLapSamples
+	// packets (0: none yet).
+	inLapShare   float64
+	inLapSamples int
 	// The push lap the player is on (0: none) and whether it was invalidated; the player's best
 	// valid push lap this session; and when the lap just finished is reported (0: none due).
 	pushLap        uint8
@@ -70,9 +75,11 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:           DirectiveCategoryQualifying,
 			ValidPhases:        []DrivingPhase{PhaseFlyingLap},
 			DedupScope:         DedupScopeNone,
-			MaxDelayMs:         MomentMaxDelayMs,
+			MaxDelayMs:         TrafficMaxDelayMs,
 			MinRepeatMs:        TrafficMinRepeatMs,
+			SpeechMs:           TrafficSpeechMs,
 			BreaksRadioSilence: true,
+			PitLaneCall:        true,
 		},
 		"qualy_time": {
 			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseInLap},
@@ -86,8 +93,10 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryQualifying,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseInLap},
 			DedupScope:  DedupScopeNone,
-			MaxDelayMs:  MomentMaxDelayMs,
+			MaxDelayMs:  TrafficMaxDelayMs,
 			MinRepeatMs: TrafficMinRepeatMs,
+			SpeechMs:    TrafficSpeechMs,
+			PitLaneCall: true,
 		},
 		"qualy_lap_result": {
 			Category:             DirectiveCategoryQualifying,
@@ -119,10 +128,12 @@ func (r *QualifyingRule) Reset(scope DedupScope) {
 	}
 	if scope == DedupScopePhase || scope == DedupScopeNone {
 		r.lastInLapCooldownLap = -1
-		r.behindCalled = [packets.MaxCars]uint8{}
-		r.aheadCalled = [packets.MaxCars]uint8{}
 	}
 	if scope == DedupScopeNone {
+		r.behind = [packets.MaxCars]trafficApproach{}
+		r.ahead = [packets.MaxCars]trafficApproach{}
+		r.motionEpoch = 0
+		r.inLapShare, r.inLapSamples = 0, 0
 		r.sessionTimeCalled = false
 		r.elimCalled = false
 		r.elimLeftZone = false
@@ -156,8 +167,11 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	add(r.evaluateInvalidLap(ctx, playerLap))
 	add(r.evaluateOutLapTraffic(ctx, playerLap))
 	add(r.evaluateCooldown(ctx, playerLap))
-	add(r.evaluateCarBehind(ctx, playerLap))
-	add(r.evaluateTrafficAhead(ctx, playerLap))
+	if timedSession(ctx) && ctx.LapData != nil {
+		r.followTrafficLocked(ctx)
+		add(r.evaluateCarBehind(ctx, playerLap))
+		add(r.evaluateTrafficAhead(ctx, playerLap))
+	}
 	return directives
 }
 
@@ -213,9 +227,10 @@ func (r *QualifyingRule) evaluateOutLapTraffic(ctx *EvaluationContext, playerLap
 		}
 	}
 
-	pace := pushPaceMps(ctx, ctx.PlayerCarIndex)
-	if nearest >= 0 && pushLapGapSec(nearest, pace) < float64(ctx.Config.QualyCleanAirSec) {
-		gapSec := roundTo(pushLapGapSec(nearest, pace), 1)
+	prof := trafficProfile(ctx)
+	if gapSec := prof.sec(playerLap.LapDistance, nearest) / pushShare(ctx, ctx.PlayerCarIndex, prof); nearest >= 0 &&
+		gapSec < float64(ctx.Config.QualyCleanAirSec) {
+		gapSec = roundTo(gapSec, 1)
 		return &Directive{
 			ID:       "qualy_traffic",
 			Category: DirectiveCategoryQualifying,
@@ -326,96 +341,6 @@ func (r *QualifyingRule) evaluateCooldown(ctx *EvaluationContext, playerLap *pac
 		Title:    "Cool Down Car",
 		Message:  "Cool-down lap. Recharge the battery, cool the brakes and tyres and bring the car home.",
 		Urgency:  UrgencyLow,
-	}
-}
-
-// evaluateCarBehind warns a player who isn't pushing (out-lap or in-lap of a timed session) of a
-// car on a push lap closing from behind: the one that gets there first, within the driver's
-// QualyCarBehindSec at its own pace, each car once per player lap.
-func (r *QualifyingRule) evaluateCarBehind(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
-	if !timedSession(ctx) || (ctx.Phase != PhaseOutLap && ctx.Phase != PhaseInLap) || ctx.LapData == nil {
-		return nil
-	}
-	warnSec := float64(ctx.Config.QualyCarBehindSec)
-	if warnSec <= 0 {
-		warnSec = QualyCarBehindDefaultSec
-	}
-	trackLen := ctx.TrackLengthM()
-	best, bestGapSec := -1, 0.0
-	for i := range ctx.LapData.LapData {
-		rival := &ctx.LapData.LapData[i]
-		if i == ctx.PlayerCarIndex || rival.DriverStatus != packets.DriverStatusFlyingLap || !onTrack(rival) ||
-			r.behindCalled[i] == playerLap.CurrentLapNum {
-			continue
-		}
-		gapSec := pushLapGapSec(trackGapM(rival.LapDistance, playerLap.LapDistance, trackLen), pushPaceMps(ctx, i))
-		if gapSec > warnSec {
-			continue
-		}
-		if best < 0 || gapSec < bestGapSec {
-			best, bestGapSec = i, gapSec
-		}
-	}
-	if best < 0 {
-		return nil
-	}
-	r.behindCalled[best] = playerLap.CurrentLapNum
-	gapSec := roundTo(bestGapSec, 1)
-	return &Directive{
-		ID:       "inlap_traffic_behind",
-		Category: DirectiveCategoryQualifying,
-		SubAlert: "inlap_traffic_behind",
-		Title:    "Car Behind on a Push Lap",
-		Message:  fmt.Sprintf("Car behind on a push lap, %.1fs back. Give way safely.", gapSec),
-		Urgency:  UrgencyHigh,
-		Values:   &DirectiveValues{Behind: &GapToCar{GapSec: gapSec}},
-	}
-}
-
-// evaluateTrafficAhead warns a player on a push lap of a car ahead that isn't pushing and is
-// slower: the nearest within QualyTrafficAheadWarnSec at the player's pace that they would reach
-// before the line, each car once per lap.
-func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
-	if !timedSession(ctx) || ctx.Phase != PhaseFlyingLap || ctx.LapData == nil {
-		return nil
-	}
-	trackLen := ctx.TrackLengthM()
-	lapLeft := trackLen - playerLap.LapDistance
-	playerTele := ctx.PlayerTelemetry()
-	pace := pushPaceMps(ctx, ctx.PlayerCarIndex)
-	best, bestGap := -1, float32(0)
-	for i := range ctx.LapData.LapData {
-		rival := &ctx.LapData.LapData[i]
-		if i == ctx.PlayerCarIndex || rival.DriverStatus == packets.DriverStatusFlyingLap || !onTrack(rival) ||
-			r.aheadCalled[i] == playerLap.CurrentLapNum {
-			continue
-		}
-		gap := trackGapM(playerLap.LapDistance, rival.LapDistance, trackLen)
-		if gap > lapLeft || pushLapGapSec(gap, pace) > QualyTrafficAheadWarnSec {
-			continue
-		}
-		// A car at least as fast is no traffic, for now.
-		if playerTele != nil && ctx.Telemetry != nil && i < len(ctx.Telemetry.CarTelemetryData) &&
-			ctx.Telemetry.CarTelemetryData[i].Speed >= playerTele.Speed {
-			continue
-		}
-		if best < 0 || gap < bestGap {
-			best, bestGap = i, gap
-		}
-	}
-	if best < 0 {
-		return nil
-	}
-	r.aheadCalled[best] = playerLap.CurrentLapNum
-	gapSec := roundTo(pushLapGapSec(bestGap, pace), 1)
-	return &Directive{
-		ID:       "qualy_traffic_ahead",
-		Category: DirectiveCategoryQualifying,
-		SubAlert: "qualy_traffic_ahead",
-		Title:    "Slow Car Ahead",
-		Message:  fmt.Sprintf("Slow car ahead, %.1fs up the road, not on a push lap.", gapSec),
-		Urgency:  UrgencyHigh,
-		Values:   &DirectiveValues{Ahead: &GapToCar{GapSec: gapSec}},
 	}
 }
 

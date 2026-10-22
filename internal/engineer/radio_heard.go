@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"log/slog"
+	"math"
 	"slices"
 	"strings"
 )
@@ -35,6 +36,25 @@ type radioDelivery struct {
 	// reported are the latest calls reported, oldest first: with several dashboards speaking, the
 	// first report of a call stands.
 	reported []string
+	// trafficStartMs is how long the latest traffic calls said at once took to their first word,
+	// oldest first.
+	trafficStartMs []int
+}
+
+// trafficLeadKeys are the calls whose delivery times the traffic calls: the ones that cut in.
+var trafficLeadKeys = []string{"inlap_traffic_behind", "qualy_traffic_ahead"}
+
+// leadMs is how long a traffic call takes from the server to its first word: the
+// TrafficLeadPercentile of the latest reports, so most calls are on time. RadioDeliveryLatencyMs
+// until TrafficLeadMinSamples were reported.
+func (d *radioDelivery) leadMs() int64 {
+	if len(d.trafficStartMs) < TrafficLeadMinSamples {
+		return RadioDeliveryLatencyMs
+	}
+	sorted := slices.Clone(d.trafficStartMs)
+	slices.Sort(sorted)
+	k := int(math.Ceil(TrafficLeadPercentile*float64(len(sorted)))) - 1
+	return int64(min(max(sorted[k], TrafficLeadMinMs), TrafficLeadMaxMs))
 }
 
 // RecordRadioHeard logs what became of a call in a dashboard's radio ("Radio call heard"), once
@@ -47,6 +67,10 @@ func (e *EngineerEngine) RecordRadioHeard(h RadioHeard) {
 	}
 	e.delivery.reported = appendCapped(e.delivery.reported, h.DirectiveID, RadioHeardKeptCalls)
 	key := alertKeyOfDirectiveID(h.DirectiveID)
+	// A call that waited behind other speech says how long the queue was, not the delivery.
+	if slices.Contains(trafficLeadKeys, key) && h.Outcome == "said" && h.WaitMs == 0 && h.StartMs > 0 {
+		e.delivery.trafficStartMs = appendCapped(e.delivery.trafficStartMs, h.StartMs, TrafficLeadSamples)
+	}
 	if rec := e.radioCallLocked(h.DirectiveID); rec != nil {
 		key = rec.subAlert
 	}

@@ -431,7 +431,7 @@ export const ai_engineer = {
     qualyLapResult: 'Lap Result (Position and Gap to P1)',
     qualyCleanAirThreshold: 'Clean Air Minimum Gap',
     qualyCleanAirGap: 'Clean Air Minimum Gap',
-    qualyCarBehindGap: 'Push-Lap Car Behind Warning',
+    qualyTrafficWarn: 'Traffic Warning: Seconds Before You Meet',
     qualyTimeThreshold: 'Session Time Countdown Warning',
     // 8. Flags & Penalties
     flagsTitle: 'Safety Car, Flags & Penalties',

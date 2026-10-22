@@ -666,12 +666,16 @@ function fetchRadioSpeechAudio(request: RadioSpeechRequest): Promise<ArrayBuffer
 
 /**
  * Starts synthesizing a radio message in the background so it plays without delay
- * when its turn comes. Uses the same options as speakRadioResponse.
+ * when its turn comes. Uses the same options as speakRadioResponse. Resolves once the audio is
+ * cached, or the request failed.
  */
-export function prefetchRadioSpeech(text: string, options: RadioSpeechOptions = {}): void {
+export function prefetchRadioSpeech(text: string, options: RadioSpeechOptions = {}): Promise<void> {
   const request = buildRadioSpeechRequest(text, options);
-  if (!request) return;
-  fetchRadioSpeechAudio(request).catch(() => {});
+  if (!request) return Promise.resolve();
+  return fetchRadioSpeechAudio(request).then(
+    () => {},
+    () => {}
+  );
 }
 
 /**

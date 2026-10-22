@@ -175,9 +175,9 @@ type Tuning struct {
 	PitCallLeadM float32 `json:"pit_call_lead_m"`
 	// GapReportLaps is how many laps apart the gap reports come in a race.
 	GapReportLaps int `json:"gap_report_laps"`
-	// QualyCarBehindSec is how far back, in seconds at its pace, a car on a push lap is called to a
-	// player who isn't pushing.
-	QualyCarBehindSec float32 `json:"qualy_car_behind_sec"`
+	// QualyTrafficWarnSec is how long before a push-lap car reaches a player who isn't pushing (or
+	// a pushing player reaches a slow car) the driver hears it: the number the call says.
+	QualyTrafficWarnSec float32 `json:"qualy_traffic_warn_sec"`
 }
 
 // DefaultTuning returns the built-in radio spacing and alert thresholds.
@@ -205,7 +205,7 @@ func DefaultTuning() Tuning {
 		RainProbPct:            WeatherRainTransitionProbPct,
 		PitCallLeadM:           DefaultPitCallLeadM,
 		GapReportLaps:          DefaultGapReportLaps,
-		QualyCarBehindSec:      QualyCarBehindDefaultSec,
+		QualyTrafficWarnSec:    QualyTrafficWarnDefaultSec,
 	}
 }
 
@@ -416,6 +416,9 @@ var EliminationStatuses = []string{string(EliminationLastThrough), string(Elimin
 type GapToCar struct {
 	// GapSec is the gap in seconds, to a tenth.
 	GapSec float64 `json:"gap_sec"`
+	// ReachSec is, on a qualifying traffic call, in how many whole seconds the two cars meet once
+	// the driver hears the number; 0 when the call says no number.
+	ReachSec int `json:"reach_sec,omitempty"`
 	// Trend is how the gap moved over the last laps; empty until it can be measured.
 	Trend GapTrendDirection `json:"trend,omitempty" tstype:"EngineerGapTrend"`
 	// PerLapSec is how much the gap changes each lap, to a tenth; 0 when stable.
@@ -488,6 +491,12 @@ type EvaluationContext struct {
 	TrackProfile *trackProfile
 	// LastSaid is when each alert key was last said, unix ms. Read only.
 	LastSaid map[string]int64
+	// Motion is how each car moved over the last seconds of lap data; nil when not followed. Read
+	// only.
+	Motion *carMotion
+	// DeliveryLeadMs is how long a traffic call takes from the server to its first word, as the
+	// dashboards reported it.
+	DeliveryLeadMs int64
 }
 
 // CallLost reports whether the call a rule made under alertKey at madeAt never got on the radio

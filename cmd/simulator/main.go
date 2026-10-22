@@ -177,7 +177,7 @@ type SimulatorConfig struct {
 func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
-	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1)")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1), traffic (Q1 in real time: push-lap traffic)")
 	targetFlag := flag.String("target", getEnv("F1T_SIM_TARGET", defaultSimTarget()), "UDP address to send packets to (defaults to the server's F1T_UDP_ADDR port on 127.0.0.1)")
 	flag.Parse()
 
@@ -225,7 +225,7 @@ func loadSimulatorConfig() SimulatorConfig {
 		sessionType = packets.SessionRace
 		sessionModeName = "Race"
 	}
-	if scenario == "qualy" && !isQualifying {
+	if (scenario == "qualy" || scenario == "traffic") && !isQualifying {
 		sessionType = packets.SessionQ1
 		sessionModeName = "Qualifying 1 (Q1)"
 		isQualifying = true
@@ -260,6 +260,7 @@ type simState struct {
 	pitStatus       [packets.MaxCars]uint8 // each car's pit status last frame (pit scenario)
 	lightsOn        bool                   // the start lights came on (start scenario)
 	lightsOut       bool                   // the start lights went out (start scenario)
+	traffic         *trafficSim            // the traffic scenario's cars; nil in the others
 }
 
 func main() {
@@ -298,6 +299,9 @@ func main() {
 		lapNum:     1,
 	}
 	switch {
+	case cfg.Scenario == "traffic":
+		st.sessionTimeLeft = trafficStartSec
+		st.traffic = newTrafficSim()
 	case cfg.Scenario == "qualy":
 		st.sessionTimeLeft = simQualyStartSec
 	case cfg.IsQualifying:
@@ -376,6 +380,15 @@ func main() {
 					throttle = 0.0
 					brake = 1.0
 				}
+			case "traffic":
+				st.traffic.step(sendInterval.Seconds())
+				player := st.traffic.cars[0]
+				st.lapNum, st.lapTimeMs, lapDist = player.lapNum, player.lapTimeMs, float32(player.lapM)
+				speedKmh = st.traffic.speedKmh(0)
+				throttle, brake = 1, 0
+				if speedKmh < 200 {
+					throttle, brake = 0.2, simBrakingForce
+				}
 			case "qualy":
 				if simQualyStage(st.lapNum) == simQualyGarage {
 					speedKmh = 0
@@ -441,6 +454,11 @@ func main() {
 			telemetryCars := buildTelemetryCars(cfg, st.angle, speedKmh, rpm, gear, throttle, brake)
 			if cfg.Scenario == "pit" && simPunctured(st.lapNum, st.lapDist) {
 				telemetryCars[0].TyresPressure[packets.WheelRearLeft] = simPuncturedPressurePSI
+			}
+			if st.traffic != nil {
+				for i := range telemetryCars {
+					telemetryCars[i].Speed = st.traffic.speedKmh(i)
+				}
 			}
 			sendTelemetryPacket(conn, header, cfg.TotalSlots, telemetryCars, cfg.PacketFormat)
 
@@ -555,6 +573,9 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 		NumWeatherForecastSamples: 4,
 		Sector2LapDistanceStart:   1750.0,
 		Sector3LapDistanceStart:   3500.0,
+	}
+	if cfg.Scenario == "traffic" {
+		sessionPkt.PitSpeedLimit = trafficPitLimitKmh
 	}
 
 	rainPctSample1 := uint8(5)
@@ -895,6 +916,9 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				Penalties:                   penalties,
 				TotalWarnings:               totalWarnings,
 				NumUnservedDriveThroughPens: driveThrough,
+			}
+			if st.traffic != nil {
+				st.traffic.applyLap(i, &lapCars[i])
 			}
 		} else {
 			// Observers / Spectators

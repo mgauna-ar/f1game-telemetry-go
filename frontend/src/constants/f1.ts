@@ -708,6 +708,12 @@ export const RADIO_LINE = {
   CLIENT_DEADLINE_MS: 2500,
 } as const;
 
+/** The qualifying traffic calls' lines, synthesized ahead so a warning starts at once. */
+export const TRAFFIC_PREFETCH = {
+  /** They are synthesized again this often: the dashboard's audio cache keeps only the latest lines. */
+  REFRESH_MS: 120_000,
+} as const;
+
 export const RADIO_PHRASE_CONSTANTS = {
   /** A routine call says the driver's callsign once every this many routine calls; an urgent one always does. */
   CALLSIGN_ROUTINE_EVERY: 4,
@@ -789,7 +795,7 @@ export const RADIO_ALERT_CONSTANTS = {
   // Qualifying defaults
   QUALY_CLEAN_AIR_MIN_GAP_SEC: 4.0,
   DEFAULT_QUALY_CLEAN_AIR_SEC: 4.0,
-  DEFAULT_QUALY_CAR_BEHIND_SEC: 6.0,
+  DEFAULT_QUALY_TRAFFIC_WARN_SEC: 8,
   QUALY_CLEAN_AIR_DISTANCE_METERS: 250,
   QUALY_OUTLAP_SECTOR_TRIGGER: 3,
   // Flags & Penalties defaults
