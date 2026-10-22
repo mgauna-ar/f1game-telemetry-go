@@ -7,12 +7,19 @@ import { possibleProactiveLines } from '../utils/radioPhrases';
 import { CRITICAL_EMOTION } from './useProactiveTelemetryRadio';
 import type { ProactiveRadio } from './useProactiveRadioCalls';
 
-/** The traffic calls synthesized ahead: the ones that say the warning time, and the ones that say it is right there. */
+/**
+ * The traffic calls synthesized ahead: the ones that say the warning time, and the ones with no
+ * number (right there, on you now, clear, the pit exit).
+ */
 const PREFETCHED: readonly { category: RadioAlertCategory; side?: 'ahead' | 'behind' }[] = [
   { category: 'inlap_traffic_behind', side: 'behind' },
+  { category: 'inlap_traffic_behind_two', side: 'behind' },
   { category: 'inlap_traffic_behind_now' },
+  { category: 'inlap_traffic_close' },
+  { category: 'inlap_traffic_clear' },
   { category: 'qualy_traffic_ahead', side: 'ahead' },
   { category: 'qualy_traffic_ahead_now' },
+  { category: 'qualy_pit_exit_traffic' },
 ];
 
 /** Every line a qualifying traffic call may say when it comes at the driver's warning time. */

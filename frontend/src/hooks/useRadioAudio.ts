@@ -305,10 +305,12 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   // Handle Gamepad/PTT Press
   const onPTTPress = useCallback((source?: PTTSource) => {
     if (!isRadioEnabledRef.current || exchangeRef.current?.transmitting) return;
-    // A new transmission replaces an answer still being generated or spoken.
+    // A new transmission replaces an answer still being generated or spoken. A traffic call with no
+    // number ("on you now") is still true after it, so it waits for the release; one with a number
+    // would be wrong by then.
     activeAbortControllerRef.current?.abort();
     activeAbortControllerRef.current = null;
-    stopSpeech();
+    const kept = stopSpeech({ keep: (call) => call.keptOnPtt === true });
     stopRadioSpeech();
     setError(null);
     setRadioState('transmitting');
@@ -320,6 +322,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       ended: false,
       trace: { ...newTrace(), press_source: source },
     };
+    for (const call of kept) heldCallsRef.current.push(call);
 
     if (beepsEnabledRef.current) {
       playRadioBeep('start');

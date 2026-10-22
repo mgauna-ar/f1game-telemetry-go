@@ -396,6 +396,7 @@ describe('useRadioSettingsStore and slices', () => {
     const immersive = TRIGGER_PRESET_VALUES.immersive;
     for (const key of [
       'subQualyTraffic',
+      'subQualyTrafficFollowUps',
       'subQualyTime',
       'subQualyElim',
       'subQualyResult',

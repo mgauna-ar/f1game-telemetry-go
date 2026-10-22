@@ -1,6 +1,10 @@
 import { useCallback, useRef } from 'react';
 import { RADIO_LINE } from '../constants/f1';
-import { TRAFFIC_CALL_CATEGORIES, TRAFFIC_CUT_IN_CATEGORIES } from '../constants/radioAlertCategories';
+import {
+  TRAFFIC_CALL_CATEGORIES,
+  TRAFFIC_CUT_IN_CATEGORIES,
+  TRAFFIC_KEPT_ON_PTT_CATEGORIES,
+} from '../constants/radioAlertCategories';
 import type { RadioLineRequest, RadioLineResponse } from '../types/ai';
 import type { RadioAlertPayload } from '../types/telemetry';
 import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
@@ -69,6 +73,7 @@ export function useProactiveRadioCalls(radio: ProactiveRadio): void {
       receivedAt: madeAt,
       visible: typeof document === 'undefined' || document.visibilityState === 'visible',
       cutIn: payload.isCritical && TRAFFIC_CUT_IN_CATEGORIES.has(payload.category),
+      keptOnPtt: payload.isCritical && TRAFFIC_KEPT_ON_PTT_CATEGORIES.has(payload.category),
     };
     const say = (text: string) => {
       const ttlMs = payload.ttlMs === undefined ? undefined : payload.ttlMs - (Date.now() - madeAt);

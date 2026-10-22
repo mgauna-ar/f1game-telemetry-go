@@ -840,6 +840,23 @@ export const radio_phrases = {
       'A slow car is right ahead. Watch where it goes.',
     ],
   },
+  qualy_pit_exit_traffic: {
+    bono: [
+      'Push-lap car coming past the exit, careful joining.',
+      'Car on a push lap at the pit exit. Careful joining.',
+      'Watch the exit, push-lap car coming through.',
+    ],
+    colapinto: [
+      'Push-lap car at the pit exit! Careful joining!',
+      'Car coming past the exit! Watch it!',
+      'Fast car at the exit! Careful!',
+    ],
+    standard: [
+      'Push-lap car coming past the pit exit. Careful as you join.',
+      'Car on a push lap at the exit. Join with care.',
+      'Traffic at the pit exit, a car on a push lap.',
+    ],
+  },
   qualy_deleted_lap: {
     bono: [
       "That lap is invalid, {driver}. It won't count.",
@@ -1459,6 +1476,60 @@ export const radio_phrases = {
       'Push-lap car right behind you. Off the line now.',
       'A car on a push lap is right behind. Give way.',
       'Car right behind on a push lap. Move aside safely.',
+    ],
+  },
+  inlap_traffic_behind_two: {
+    bono: [
+      'Two push-lap cars, with you in {reach} seconds.',
+      'Two coming, with you in {reach}. Give way to both.',
+      'Two fast cars, reaching you in {reach} seconds.',
+      'Two push-lap cars behind. Give way to both.',
+    ],
+    colapinto: [
+      'Two push-lap cars, on you in {reach} seconds!',
+      'Two coming, with you in {reach}! Off the line!',
+      'Two fast cars, {reach} seconds to you! Move over!',
+      'Two push-lap cars behind! Let them both by!',
+    ],
+    standard: [
+      'Two push-lap cars, with you in {reach} seconds. Give way.',
+      'Two flying laps, reaching you in {reach} seconds.',
+      'Two push-lap cars coming, {reach} seconds to you.',
+      'Two push-lap cars behind. Give way to both safely.',
+    ],
+  },
+  inlap_traffic_close: {
+    bono: [
+      'Right behind you now, stay off the line.',
+      'On you now. Off the line.',
+      "It's on you now, give way.",
+    ],
+    colapinto: [
+      'On you now! Off the line!',
+      'Right behind you! Let it by!',
+      'Here it is! Move over!',
+    ],
+    standard: [
+      'Right behind you now, stay off the racing line.',
+      'The push-lap car is on you now. Give way.',
+      'It is right behind you now. Move aside safely.',
+    ],
+  },
+  inlap_traffic_clear: {
+    bono: [
+      "Clear, it's through.",
+      'Clear behind now.',
+      "It's gone, clear.",
+    ],
+    colapinto: [
+      "Clear! It's through!",
+      'Gone! Clear behind!',
+      'Clear now!',
+    ],
+    standard: [
+      'Clear, the car is through.',
+      'All clear behind.',
+      "It's past you. Clear.",
     ],
   },
   inlap_cooldown: {

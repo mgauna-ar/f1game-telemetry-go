@@ -844,6 +844,23 @@ export const radio_phrases = {
       'Un auto lento justo adelante. Atento a dónde va.',
     ],
   },
+  qualy_pit_exit_traffic: {
+    bono: [
+      'Auto lanzado llegando a la salida de boxes, cuidado al salir.',
+      'Viene uno lanzado por la salida. Cuidado.',
+      'Atento a la salida, viene uno lanzado.',
+    ],
+    colapinto: [
+      '¡Uno lanzado en la salida de boxes! ¡Cuidado!',
+      '¡Viene uno rápido por la salida! ¡Atento!',
+      '¡Auto lanzado en la salida! ¡Cuidado al salir!',
+    ],
+    standard: [
+      'Un auto lanzado llega a la salida de boxes. Cuidado al salir.',
+      'Auto en vuelta rápida por la salida. Incorporate con cuidado.',
+      'Tráfico en la salida de boxes, un auto lanzado.',
+    ],
+  },
   qualy_deleted_lap: {
     bono: [
       'Vuelta anulada, {driver}. No cuenta.',
@@ -1464,6 +1481,60 @@ export const radio_phrases = {
       'Auto lanzado justo detrás. Salí de la línea.',
       'Un auto en vuelta rápida te tiene encima. Cedé el paso.',
       'Auto lanzado pegado atrás. Correte con seguridad.',
+    ],
+  },
+  inlap_traffic_behind_two: {
+    bono: [
+      'Dos lanzados atrás, te alcanzan en {reach} segundos.',
+      'Vienen dos en vuelta rápida, en {reach} los tenés.',
+      'Dos autos lanzados, llegan en {reach} segundos. Correte.',
+      'Dos lanzados atrás. Dejalos pasar a los dos.',
+    ],
+    colapinto: [
+      '¡Dos lanzados atrás, te alcanzan en {reach} segundos!',
+      '¡Vienen dos lanzados, en {reach} los tenés encima!',
+      '¡Dos rápidos, te agarran en {reach}! ¡Correte!',
+      '¡Vienen dos lanzados atrás! ¡Dales paso!',
+    ],
+    standard: [
+      'Dos autos lanzados, te alcanzan en {reach} segundos.',
+      'Dos en vuelta rápida, llegan en {reach} segundos.',
+      'En {reach} segundos te alcanzan dos lanzados. Cedé el paso.',
+      'Dos autos en vuelta rápida detrás. Cedé el paso a ambos.',
+    ],
+  },
+  inlap_traffic_close: {
+    bono: [
+      'Ya lo tenés encima, fuera de la línea.',
+      'Está pegado atrás, dejalo pasar.',
+      'Encima tuyo ahora, correte.',
+    ],
+    colapinto: [
+      '¡Ya lo tenés encima! ¡Correte!',
+      '¡Pegado atrás! ¡Dejalo pasar!',
+      '¡Ahí está! ¡Fuera de la línea!',
+    ],
+    standard: [
+      'Lo tenés encima ahora. Salí de la línea de carrera.',
+      'El auto lanzado está pegado atrás. Cedé el paso.',
+      'Ya está detrás tuyo. Correte con seguridad.',
+    ],
+  },
+  inlap_traffic_clear: {
+    bono: [
+      'Libre, ya pasó.',
+      'Libre atrás.',
+      'Ya pasó, libre.',
+    ],
+    colapinto: [
+      '¡Libre, ya pasó!',
+      '¡Ya está, libre!',
+      '¡Libre atrás!',
+    ],
+    standard: [
+      'Libre, el auto ya pasó.',
+      'Ya pasó. Libre atrás.',
+      'Todo libre atrás.',
     ],
   },
   inlap_cooldown: {

@@ -11,6 +11,8 @@ export interface SpokenCall {
   visible: boolean;
   /** An imminent traffic warning: it cuts whatever else is on the air. */
   cutIn: boolean;
+  /** A traffic call with no number: a push-to-talk press keeps it, to say after the release. */
+  keptOnPtt?: boolean;
 }
 
 /** Tells the app log what became of a pit wall call in this dashboard's radio. Fire and forget. */

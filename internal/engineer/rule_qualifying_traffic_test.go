@@ -275,6 +275,259 @@ func TestQualifyingRule_TrafficCallsOncePerCar(t *testing.T) {
 	}
 }
 
+// trafficEval evaluates rule on one moment of an out-lap: the player at 85% of the flat pace, the
+// cars behind on push laps, calls the radio said in lastSaid.
+func trafficEval(rule *QualifyingRule, lastSaid map[string]int64, now int64, phase DrivingPhase, cars ...packets.LapData) []Directive {
+	speeds := map[int]float64{0: 0.85 * qualyFlatMps}
+	for i := 1; i < len(cars); i++ {
+		speeds[i] = qualyFlatMps
+	}
+	ctx := withMotion(qualyCtx(packets.SessionQ1, phase, cars...), speeds)
+	ctx.Now, ctx.LastSaid = now, lastSaid
+	return rule.Evaluate(ctx)
+}
+
+// sayAll marks the calls dirs as said at now.
+func sayAll(lastSaid map[string]int64, dirs []Directive, now int64) {
+	for _, d := range dirs {
+		lastSaid[d.ID] = now
+	}
+}
+
+// "On you now" comes QualyTrafficCloseSec before the car gets there, after a warning that said
+// enough seconds to give it room; not after one that came late.
+func TestQualifyingRule_OnYouNow(t *testing.T) {
+	player := qualyCar(packets.DriverStatusOutLap, 1000, 1000)
+	pushing := func(lapM float32) packets.LapData { return qualyCar(packets.DriverStatusFlyingLap, lapM, lapM) }
+
+	rule, said := NewQualifyingRule(), map[string]int64{}
+	sayAll(said, trafficEval(rule, said, 1000, PhaseOutLap, player, pushing(893)), 1000)
+	if dirs := trafficEval(rule, said, 1100, PhaseOutLap, player, pushing(950)); directiveFor(dirs, "inlap_traffic_close") != nil {
+		t.Fatal("on you now 3.3 s before it gets there")
+	}
+	dirs := trafficEval(rule, said, 1200, PhaseOutLap, player, pushing(955))
+	if directiveFor(dirs, "inlap_traffic_close") == nil {
+		t.Fatalf("expected on you now 3 s before it gets there, got %v", subAlerts(dirs))
+	}
+	sayAll(said, dirs, 1200)
+	if dirs := trafficEval(rule, said, 1300, PhaseOutLap, player, pushing(960)); len(dirs) != 0 {
+		t.Fatalf("said again: %v", subAlerts(dirs))
+	}
+
+	late, saidLate := NewQualifyingRule(), map[string]int64{}
+	dirs = trafficEval(late, saidLate, 1000, PhaseOutLap, player, pushing(925))
+	if d := directiveFor(dirs, "inlap_traffic_behind"); d == nil || d.Values.Behind.ReachSec >= TrafficCloseMinSaidSec {
+		t.Fatalf("expected a late warning, got %v", subAlerts(dirs))
+	}
+	saidLate["inlap_traffic_behind"] = 1000
+	if dirs := trafficEval(late, saidLate, 1200, PhaseOutLap, player, pushing(955)); len(dirs) != 0 {
+		t.Fatalf("on you now right after a late warning: %v", subAlerts(dirs))
+	}
+}
+
+// "Clear" comes once the car went by and is QualyClearAheadM ahead, once; not while another is
+// coming (its warning is the call), and not for a car that stopped pushing.
+func TestQualifyingRule_Clear(t *testing.T) {
+	player := qualyCar(packets.DriverStatusOutLap, 1000, 1000)
+	pushing := func(lapM float32) packets.LapData { return qualyCar(packets.DriverStatusFlyingLap, lapM, lapM) }
+	far := pushing(100) // a push-lap car far behind: no warning yet
+	warned := func(t *testing.T) (*QualifyingRule, map[string]int64) {
+		t.Helper()
+		rule, said := NewQualifyingRule(), map[string]int64{}
+		sayAll(said, trafficEval(rule, said, 1000, PhaseOutLap, player, pushing(893), far), 1000)
+		sayAll(said, trafficEval(rule, said, 1100, PhaseOutLap, player, pushing(990), far), 1100)
+		trafficEval(rule, said, 1200, PhaseOutLap, player, pushing(1010), far) // it went by
+		return rule, said
+	}
+
+	t.Run("once, when it is through", func(t *testing.T) {
+		rule, said := warned(t)
+		if dirs := trafficEval(rule, said, 1300, PhaseOutLap, player, pushing(1020), far); directiveFor(dirs, "inlap_traffic_clear") != nil {
+			t.Fatal("clear while it is still alongside")
+		}
+		dirs := trafficEval(rule, said, 1400, PhaseOutLap, player, pushing(1040), far)
+		if directiveFor(dirs, "inlap_traffic_clear") == nil {
+			t.Fatalf("expected clear, got %v", subAlerts(dirs))
+		}
+		sayAll(said, dirs, 1400)
+		if dirs := trafficEval(rule, said, 1500, PhaseOutLap, player, pushing(1060), far); len(dirs) != 0 {
+			t.Fatalf("said again: %v", subAlerts(dirs))
+		}
+	})
+	t.Run("not with another coming: its warning instead", func(t *testing.T) {
+		rule, said := warned(t)
+		dirs := trafficEval(rule, said, 1400, PhaseOutLap, player, pushing(1040), pushing(895))
+		if directiveFor(dirs, "inlap_traffic_clear") != nil || directiveFor(dirs, "inlap_traffic_behind") == nil {
+			t.Fatalf("expected the next car's warning and no clear, got %v", subAlerts(dirs))
+		}
+		sayAll(said, dirs, 1400)
+		if dirs := trafficEval(rule, said, 1500, PhaseOutLap, player, pushing(1060), pushing(898)); directiveFor(dirs, "inlap_traffic_clear") != nil {
+			t.Fatal("clear for the first car while the second comes")
+		}
+	})
+	t.Run("not for a car that stopped pushing", func(t *testing.T) {
+		rule, said := warned(t)
+		inLap := qualyCar(packets.DriverStatusInLap, 1040, 1040)
+		if dirs := trafficEval(rule, said, 1400, PhaseOutLap, player, inLap, far); len(dirs) != 0 {
+			t.Fatalf("expected no call, got %v", subAlerts(dirs))
+		}
+	})
+}
+
+// A second push-lap car QualyTrainSec behind the first is named in the same warning, and counts
+// as warned.
+func TestQualifyingRule_TwoPushLapCars(t *testing.T) {
+	player := qualyCar(packets.DriverStatusOutLap, 1000, 1000)
+	pushing := func(lapM float32) packets.LapData { return qualyCar(packets.DriverStatusFlyingLap, lapM, lapM) }
+
+	rule, said := NewQualifyingRule(), map[string]int64{}
+	dirs := trafficEval(rule, said, 1000, PhaseOutLap, player, pushing(893), pushing(865))
+	if d := directiveFor(dirs, "inlap_traffic_behind_two"); d == nil || d.Values.Behind.ReachSec != 8 {
+		t.Fatalf("expected two cars in 8 s, got %v", subAlerts(dirs))
+	}
+	sayAll(said, dirs, 1000)
+	if dirs := trafficEval(rule, said, 1100, PhaseOutLap, player, pushing(895), pushing(868)); len(dirs) != 0 {
+		t.Fatalf("the second car was warned again: %v", subAlerts(dirs))
+	}
+
+	apart := NewQualifyingRule()
+	dirs = trafficEval(apart, map[string]int64{}, 1000, PhaseOutLap, player, pushing(893), pushing(860))
+	if directiveFor(dirs, "inlap_traffic_behind") == nil {
+		t.Fatalf("a car 3.4 s behind the first isn't the same warning: %v", subAlerts(dirs))
+	}
+}
+
+// Leaving the garage, a push-lap car reaching the pit exit as the player gets there is warned of,
+// once; then its follow-ups come as usual.
+func TestQualifyingRule_PitExit(t *testing.T) {
+	leaving := qualyCar(packets.DriverStatusOutLap, 250, 250)
+	leaving.PitStatus = packets.PitStatusPitting
+	pushing := func(lapM float32) packets.LapData { return qualyCar(packets.DriverStatusFlyingLap, lapM, lapM) }
+	pitLane := func(player, rival packets.LapData) *EvaluationContext {
+		ctx := withMotion(qualyCtx(packets.SessionQ1, PhasePitLane, player, rival), map[int]float64{0: 22.2, 1: qualyFlatMps})
+		ctx.PreviousPhase = PhaseInGarage
+		ctx.Telemetry = &packets.PacketCarTelemetryData{}
+		ctx.Telemetry.CarTelemetryData[0].Speed = 80
+		return ctx
+	}
+	eval := func(rule *QualifyingRule, said map[string]int64, now int64, rival packets.LapData) []Directive {
+		ctx := pitLane(leaving, rival)
+		ctx.Now, ctx.LastSaid = now, said
+		ctx.TrackProfile = &trackProfile{exitM: []float32{400}}
+		return rule.Evaluate(ctx)
+	}
+	// 150 m to the exit at 80 km/h: 6.75 s. A car 520 m before it gets there in 8 s, inside the
+	// window; one 780 m before, in 12 s, after it.
+	tests := []struct {
+		name  string
+		rival packets.LapData
+		want  bool
+	}{
+		{"a car there as the player joins", pushing(4880), true},
+		{"a car well after", pushing(4620), false},
+		{"a car not pushing", qualyCar(packets.DriverStatusInLap, 4880, 4880), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule, said := NewQualifyingRule(), map[string]int64{}
+			dirs := eval(rule, said, 1000, tt.rival)
+			if got := directiveFor(dirs, "qualy_pit_exit_traffic") != nil; got != tt.want {
+				t.Fatalf("pit exit call %v, want %v (%v)", got, tt.want, subAlerts(dirs))
+			}
+			if !tt.want {
+				return
+			}
+			sayAll(said, dirs, 1000)
+			if dirs := eval(rule, said, 1100, tt.rival); len(dirs) != 0 {
+				t.Fatalf("said again: %v", subAlerts(dirs))
+			}
+			if a := rule.behind[1]; !a.warned || !a.fromPitExit {
+				t.Fatalf("the car isn't warned of: %+v", a)
+			}
+			// Still in the pit lane at the limiter's pace, close: "on you now" waits for the track.
+			if dirs := eval(rule, said, 1200, pushing(200)); directiveFor(dirs, "inlap_traffic_close") != nil {
+				t.Fatal("on you now in the pit lane")
+			}
+			// Just joined: not until the player's pace on track is known.
+			joined := qualyCar(packets.DriverStatusOutLap, 310, 310)
+			onTrack := func(now int64) []Directive {
+				ctx := withMotion(qualyCtx(packets.SessionQ1, PhaseOutLap, joined, pushing(260)), map[int]float64{0: 52, 1: qualyFlatMps})
+				ctx.Now, ctx.LastSaid = now, said
+				return rule.Evaluate(ctx)
+			}
+			if dirs := onTrack(1300); directiveFor(dirs, "inlap_traffic_close") != nil {
+				t.Fatal("on you now the moment the player joined")
+			}
+			if dirs := onTrack(1300 + PaceWindowShortMs); directiveFor(dirs, "inlap_traffic_close") == nil {
+				t.Fatalf("expected on you now once the player's pace is known, got %v", subAlerts(dirs))
+			}
+		})
+	}
+
+	t.Run("not before the exit is known", func(t *testing.T) {
+		if dirs := NewQualifyingRule().Evaluate(pitLane(leaving, pushing(4880))); len(dirs) != 0 {
+			t.Fatalf("expected no call, got %v", subAlerts(dirs))
+		}
+	})
+}
+
+// The pit exit is learned in qualifying from the cars leaving their garages, and kept.
+func TestTrackProfiles_LearnsThePitExitInQualifying(t *testing.T) {
+	p := newTrackProfiles()
+	session := &packets.PacketSessionData{SessionType: packets.SessionQ1, TrackLength: qualyTrackLen}
+	prev, next := &packets.PacketLapData{}, &packets.PacketLapData{}
+	prev.LapData[3] = qualyCar(packets.DriverStatusOutLap, 395, 0)
+	prev.LapData[3].PitStatus = packets.PitStatusPitting
+	next.LapData[3] = qualyCar(packets.DriverStatusOutLap, 401, 0)
+	p.learnPitLane(session, prev, next)
+	if got := p.profile(0).exit(); got != 401 {
+		t.Fatalf("exit %v, want 401", got)
+	}
+	again := newTrackProfiles()
+	if err := again.load(p.snapshot()); err != nil || again.profile(0).exit() != 401 {
+		t.Fatalf("a track with only its exit learned wasn't kept: %v", err)
+	}
+}
+
+// "Push now" isn't said right after the pit exit call warned of a car coming.
+func TestTrafficRule_NoPushNowAfterThePitExitCall(t *testing.T) {
+	status := func(limiter uint8) *packets.PacketCarStatusData {
+		return &packets.PacketCarStatusData{CarStatusData: [packets.MaxCars]packets.CarStatusData{{PitLimiterStatus: limiter}}}
+	}
+	for _, tt := range []struct {
+		name    string
+		saidAgo int64 // ms since the pit exit call (-1: never)
+		want    bool
+	}{
+		{"no pit exit call", -1, true},
+		{"just after one", 2000, false},
+		{"long after one", PitExitCallFreshMs + 1000, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := NewTrafficRule()
+			ctx := &EvaluationContext{Status: status(1), Phase: PhasePitLane, Now: 100_000, LastSaid: map[string]int64{}}
+			rule.Evaluate(ctx)
+			ctx.Status = status(0)
+			if tt.saidAgo >= 0 {
+				ctx.LastSaid["qualy_pit_exit_traffic"] = ctx.Now - tt.saidAgo
+			}
+			if got := directiveFor(rule.Evaluate(ctx), "pit_limiter_exit") != nil; got != tt.want {
+				t.Fatalf("push now %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// The traffic calls and their follow-ups go through the pit limiter's hold: a car doesn't wait.
+func TestTrafficCalls_SaidOnThePitLimiter(t *testing.T) {
+	keys := NewQualifyingRule().AlertKeys()
+	for _, key := range []string{"inlap_traffic_behind", "qualy_traffic_ahead", "inlap_traffic_close", "inlap_traffic_clear", "qualy_pit_exit_traffic"} {
+		if cfg, ok := keys[key]; !ok || !cfg.PitLaneCall || cfg.MaxDelayMs != TrafficMaxDelayMs {
+			t.Errorf("%s: %+v", key, cfg)
+		}
+	}
+}
+
 // A warned car that falls well back for a while is warned again when it comes back.
 func TestQualifyingRule_TrafficWarnedAgainAfterFallingBack(t *testing.T) {
 	v := qualyFlatMps
@@ -519,7 +772,15 @@ func onProfile(speeds []float32, start, share float64) func(t float64) float64 {
 	return func(t float64) float64 { return at[min(int(math.Round(t/0.05)), len(at)-1)] }
 }
 
-func (r trafficRun) run(t *testing.T) (reach int, heardAt, passedAt float64) {
+// trafficTimes is when the calls of one approach were made and when the car got there, in session
+// seconds (-1: not made).
+type trafficTimes struct {
+	reach                     int
+	heardAt, closeAt, clearAt float64
+	passedAt                  float64
+}
+
+func (r trafficRun) runAll(t *testing.T) trafficTimes {
 	t.Helper()
 	ctx := context.Background()
 	b := &mockBroadcaster{}
@@ -537,6 +798,9 @@ func (r trafficRun) run(t *testing.T) (reach int, heardAt, passedAt float64) {
 	}
 
 	calledAt := -1.0
+	var reach int
+	var passedAt float64
+	closeAt, clearAt := -1.0, -1.0
 	for k := 0; k < 1200; k++ {
 		now := float64(k) * 0.05
 		h.SessionTime = float32(100 + now)
@@ -550,6 +814,12 @@ func (r trafficRun) run(t *testing.T) (reach int, heardAt, passedAt float64) {
 				calledAt, reach = now, calls[0].Values.Behind.ReachSec
 			}
 		}
+		if closeAt < 0 && len(spokenCalls(t, b, "inlap_traffic_close")) > 0 {
+			closeAt = now
+		}
+		if clearAt < 0 && len(spokenCalls(t, b, "inlap_traffic_clear")) > 0 {
+			clearAt = now
+		}
 		if passedAt == 0 && r.rivalAt(now) >= r.playerAt(now) {
 			passedAt = now
 		}
@@ -558,7 +828,10 @@ func (r trafficRun) run(t *testing.T) (reach int, heardAt, passedAt float64) {
 	if calledAt < 0 || passedAt == 0 {
 		t.Fatalf("called at %v s, passed at %v s: want both", calledAt, passedAt)
 	}
-	return reach, calledAt + float64(RadioDeliveryLatencyMs+TrafficNumberHeardMs)/1000, passedAt
+	return trafficTimes{
+		reach: reach, heardAt: calledAt + float64(RadioDeliveryLatencyMs+TrafficNumberHeardMs)/1000,
+		closeAt: closeAt, clearAt: clearAt, passedAt: passedAt,
+	}
 }
 
 // The car reaches the player QualyTrafficWarnSec (±1 s) after the driver hears the number.
@@ -613,12 +886,20 @@ func TestEngineerEngine_PushLapCarReachesYouWhenSaid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reach, heardAt, passedAt := tt.run.run(t)
-			if reach != int(QualyTrafficWarnDefaultSec) {
-				t.Errorf("said %d s, want %v", reach, QualyTrafficWarnDefaultSec)
+			got := tt.run.runAll(t)
+			if got.reach != int(QualyTrafficWarnDefaultSec) {
+				t.Errorf("said %d s, want %v", got.reach, QualyTrafficWarnDefaultSec)
 			}
-			if got := passedAt - heardAt; math.Abs(got-QualyTrafficWarnDefaultSec) > 1 {
-				t.Errorf("the car got there %.1f s after the number was heard, want %v ± 1", got, QualyTrafficWarnDefaultSec)
+			if d := got.passedAt - got.heardAt; math.Abs(d-QualyTrafficWarnDefaultSec) > 1 {
+				t.Errorf("the car got there %.1f s after the number was heard, want %v ± 1", d, QualyTrafficWarnDefaultSec)
+			}
+			// "On you now" is heard QualyTrafficCloseSec before it gets there, "clear" after it.
+			closeHeard := got.closeAt + float64(RadioDeliveryLatencyMs+TrafficKeyHeardMs)/1000
+			if d := got.passedAt - closeHeard; got.closeAt < 0 || math.Abs(d-QualyTrafficCloseSec) > 0.5 {
+				t.Errorf("on you now heard %.1f s before the car got there (made at %v), want %v ± 0.5", d, got.closeAt, QualyTrafficCloseSec)
+			}
+			if got.clearAt <= got.passedAt {
+				t.Errorf("clear at %v s, the car got there at %v s: want it after", got.clearAt, got.passedAt)
 			}
 		})
 	}

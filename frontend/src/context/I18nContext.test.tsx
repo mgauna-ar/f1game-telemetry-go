@@ -142,6 +142,7 @@ describe('I18nContext and useI18n Hook', () => {
       'ai_engineer.proactiveAlerts.rivalDefendGap',
       'ai_engineer.proactiveAlerts.rivalAttackGap',
       'ai_engineer.proactiveAlerts.qualyTraffic',
+      'ai_engineer.proactiveAlerts.qualyTrafficFollowUps',
       'ai_engineer.proactiveAlerts.qualyDeletedLap',
       'ai_engineer.proactiveAlerts.qualySessionTime',
       'ai_engineer.proactiveAlerts.qualyElimDanger',

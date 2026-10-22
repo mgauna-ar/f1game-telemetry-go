@@ -240,6 +240,16 @@ describe('useProactiveRadioCalls', () => {
     );
   });
 
+  it('keeps a traffic call with no number through a push-to-talk press, not one with a number', () => {
+    const { send, speak } = setup();
+    send(call({ directiveId: 'directive_5_inlap_traffic_close', category: 'inlap_traffic_close', isCritical: true }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
+    send(call({ directiveId: 'directive_6_inlap_traffic_behind', category: 'inlap_traffic_behind', isCritical: true }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: false }));
+    send(call({ directiveId: 'directive_7_inlap_traffic_clear', category: 'inlap_traffic_clear', isCritical: true }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: false, keptOnPtt: false }));
+  });
+
   it('notes when the call came and whether the page was in front', async () => {
     vi.setSystemTime(1_700_000_000_000);
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
@@ -252,6 +262,7 @@ describe('useProactiveRadioCalls', () => {
         receivedAt: 1_700_000_000_000,
         visible: false,
         cutIn: false,
+        keptOnPtt: false,
       });
     } finally {
       visibility.mockRestore();

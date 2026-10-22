@@ -421,7 +421,8 @@ export const ai_engineer = {
     // 7. Qualy & Practice Suite
     qualyTitle: 'Qualifying & Practice Suite',
     qualyDesc: 'Traffic on track, lap results, deleted laps, the session clock and the cut line',
-    qualyTraffic: 'Traffic: Car Behind on a Push Lap, Out-Lap Gap, Slow Car Ahead',
+    qualyTraffic: 'Traffic: Car Behind on a Push Lap, Out-Lap Gap, Slow Car Ahead, Pit Exit',
+    qualyTrafficFollowUps: 'On You & Clear Calls',
     qualyInvalid: 'Immediate Lap Invalidation (Track Limits)',
     qualyDeletedLap: 'Immediate Lap Invalidation (Track Limits)',
     qualyTime: 'Session Clock Final Run Countdown (<3 min)',

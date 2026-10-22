@@ -51,7 +51,8 @@ describe('useTrafficCallPrefetch', () => {
       expect(lines).toContain(said);
       expect(lines).toContain(picker.proactive('qualy_traffic_ahead_now', { language: 'en', persona: 'bono' }));
     }
-    expect(lines.filter((l) => l.includes('8'))).toHaveLength(8);
+    expect(lines).toContain(picker.proactive('inlap_traffic_close', { language: 'en', persona: 'bono' }));
+    expect(lines.filter((l) => l.includes('8'))).toHaveLength(11);
   });
 
   it('synthesizes them one at a time in qualifying, with the urgent voice', async () => {

@@ -103,6 +103,22 @@ interface ReplyStreamState {
 
 const newQueueItemId = () => Math.random().toString(36).substring(2, 9);
 
+/** A pit wall call stopSpeech kept to say later instead of cutting it. */
+export interface KeptSpeech {
+  text: string;
+  urgent: boolean;
+  emotion?: SpeechEmotion;
+  /** Epoch ms after which it is stale. */
+  expiresAt?: number;
+  call: SpokenCall;
+}
+
+/** How stopSpeech stops. */
+export interface StopSpeechOptions {
+  /** The pit wall calls, playing or queued, to hand back instead of cutting. */
+  keep?: (call: SpokenCall) => boolean;
+}
+
 export interface UseTTSPlaybackReturn {
   isSpeaking: boolean;
   lastResponse: string | null;
@@ -114,7 +130,8 @@ export interface UseTTSPlaybackReturn {
     ttlMs?: number,
     call?: SpokenCall
   ) => Promise<void>;
-  stopSpeech: () => void;
+  /** Stops all speech; the calls `keep` picks are handed back, not cut, so they can be said later. */
+  stopSpeech: (options?: StopSpeechOptions) => KeptSpeech[];
   testRadioTransmission: () => Promise<void>;
   testTriggerAlert: (triggerType: string) => Promise<void>;
   beginReplyStream: () => ReplySpeechStream;
@@ -336,20 +353,38 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     [cancelReplyStream]
   );
 
-  const stopSpeech = useCallback(() => {
-    const current = currentRef.current;
-    if (current && !current.stream) reportCall(current, current.heard.speechEndedAt ? 'said' : 'cut');
-    for (const queued of queueRef.current) reportCall(queued, 'cut');
-    tokenRef.current++;
-    currentRef.current = null;
-    cancelReplyStream();
-    queueRef.current = [];
-    isSpeakingRef.current = false;
-    speakingUrgentRef.current = false;
-    stopRadioSpeech();
-    setIsSpeaking(false);
-    onSpeakingChangeRef.current?.(false);
-  }, [cancelReplyStream]);
+  const stopSpeech = useCallback(
+    (options: StopSpeechOptions = {}): KeptSpeech[] => {
+      const kept: KeptSpeech[] = [];
+      const stop = (item: SpeechQueueItem, outcome: RadioHeardOutcome) => {
+        if (item.call && outcome === 'cut' && typeof options.keep === 'function' && options.keep(item.call)) {
+          kept.push({
+            text: item.text,
+            urgent: !!item.urgent,
+            emotion: item.emotion,
+            expiresAt: item.expiresAt,
+            call: item.call,
+          });
+          return;
+        }
+        reportCall(item, outcome);
+      };
+      const current = currentRef.current;
+      if (current && !current.stream) stop(current, current.heard.speechEndedAt ? 'said' : 'cut');
+      for (const queued of queueRef.current) stop(queued, 'cut');
+      tokenRef.current++;
+      currentRef.current = null;
+      cancelReplyStream();
+      queueRef.current = [];
+      isSpeakingRef.current = false;
+      speakingUrgentRef.current = false;
+      stopRadioSpeech();
+      setIsSpeaking(false);
+      onSpeakingChangeRef.current?.(false);
+      return kept;
+    },
+    [cancelReplyStream]
+  );
 
   const beginReplyStream = useCallback((): ReplySpeechStream => {
     // A new reply supersedes one still being spoken.

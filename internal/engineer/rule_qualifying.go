@@ -27,6 +27,15 @@ type QualifyingRule struct {
 	// packets (0: none yet).
 	inLapShare   float64
 	inLapSamples int
+	// The pit exit call: made at pitExitAt for car pitExitCar and waiting for the radio (0: none),
+	// or done for this pit exit.
+	pitExitAt   int64
+	pitExitCar  int
+	pitExitDone bool
+	// The player's pit status on the last lap data, and when they last came out of the pit lane
+	// (unix ms, 0: not this session): for a while after, their pace still has the pit lane in it.
+	playerPit uint8
+	joinedAt  int64
 	// The push lap the player is on (0: none) and whether it was invalidated; the player's best
 	// valid push lap this session; and when the lap just finished is reported (0: none due).
 	pushLap        uint8
@@ -98,6 +107,33 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			SpeechMs:    TrafficSpeechMs,
 			PitLaneCall: true,
 		},
+		"inlap_traffic_close": {
+			Category:    DirectiveCategoryQualifying,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseInLap, PhasePitLane},
+			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  TrafficMaxDelayMs,
+			MinRepeatMs: TrafficMinRepeatMs,
+			SpeechMs:    TrafficCloseSpeechMs,
+			PitLaneCall: true,
+		},
+		"inlap_traffic_clear": {
+			Category:    DirectiveCategoryQualifying,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseInLap, PhasePitLane},
+			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  TrafficMaxDelayMs,
+			MinRepeatMs: TrafficMinRepeatMs,
+			SpeechMs:    TrafficCloseSpeechMs,
+			PitLaneCall: true,
+		},
+		"qualy_pit_exit_traffic": {
+			Category:    DirectiveCategoryQualifying,
+			ValidPhases: []DrivingPhase{PhasePitLane},
+			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  TrafficMaxDelayMs,
+			MinRepeatMs: TrafficMinRepeatMs,
+			SpeechMs:    TrafficSpeechMs,
+			PitLaneCall: true,
+		},
 		"qualy_lap_result": {
 			Category:             DirectiveCategoryQualifying,
 			ValidPhases:          []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseInLap, PhasePitLane, PhaseInGarage, PhasePostRace},
@@ -134,6 +170,8 @@ func (r *QualifyingRule) Reset(scope DedupScope) {
 		r.ahead = [packets.MaxCars]trafficApproach{}
 		r.motionEpoch = 0
 		r.inLapShare, r.inLapSamples = 0, 0
+		r.pitExitAt, r.pitExitCar, r.pitExitDone = 0, 0, false
+		r.playerPit, r.joinedAt = 0, 0
 		r.sessionTimeCalled = false
 		r.elimCalled = false
 		r.elimLeftZone = false
@@ -169,8 +207,9 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	add(r.evaluateCooldown(ctx, playerLap))
 	if timedSession(ctx) && ctx.LapData != nil {
 		r.followTrafficLocked(ctx)
-		add(r.evaluateCarBehind(ctx, playerLap))
+		directives = append(directives, r.evaluateCarBehind(ctx, playerLap)...)
 		add(r.evaluateTrafficAhead(ctx, playerLap))
+		add(r.evaluatePitExit(ctx, playerLap))
 	}
 	return directives
 }

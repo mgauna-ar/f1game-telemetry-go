@@ -63,6 +63,13 @@ func enteredPitLane(before, after packets.LapData) bool {
 	return before.PitStatus == packets.PitStatusNone && after.PitStatus == packets.PitStatusPitting
 }
 
+// leftPitLane reports whether a car came out of the pit lane onto the track between before and
+// after: its pit status went back to none while driving, not in its garage.
+func leftPitLane(before, after packets.LapData) bool {
+	return before.PitStatus == packets.PitStatusPitting && after.PitStatus == packets.PitStatusNone &&
+		after.DriverStatus != packets.DriverStatusInGarage
+}
+
 // pitLaneEntries marks the cars that entered the pit lane between prev and next; none without prev.
 func pitLaneEntries(prev, next *packets.PacketLapData) [packets.MaxCars]bool {
 	var entries [packets.MaxCars]bool

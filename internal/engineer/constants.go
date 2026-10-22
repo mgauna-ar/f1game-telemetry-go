@@ -274,6 +274,28 @@ const (
 	// about to start a push lap.
 	PrePushToLineM = 1_000.0
 	PrePushShare   = 0.97
+	// Follow-ups: "on you now" is heard QualyTrafficCloseSec before the car arrives (its words
+	// heard TrafficKeyHeardMs in), only after a warning that said TrafficCloseMinSaidSec or more.
+	// "Clear" comes once the car is QualyClearAheadM ahead, within TrafficClearWithinMs of the pass.
+	// A second push-lap car reaching the player within QualyTrainSec after the first is named in
+	// the warning.
+	QualyTrafficCloseSec   = 3.0
+	TrafficKeyHeardMs      = 800
+	TrafficCloseMinSaidSec = 6
+	QualyClearAheadM       = 30.0
+	TrafficClearWithinMs   = 10_000
+	QualyTrainSec          = 3.0
+	TrafficCloseSpeechMs   = 2_000
+	// The pit exit: a push-lap car reaching the pit exit between PitExitWindowBeforeSec before and
+	// PitExitWindowSec after the player leaving the pit lane is warned of. The player is taken at
+	// the pit speed limit (DefaultPitSpeedLimitKmh when the game sends none) from at most
+	// PitExitMaxDistM before the exit. "Push now" isn't said within PitExitCallFreshMs after it.
+	PitExitWindowBeforeSec  = 1.0
+	PitExitWindowSec        = 4.0
+	DefaultPitSpeedLimitKmh = 80
+	PitExitMaxDistM         = 1_000.0
+	PitExitCallFreshMs      = 15_000
+
 	// The track's push-lap speeds are learned from every car on a push lap: the mean of a QuietBinM
 	// bin's first PushSpeedMeanSamples steps, then each step weighing PushSpeedWeight. They are used
 	// once PushMinCoverage of the bins were seen.

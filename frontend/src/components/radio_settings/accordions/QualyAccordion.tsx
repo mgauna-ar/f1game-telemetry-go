@@ -20,6 +20,8 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
   const setQualyAlertsEnabled = useRadioSettingsStore((s) => s.setQualyAlertsEnabled);
   const subQualyTraffic = useRadioSettingsStore((s) => s.subQualyTraffic);
   const setSubQualyTraffic = useRadioSettingsStore((s) => s.setSubQualyTraffic);
+  const subQualyTrafficFollowUps = useRadioSettingsStore((s) => s.subQualyTrafficFollowUps);
+  const setSubQualyTrafficFollowUps = useRadioSettingsStore((s) => s.setSubQualyTrafficFollowUps);
   const subQualyInvalid = useRadioSettingsStore((s) => s.subQualyInvalid);
   const setSubQualyInvalid = useRadioSettingsStore((s) => s.setSubQualyInvalid);
   const subQualyTime = useRadioSettingsStore((s) => s.subQualyTime);
@@ -52,6 +54,12 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
           label={t('ai_engineer.proactiveAlerts.qualyTraffic')}
           checked={subQualyTraffic}
           onChange={setSubQualyTraffic}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualyTrafficFollowUps')}
+          checked={subQualyTrafficFollowUps}
+          onChange={setSubQualyTrafficFollowUps}
         />
         <ToggleRow
           compact

@@ -10,24 +10,34 @@ import (
 // The traffic scenario (Q1) drives its cars in real time on a lap of slow corners and fast
 // straights, so the engineer's push-lap traffic calls can be checked against when the cars really
 // meet. The player runs garage, pit lane, out-lap, push lap and in-lap, then back to the garage.
-// Car 1 does a push lap while the player first waits in the garage (so the engineer learns the
-// track's push-lap speeds), then is on one trafficBehindStartSec behind the player on every
-// out-lap and passes them;
-// car 2 is on a slow in-lap ahead on every push lap. The other cars stay in their garages. The
-// engine's "Push-lap traffic" and "Push-lap car passed" lines say when it called each car and when
-// it went by; this scenario logs "Traffic scenario pass" at the moment it did.
+//   - car 1 does a push lap while the player first waits in the garage (so the engineer learns the
+//     track's push-lap speeds), then is on one trafficBehindStartSec behind the player on every
+//     out-lap, with car 3 trafficTrainSec behind it: two cars in one warning;
+//   - car 2 is on a slow in-lap ahead on every push lap;
+//   - car 4 is on a push lap that reaches the pit exit trafficPitExitAfterSec after the player
+//     leaves the pit lane;
+//   - car 5 leaves its garage early in the first wait, so the engineer learns where the pit exit is.
+//
+// The other cars stay in their garages. The engine's "Push-lap traffic" and "Push-lap car passed"
+// lines say when it called each car and when it went by; this scenario logs "Traffic scenario
+// pass" at the moment it did.
 const (
-	trafficGarageSec      = 6.0
-	trafficFirstGarageSec = 95.0  // the first wait in the garage: car 1 does a whole push lap meanwhile
-	trafficPitLaneM       = 250.0 // the pit lane's length to the exit at simPitExitM
-	trafficPitLimitKmh    = 80
-	trafficOutLapShare    = 0.8
-	trafficInLapShare     = 0.6
-	trafficSlowShare      = 0.55
-	trafficBehindStartSec = 12.0   // car 1's gap behind the player as the out-lap starts, at its pace
-	trafficSlowAheadM     = 1500.0 // car 2's gap ahead as the push lap starts
-	trafficStartSec       = 1080
-	trafficPlayerPosition = 12
+	trafficGarageSec       = 6.0
+	trafficFirstGarageSec  = 95.0  // the first wait in the garage: car 1 does a whole push lap meanwhile
+	trafficPitLaneM        = 250.0 // the pit lane's length to the exit at simPitExitM
+	trafficPitLimitKmh     = 80
+	trafficOutLapShare     = 0.8
+	trafficInLapShare      = 0.6
+	trafficSlowShare       = 0.55
+	trafficBehindStartSec  = 12.0   // car 1's gap behind the player as the out-lap starts, at its pace
+	trafficSlowAheadM      = 1500.0 // car 2's gap ahead as the push lap starts
+	trafficTrainSec        = 0.5    // car 3's gap behind car 1: they reach an 80% out-lap 2.5 s apart
+	trafficPitExitAfterSec = 1.5    // car 4 passes the pit exit this long after the player leaves the pit lane
+	trafficLeaverOutSec    = 20.0   // car 5 leaves its garage this far into the first wait...
+	trafficLeaverTrackSec  = 15.0   // ...and goes back after this long on track
+	trafficCars            = 6
+	trafficStartSec        = 1080
+	trafficPlayerPosition  = 12
 )
 
 // The stages of the player's run.
@@ -63,9 +73,11 @@ type trafficSim struct {
 	scale    float64 // push-pace speed over the profile's
 	stage    int
 	stageSec float64
-	runs     int           // the runs the player started
-	cars     [3]trafficCar // the player, the push-lap car, the slow car
-	passed   [3]bool       // the car went by the player this approach
+	runs     int                     // the runs the player started
+	cars     [trafficCars]trafficCar // the player and the cars with a part (see above)
+	passed   [trafficCars]bool       // the car went by the player this approach
+	leaverAt float64                 // the session seconds car 5 came out of the pit lane (0: not yet)
+	clock    float64                 // session seconds since the scenario started
 }
 
 func newTrafficSim() *trafficSim {
@@ -80,7 +92,9 @@ func newTrafficSim() *trafficSim {
 	t.scale = profileSec / (float64(s[0]+s[1]+s[2]) / 1000)
 	t.cars[0] = trafficCar{lapNum: 1, status: packets.DriverStatusInGarage, pit: packets.PitStatusInPitArea}
 	t.cars[1] = trafficCar{lapNum: 1, status: packets.DriverStatusFlyingLap, pit: packets.PitStatusNone, share: 1}
-	t.cars[2] = trafficCar{lapNum: 1, status: packets.DriverStatusInGarage, pit: packets.PitStatusInPitArea}
+	for i := 2; i < trafficCars; i++ {
+		t.cars[i] = trafficCar{lapNum: 1, status: packets.DriverStatusInGarage, pit: packets.PitStatusInPitArea}
+	}
 	return t
 }
 
@@ -133,12 +147,14 @@ func (t *trafficSim) stretchEnd(m float64) float64 {
 
 // step runs the scenario on by dt seconds.
 func (t *trafficSim) step(dt float64) {
-	var gaps [3]float64
+	var gaps [trafficCars]float64
 	for i := 1; i < len(t.cars); i++ {
 		gaps[i] = t.approachGap(i)
 	}
 	p := &t.cars[0]
 	t.stageSec += dt
+	t.clock += dt
+	t.moveLeaver(dt)
 	prevLap := p.lapNum
 	switch t.stage {
 	case trafficGarage:
@@ -151,6 +167,9 @@ func (t *trafficSim) step(dt float64) {
 			t.runs++
 			t.setStage(trafficPitLane)
 			p.status, p.pit, p.lapM = packets.DriverStatusOutLap, packets.PitStatusPitting, simPitExitM-trafficPitLaneM
+			// Car 1 waits for the out-lap; car 4 comes past the pit exit as the player joins.
+			t.garage(1)
+			t.push(4, t.behindBy(simPitExitM, trafficPitLaneM/(trafficPitLimitKmh/3.6)+trafficPitExitAfterSec))
 		}
 	case trafficPitLane:
 		p.speedMps = trafficPitLimitKmh / 3.6
@@ -158,11 +177,9 @@ func (t *trafficSim) step(dt float64) {
 		if p.lapM >= simPitExitM {
 			t.setStage(trafficOutLap)
 			p.pit, p.share = packets.PitStatusNone, trafficOutLapShare
-			// Car 1 starts its push lap behind the player.
-			c := &t.cars[1]
-			c.status, c.pit, c.share, c.lapNum = packets.DriverStatusFlyingLap, packets.PitStatusNone, 1, p.lapNum
-			c.lapM = t.behindBy(p.lapM, trafficBehindStartSec)
-			t.passed[1] = false
+			// Car 1 starts its push lap behind the player, car 3 right behind it.
+			t.push(1, t.behindBy(p.lapM, trafficBehindStartSec))
+			t.push(3, t.behindBy(t.cars[1].lapM, trafficTrainSec))
 		}
 	case trafficOutLap, trafficPushLap, trafficInLap:
 		t.drive(p, dt)
@@ -176,6 +193,8 @@ func (t *trafficSim) step(dt float64) {
 			c.status, c.pit, c.share, c.lapNum = packets.DriverStatusInLap, packets.PitStatusNone, trafficSlowShare, p.lapNum
 			c.lapM, c.lapTimeMs = trafficSlowAheadM, 0
 			t.passed[2] = false
+			t.garage(3)
+			t.garage(4)
 		case trafficPushLap:
 			t.setStage(trafficInLap)
 			p.status, p.share = packets.DriverStatusInLap, trafficInLapShare
@@ -192,12 +211,41 @@ func (t *trafficSim) step(dt float64) {
 			continue
 		}
 		t.drive(c, dt)
-		t.notePass(i, gaps[i])
+		if i != 5 {
+			t.notePass(i, gaps[i])
+		}
 	}
 }
 
-// notePass logs the moment car 1 went by the player, or the player went by car 2: the gap from the
-// one behind to the one ahead (gapBefore last frame) wrapped past half a lap.
+// push puts car i on a push lap at lap distance lapM, on the player's lap.
+func (t *trafficSim) push(i int, lapM float64) {
+	c := &t.cars[i]
+	c.status, c.pit, c.share, c.lapNum, c.lapM = packets.DriverStatusFlyingLap, packets.PitStatusNone, 1, t.cars[0].lapNum, lapM
+	t.passed[i] = false
+}
+
+// moveLeaver drives car 5 out of its garage down the pit lane early in the first wait, onto the
+// track at the pit exit, and back to its garage a while later.
+func (t *trafficSim) moveLeaver(dt float64) {
+	c := &t.cars[5]
+	switch {
+	case t.runs == 0 && t.stage == trafficGarage && c.status == packets.DriverStatusInGarage && t.leaverAt == 0 &&
+		t.stageSec >= trafficLeaverOutSec:
+		c.status, c.pit, c.lapM = packets.DriverStatusOutLap, packets.PitStatusPitting, simPitExitM-trafficPitLaneM
+	case c.pit == packets.PitStatusPitting:
+		c.speedMps = trafficPitLimitKmh / 3.6
+		c.lapM += c.speedMps * dt
+		if c.lapM >= simPitExitM {
+			c.pit, c.share, t.leaverAt = packets.PitStatusNone, trafficOutLapShare, t.clock
+			slog.Info("Traffic scenario pit exit", "car", 5, "lap_m", int(c.lapM))
+		}
+	case c.pit == packets.PitStatusNone && t.leaverAt > 0 && t.clock-t.leaverAt >= trafficLeaverTrackSec:
+		t.garage(5)
+	}
+}
+
+// notePass logs the moment a push-lap car went by the player, or the player went by car 2: the gap
+// from the one behind to the one ahead (gapBefore last frame) wrapped past half a lap.
 func (t *trafficSim) notePass(i int, gapBefore float64) {
 	if t.passed[i] || t.cars[0].pit != packets.PitStatusNone || gapBefore > simTrackLengthM/2 ||
 		t.approachGap(i) < simTrackLengthM/2 {
@@ -207,7 +255,8 @@ func (t *trafficSim) notePass(i int, gapBefore float64) {
 	slog.Info("Traffic scenario pass", "car", i, "player_lap_m", int(t.cars[0].lapM))
 }
 
-// approachGap is how far the car behind (car 1, or the player behind car 2) is from the one ahead.
+// approachGap is how far the car behind (a push-lap car, or the player behind car 2) is from the one
+// ahead.
 func (t *trafficSim) approachGap(i int) float64 {
 	from, to := t.cars[i].lapM, t.cars[0].lapM
 	if i == 2 {

@@ -49,7 +49,7 @@ type trackProfiles struct {
 // trackProfile is what was learned about one track.
 type trackProfile struct {
 	entryM []float32 // lap distances cars started pitting at, oldest first
-	exitM  []float32 // lap distances race stops left the pit lane at
+	exitM  []float32 // lap distances cars left the pit lane at: race stops, and runs out of the garage
 	laneMs []float32 // time race stops spent in the pit lane, ms
 	// quiet is, for each QuietBinM stretch of the lap, the share of the player's samples there
 	// that were flat out, off the brakes and straight, averaged over laps; speed is the player's
@@ -130,6 +130,14 @@ func (t *trackProfile) entry() float32 {
 	return median(t.entryM)
 }
 
+// exit is the learned pit exit of the track as a lap distance in metres, or 0 when not known yet.
+func (t *trackProfile) exit() float32 {
+	if t == nil {
+		return 0
+	}
+	return median(t.exitM)
+}
+
 // median is the middle of samples (the mean of the middle two for an even count), or 0 for none.
 func median(samples []float32) float32 {
 	if len(samples) == 0 {
@@ -155,7 +163,8 @@ func addSample(samples []float32, v float32, keep int) []float32 {
 
 // learnPitLane records the pit lanes of the cars between prev and next: where cars started
 // pitting, and in a race, how long a stop kept them in the pit lane and where they left it. A
-// stop to serve a penalty, a drive-through and a car going to its garage aren't timed.
+// stop to serve a penalty, a drive-through and a car going to its garage aren't timed. Outside
+// races the pit exit is where a car leaving its garage comes out of the pit lane.
 func (p *trackProfiles) learnPitLane(session *packets.PacketSessionData, prev, next *packets.PacketLapData) {
 	if session == nil || prev == nil || session.TrackId < 0 || session.TrackLength == 0 {
 		return
@@ -172,6 +181,11 @@ func (p *trackProfiles) learnPitLane(session *packets.PacketSessionData, prev, n
 			learned = true
 		}
 		if !race {
+			if leftPitLane(prev.LapData[i], after) && onLap(after.LapDistance) {
+				t := p.learning(session.TrackId)
+				t.exitM = addSample(t.exitM, after.LapDistance, PitLaneMaxSamples)
+				learned = true
+			}
 			continue
 		}
 
@@ -489,7 +503,7 @@ func (p *trackProfiles) load(raw string) error {
 			t.quiet, t.speed, t.quietLaps = slices.Clone(s.Quiet), slices.Clone(s.SpeedMps), s.QuietLaps
 		}
 		t.push = slices.Clone(s.PushMps)
-		if len(t.entryM) == 0 && len(t.laneMs) == 0 && len(t.quiet) == 0 && len(t.push) == 0 {
+		if len(t.entryM) == 0 && len(t.exitM) == 0 && len(t.laneMs) == 0 && len(t.quiet) == 0 && len(t.push) == 0 {
 			continue
 		}
 		p.tracks[int8(track)] = t
