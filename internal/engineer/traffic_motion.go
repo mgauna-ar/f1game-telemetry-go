@@ -74,8 +74,8 @@ func (m *carMotion) sample(p *packets.PacketLapData, sessionTime, trackLen float
 
 // add records a car at lap distance lapM at session time nowMs, and reports the step it drove
 // from the last sample (ok false when none). A sample closer than motionSampleMs to the last is
-// left out. A step no car could drive (faster than MaxCarSpeedMps, nearly a lap) starts the
-// samples again.
+// left out. A step back of up to MaxStepBackM is standing still. A step no car could drive
+// (faster than MaxCarSpeedMps, nearly a lap) starts the samples again.
 func (t *carTrack) add(nowMs int64, lapM, trackLen float32) (from motionSample, step float64, ok bool) {
 	if t.n == 0 {
 		t.ring[t.start], t.n = motionSample{sessionMs: nowMs, lapM: lapM}, 1
@@ -95,6 +95,9 @@ func (t *carTrack) add(nowMs int64, lapM, trackLen float32) (from motionSample, 
 		return motionSample{}, 0, false
 	}
 	step = float64(trackGapM(last.lapM, lapM, trackLen))
+	if trackGapM(lapM, last.lapM, trackLen) <= MaxStepBackM {
+		step = 0 // a step back: standing still
+	}
 	if step > MaxCarSpeedMps*float64(nowMs-last.sessionMs)/1000 || step > 0.9*float64(trackLen) {
 		*t = carTrack{}
 		return t.add(nowMs, lapM, trackLen)
@@ -224,6 +227,22 @@ func pushingShare(ctx *EvaluationContext, idx int, prof paceProfile) float64 {
 		return now
 	}
 	return share
+}
+
+// racingShare is car idx's pace share at race pace: the larger of what it ran over the long
+// window and its last lap (the profile's lap over its last lap time), so a car held up a moment
+// still counts at its pace; 0 while neither is known. A last lap quicker than LastLapMaxShare
+// wasn't a whole one.
+func racingShare(ctx *EvaluationContext, idx int, prof paceProfile) float64 {
+	share, _ := ctx.Motion.paceShare(idx, PaceWindowLongMs, prof)
+	if ctx.LapData != nil && idx >= 0 && idx < len(ctx.LapData.LapData) {
+		if last := ctx.LapData.LapData[idx].LastLapTimeInMS; last > 0 {
+			if lap := prof.lapSec() / msToSec(last); lap <= LastLapMaxShare {
+				share = max(share, lap)
+			}
+		}
+	}
+	return max(share, 0)
 }
 
 // slowShare is the pace share of car idx that isn't pushing: the slower of what it ran over the

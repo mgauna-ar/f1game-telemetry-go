@@ -74,12 +74,6 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
 		},
-		"flags_blue": {
-			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeNone,
-			MinRepeatMs: BlueFlagMinRepeatMs,
-		},
 		"flags_yellow": {
 			Category:           DirectiveCategoryFlags,
 			ValidPhases:        []DrivingPhase{PhaseRaceStart, PhaseRacing, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
@@ -266,7 +260,7 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 3. Status-based Flags (Blue Flag, Yellow Flag)
+	// 3. Status-based Flags (Yellow Flag; the blue flag is the race traffic rule's)
 	if ctx.Status != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
 		if fia := r.evaluateFIAFlags(ctx); fia != nil {
 			directives = append(directives, *fia)
@@ -581,8 +575,8 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 	return nil
 }
 
-// evaluateFIAFlags calls the flag shown to the player when it changes: a yellow in any session, a
-// blue in races (in qualifying and practice the car behind on a push lap is its own call).
+// evaluateFIAFlags calls a yellow flag shown to the player when the flag changes to it, in any
+// session. The blue flag is the race traffic rule's, which says the car it is for.
 func (r *FlagsRule) evaluateFIAFlags(ctx *EvaluationContext) *Directive {
 	status := ctx.PlayerStatus()
 	if status == nil {
@@ -593,31 +587,17 @@ func (r *FlagsRule) evaluateFIAFlags(ctx *EvaluationContext) *Directive {
 		return nil
 	}
 	r.lastVehicleFIAFlag = flag
-
-	switch flag {
-	case packets.VehicleFIAFlagBlue:
-		if !ctx.IsRaceSession() {
-			return nil
-		}
-		return &Directive{
-			ID:       "flags_blue",
-			Category: DirectiveCategoryFlags,
-			SubAlert: "flags_blue",
-			Title:    "Blue Flag",
-			Message:  "Blue flags! Leader is approaching from behind, yield position cleanly.",
-			Urgency:  UrgencyHigh,
-		}
-	case packets.VehicleFIAFlagYellow:
-		return &Directive{
-			ID:       "flags_yellow",
-			Category: DirectiveCategoryFlags,
-			SubAlert: "flags_yellow",
-			Title:    "Yellow Flag",
-			Message:  "Yellow flag in this sector. Careful, be ready to lift.",
-			Urgency:  UrgencyHigh,
-		}
+	if flag != packets.VehicleFIAFlagYellow {
+		return nil
 	}
-	return nil
+	return &Directive{
+		ID:       "flags_yellow",
+		Category: DirectiveCategoryFlags,
+		SubAlert: "flags_yellow",
+		Title:    "Yellow Flag",
+		Message:  "Yellow flag in this sector. Careful, be ready to lift.",
+		Urgency:  UrgencyHigh,
+	}
 }
 
 func (r *FlagsRule) evaluateRedFlag(p *packets.PacketSessionData) *Directive {

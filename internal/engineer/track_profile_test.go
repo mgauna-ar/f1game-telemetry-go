@@ -216,8 +216,19 @@ func TestTrackProfiles_LearnTheQuietStretches(t *testing.T) {
 		t.Errorf("bin 25 = %v at %v m/s, bin 10 = %v; want quiet at 80 m/s, and not quiet", p.quiet[25], p.speed[25], p.quiet[10])
 	}
 
-	// A lap with the straight cut short moves the average by the latest lap's weight.
-	driveQuietLap(lanes, QuietLearnMinLaps+1, 1000, 1500)
+	// A lap lifting half way down the straight moves the average by the latest lap's weight.
+	lap := QuietLearnMinLaps + 1
+	for d := float32(0); d < 5000; d += 10 {
+		tele := &packets.CarTelemetryData{Speed: 120, Brake: 0.6, Steer: 0.4}
+		if d >= 1000 && d < 2000 {
+			tele = &packets.CarTelemetryData{Speed: 288, Throttle: 1}
+			if d >= 1500 {
+				tele.Throttle = 0.5
+			}
+		}
+		lanes.sampleQuiet(3, 5000, lap, d, tele)
+	}
+	lanes.endQuietLap(lap + 1)
 	if want := float32(1 - QuietLapWeight); p.quiet[35] != want || p.quiet[25] != 1 {
 		t.Errorf("after a different lap: bin 35 = %v, bin 25 = %v; want %v and 1", p.quiet[35], p.quiet[25], want)
 	}
@@ -231,6 +242,24 @@ func TestTrackProfiles_LearnTheQuietStretches(t *testing.T) {
 		lanes.sampleQuiet(3, 5000, 21, d, &packets.CarTelemetryData{Speed: 288, Throttle: 1})
 	}
 	lanes.endQuietLap(22) // half a lap
+	// A spin: nearly stopped for a moment.
+	for d := float32(0); d < 5000; d += 10 {
+		tele := &packets.CarTelemetryData{Speed: 288, Throttle: 1}
+		if d >= 3000 && d < 3020 {
+			tele.Speed = 20
+		}
+		lanes.sampleQuiet(3, 5000, 23, d, tele)
+	}
+	lanes.endQuietLap(24)
+	// Limping round the straight at half its speed or less.
+	for d := float32(0); d < 5000; d += 10 {
+		tele := &packets.CarTelemetryData{Speed: 120, Brake: 0.6, Steer: 0.4}
+		if d >= 1000 && d < 2000 {
+			tele = &packets.CarTelemetryData{Speed: 140, Throttle: 1}
+		}
+		lanes.sampleQuiet(3, 5000, 25, d, tele)
+	}
+	lanes.endQuietLap(26)
 	driveQuietLap(lanes, 30, 0, 5000)
 	lanes.endQuietLap(33)
 	if p.quietLaps != before+1 {

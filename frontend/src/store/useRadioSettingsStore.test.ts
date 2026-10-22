@@ -328,7 +328,7 @@ describe('useRadioSettingsStore and slices', () => {
 
   it('gives switches added since the setup was saved their preset value, and saves them', async () => {
     const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(2));
-    const addedSince = ['subAeroZones', 'subFlags'];
+    const addedSince = ['subAeroZones', 'subFlags', 'subRaceTraffic'];
     const switches = Object.fromEntries(
       ALERT_TOGGLE_KEYS.filter((key) => !addedSince.includes(key)).map((key) => [
         key,
@@ -349,6 +349,7 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
     expect(state.subAeroZones).toBe(false);
     expect(state.subFlags).toBe(true);
+    expect(state.subRaceTraffic).toBe(true);
     expect(putSpy).toHaveBeenCalledTimes(1);
     expect(engineerBody(putSpy).alert_switches?.subAeroZones).toBe(false);
     expect(engineerBody(putSpy).alert_switches?.subFlags).toBe(true);

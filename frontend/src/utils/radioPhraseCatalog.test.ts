@@ -9,7 +9,11 @@ import {
   RADIO_PHRASE_CATALOG,
   REPORT_PHRASES,
 } from './radioPhrases';
-import { RADIO_ALERT_CATEGORIES, TRAFFIC_CALL_CATEGORIES } from '../constants/radioAlertCategories';
+import {
+  NO_CALLSIGN_CATEGORIES,
+  RADIO_ALERT_CATEGORIES,
+  TRAFFIC_CALL_CATEGORIES,
+} from '../constants/radioAlertCategories';
 import type { RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
 import type {
@@ -45,6 +49,14 @@ const CALL_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues[]>> = {
   qualy_traffic: [{ ahead: { gap_sec: 1.5 } }],
   qualy_traffic_ahead: [{ ahead: { gap_sec: 3.1, reach_sec: 8 } }],
   qualy_traffic_ahead_now: [{ ahead: { gap_sec: 0.8 } }],
+  race_slow_car_ahead: [{ ahead: { gap_sec: 5.4, reach_sec: 8 } }],
+  race_stopped_car_ahead: [{ ahead: { gap_sec: 10.8, reach_sec: 8 } }],
+  race_slow_car_ahead_now: [{ ahead: { gap_sec: 0.6 } }],
+  race_car_behind: [{ behind: { gap_sec: 10.8, reach_sec: 8 } }],
+  race_car_behind_two: [{ behind: { gap_sec: 10.8, reach_sec: 8 } }],
+  race_car_behind_now: [{ behind: { gap_sec: 0.6 } }],
+  race_car_behind_close: [{ behind: { gap_sec: 0.4 } }],
+  race_pit_exit_traffic: [{ behind: { gap_sec: 1.5 } }],
   qualy_session_time: [{ minutes: 3 }],
   qualy_session_time_garage: [{ minutes: 3 }],
   qualy_elimination_danger: [{ position: 16, minutes: 3 }, { position: 16 }],
@@ -66,6 +78,8 @@ const CALL_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues[]>> = {
   rival_attack_drs: [{ ahead: { gap_sec: 0.8, trend: 'closing', per_lap_sec: 0.2 } }, { ahead: { gap_sec: 0.8 } }],
   rival_attack_override: [{ ahead: { gap_sec: 0.9, trend: 'closing', per_lap_sec: 0.3 } }, { ahead: { gap_sec: 0.9 } }],
   rival_defend: [{ behind: { gap_sec: 0.6, trend: 'closing', per_lap_sec: 0.2 } }, { behind: { gap_sec: 0.6 } }],
+  flags_blue: [{ behind: { gap_sec: 1.5 } }],
+  flags_blue_two: [{ behind: { gap_sec: 1.5 } }],
   rival_defend_drs: [{ behind: { gap_sec: 0.6, trend: 'closing', per_lap_sec: 0.2 } }, { behind: { gap_sec: 0.6 } }],
   rival_defend_override: [
     { behind: { gap_sec: 0.7, trend: 'closing', per_lap_sec: 0.2 } },
@@ -177,6 +191,20 @@ const COMMON: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
 
 /** The calls the engine sends as critical or high: the callsign is always said, and they are kept short. */
 const URGENT: ReadonlySet<RadioAlertCategory> = new Set<RadioAlertCategory>([
+  'rival_defend',
+  'rival_defend_drs',
+  'rival_defend_override',
+  'flags_blue_two',
+  'flags_blue_clear',
+  'race_slow_car_ahead',
+  'race_stopped_car_ahead',
+  'race_slow_car_ahead_now',
+  'race_car_behind',
+  'race_car_behind_two',
+  'race_car_behind_now',
+  'race_car_behind_close',
+  'race_car_behind_clear',
+  'race_pit_exit_traffic',
   'safety_car',
   'safety_car_box',
   'vsc',
@@ -346,11 +374,21 @@ describe('the radio phrase catalog', () => {
       }
     });
 
-    it('starts a traffic call with the warning: no callsign and no filler before it', () => {
-      for (const category of TRAFFIC_CALL_CATEGORIES) {
+    it('starts a call said without the callsign with what matters: no callsign and no filler before it', () => {
+      for (const category of NO_CALLSIGN_CATEGORIES) {
         for (const template of allTemplates(catalog[category])) {
           expect(template, `${category}: ${template}`).not.toContain('{driver}');
           expect(template, `${category}: ${template}`).not.toMatch(/^[¡¿]?(okay|ok|ojo|vale)\b/i);
+        }
+      }
+    });
+
+    it('says the gap to the car right behind early in the defend call', () => {
+      for (const category of ['rival_defend', 'rival_defend_drs', 'rival_defend_override'] as RadioAlertCategory[]) {
+        for (const template of allTemplates(catalog[category])) {
+          const gapAt = template.split(/\s+/).findIndex((w) => w.includes('{gap}'));
+          if (gapAt >= 0) expect(gapAt, `${category}: ${template}`).toBeLessThan(5);
+          expect(template, `${category}: ${template}`).not.toContain('{rate}');
         }
       }
     });

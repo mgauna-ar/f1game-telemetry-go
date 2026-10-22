@@ -643,10 +643,16 @@ function cacheRadioAudio(cacheKey: string, audio: ArrayBuffer): void {
   }
 }
 
-/** Returns the synthesized audio from the cache, a request already in flight, or a new request. */
+/**
+ * Returns the synthesized audio from the cache, a request already in flight, or a new request. A
+ * hit counts as a use, so the lines said or synthesized ahead again and again stay cached.
+ */
 function fetchRadioSpeechAudio(request: RadioSpeechRequest): Promise<ArrayBuffer> {
   const cached = ttsAudioMemoryCache.get(request.cacheKey);
-  if (cached) return Promise.resolve(cached);
+  if (cached) {
+    cacheRadioAudio(request.cacheKey, cached);
+    return Promise.resolve(cached);
+  }
 
   const inFlight = ttsInFlightRequests.get(request.cacheKey);
   if (inFlight) return inFlight;

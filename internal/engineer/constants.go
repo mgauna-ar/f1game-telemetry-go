@@ -25,6 +25,7 @@ const (
 	EngineTempMinRepeatMs = 60_000
 	TrafficMinRepeatMs    = 1_500 // a second car on a push lap gets its own call
 	TrafficMaxDelayMs     = 2_500 // a traffic call says when a car arrives: a few seconds later it is wrong
+	BattleMinRepeatMs     = 3_000 // a new car right behind gets its defend call; the same car is called once per approach
 	MaxSpeechTTLMs        = 15_000
 	MinSpeechTTLMs        = 2_000
 	SilenceMaxHoldMs      = 180_000 // the longest a condition call waits out radio silence (a formation lap and the start)
@@ -324,6 +325,31 @@ const (
 	WeatherStepHoldMs = 20_000
 	// TrackTempSwingC: the track temperature moving this much in a stint is said.
 	TrackTempSwingC = 6
+	// Blue flags: a car a lap up (half a lap or more ahead on the race distance) behind the player
+	// on the road within BlueFlagRoadSec is the one the flag is for; another within
+	// BlueFlagTrainSec behind it is said in the same call.
+	BlueFlagRoadSec  = 3.0
+	BlueFlagTrainSec = 2.0
+	// LastLapMaxShare: a car's last lap at more than this share of the pace profile's isn't a whole
+	// lap (it joined part way round), so its race pace isn't taken from it.
+	LastLapMaxShare = 1.15
+	// Race traffic: a car ahead on the road is slow when both its pace windows are at or under
+	// RaceSlowShare of the pace profile, at least RaceTrafficMinClosingShare under the player's
+	// race pace, and stopped under RaceStoppedShare over the short window. A car called slow is
+	// forgotten once it runs over RaceSlowClearShare again. A car slow within PitEntryGuardM
+	// before the pit entry may be pitting, so isn't called unless it stopped.
+	RaceSlowShare              = 0.7
+	RaceSlowClearShare         = 0.85
+	RaceStoppedShare           = 0.1
+	RaceTrafficMinClosingShare = 0.25
+	PitEntryGuardM             = 300.0
+	// MaxStepBackM: a car's lap distance stepping back by up to this much (a spin, a stopped car's
+	// jitter) is standing still, not nearly a lap driven.
+	MaxStepBackM = 25.0
+	// A lap of the player's on which they dropped under QuietSpoilKmh, or under QuietSpoilShare
+	// of the learned speed in a bin (a spin, an off, limping), isn't learned from.
+	QuietSpoilKmh   = 30.0
+	QuietSpoilShare = 0.5
 
 	// 2026 Active Aero & Override thresholds
 	ActiveAeroAnticipationDistanceM    = 100 // Metres before Straight Mode zone to alert driver

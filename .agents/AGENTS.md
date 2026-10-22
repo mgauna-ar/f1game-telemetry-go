@@ -12,8 +12,8 @@ Boundaries, invariants and verification gates.
   6. **Production Build:** `npm run build` (`tsc -b && vite build`, 0 errors).
   7. **Reporting:** Real test counts, lint, build results.
 * **UDP Simulator (`cmd/simulator`) & Helpers:**
-  - `make simulate` (2026: 22 cars + 2 observers; `FORMAT=2025`: 20 + 2) or `simulate.bat` sends every packet type at 20Hz.
-  - Scenarios (`-scenario <name>`): `wear`, `sc`, `vsc`, `rain`, `start`, `pit`, `strategy`, `qualy`, `traffic`. `run.bat` runs the embedded Windows build.
+  - `make simulate` (2026: 22 cars + 2 observers; `FORMAT=2025`: 20+2) or `simulate.bat` sends all packets at 20Hz.
+  - Scenarios (`-scenario <name>`): `wear`, `sc`, `vsc`, `rain`, `start`, `pit`, `strategy`, `qualy`, `traffic`, `racetraffic`. `run.bat`: embedded Windows build.
 
 ## 2. Clean Code, Constants & Principles
 * **Zero Magic Numbers / Literals:** No hardcoded numbers, status codes or hex colors in Go/TS.

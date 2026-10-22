@@ -496,12 +496,14 @@ func TestTrafficRule_NoPushNowAfterThePitExitCall(t *testing.T) {
 	}
 	for _, tt := range []struct {
 		name    string
+		key     string
 		saidAgo int64 // ms since the pit exit call (-1: never)
 		want    bool
 	}{
-		{"no pit exit call", -1, true},
-		{"just after one", 2000, false},
-		{"long after one", PitExitCallFreshMs + 1000, true},
+		{"no pit exit call", "qualy_pit_exit_traffic", -1, true},
+		{"just after one", "qualy_pit_exit_traffic", 2000, false},
+		{"long after one", "qualy_pit_exit_traffic", PitExitCallFreshMs + 1000, true},
+		{"just after one in a race", "race_pit_exit_traffic", 2000, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			rule := NewTrafficRule()
@@ -509,7 +511,7 @@ func TestTrafficRule_NoPushNowAfterThePitExitCall(t *testing.T) {
 			rule.Evaluate(ctx)
 			ctx.Status = status(0)
 			if tt.saidAgo >= 0 {
-				ctx.LastSaid["qualy_pit_exit_traffic"] = ctx.Now - tt.saidAgo
+				ctx.LastSaid[tt.key] = ctx.Now - tt.saidAgo
 			}
 			if got := directiveFor(rule.Evaluate(ctx), "pit_limiter_exit") != nil; got != tt.want {
 				t.Fatalf("push now %v, want %v", got, tt.want)

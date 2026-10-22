@@ -166,6 +166,7 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		NewFlagsRule(),
 		NewTeammateRule(),
 		NewTrafficRule(),
+		NewRaceTrafficRule(),
 		NewReportsRule(),
 	}
 
@@ -352,9 +353,15 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		e.pitEntries = pitLaneEntries(e.latestLapData, p)
 		if s := e.latestSession; s != nil {
 			trackLen := float32(s.TrackLength)
-			e.motion.sample(p, header.SessionTime, trackLen, func(lapM float32, mps float64) {
-				e.profiles.learnPushSpeed(s.TrackId, trackLen, lapM, mps)
-			})
+			// Push speeds are learned in timed sessions only: in a race, the cars marked on a push
+			// lap may be behind a Safety Car, starting, or crawling back.
+			var learnPush func(lapM float32, mps float64)
+			if !packets.IsRaceSession(s.SessionType) {
+				learnPush = func(lapM float32, mps float64) {
+					e.profiles.learnPushSpeed(s.TrackId, trackLen, lapM, mps)
+				}
+			}
+			e.motion.sample(p, header.SessionTime, trackLen, learnPush)
 			if e.playerCarIndex >= 0 && e.playerCarIndex < len(p.LapData) {
 				e.profiles.savePushSpeeds(int(p.LapData[e.playerCarIndex].CurrentLapNum))
 			}

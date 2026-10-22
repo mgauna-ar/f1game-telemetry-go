@@ -137,14 +137,26 @@ func TestAudioCache(t *testing.T) {
 		t.Errorf("failed to get key1 from cache")
 	}
 
-	// Adding 4th item should evict key1 (oldest)
+	// A 4th item evicts the one used longest ago: key2, since key1 was just read.
 	cache.Set("key4", []byte("audio4"))
 
-	if _, ok := cache.Get("key1"); ok {
-		t.Errorf("expected key1 to be evicted from cache")
+	if _, ok := cache.Get("key2"); ok {
+		t.Errorf("expected key2 to be evicted from cache")
 	}
-	if data, ok := cache.Get("key4"); !ok || string(data) != "audio4" {
-		t.Errorf("failed to get key4 from cache")
+	for _, key := range []string{"key1", "key3", "key4"} {
+		if _, ok := cache.Get(key); !ok {
+			t.Errorf("expected %s to stay in the cache", key)
+		}
+	}
+
+	// Setting a key again counts as a use too.
+	cache.Set("key1", []byte("audio1b"))
+	cache.Set("key5", []byte("audio5"))
+	if _, ok := cache.Get("key3"); ok {
+		t.Errorf("expected key3 to be evicted from cache")
+	}
+	if data, ok := cache.Get("key1"); !ok || string(data) != "audio1b" {
+		t.Errorf("failed to get the new key1 from cache")
 	}
 }
 

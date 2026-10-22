@@ -142,6 +142,10 @@ const (
 	cooldownRivalNews   = "rival_news"
 	cooldownPitNews     = "pit_news"
 	cooldownWeatherNews = "weather_news"
+	// The attack calls keep theirs, so a defend call doesn't hold them back; the race traffic calls
+	// (blue flags) keep theirs, so they don't hold back the other flags news.
+	cooldownBattleAhead = "battle_ahead"
+	cooldownRaceTraffic = "race_traffic"
 )
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -290,7 +294,8 @@ type DirectiveValues struct {
 	// the one a stop would rejoin in (pit plan heads-up, clean air).
 	Position int `json:"position,omitempty"`
 	// Ahead and Behind are the cars close in front and behind: in the gap report, nil when there
-	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about.
+	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about;
+	// on a blue flag, the car lapping the player.
 	Ahead  *GapToCar `json:"ahead,omitempty"`
 	Behind *GapToCar `json:"behind,omitempty"`
 	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).

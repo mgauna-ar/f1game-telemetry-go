@@ -240,6 +240,22 @@ describe('useProactiveRadioCalls', () => {
     );
   });
 
+  it('says a blue flag and the car right behind without the callsign; the blue flag cuts in and outlasts push-to-talk', () => {
+    const { send, speak } = setup();
+    send(call({ directiveId: 'directive_8_flags_blue', category: 'flags_blue_two', isCritical: true }));
+    expect(prepare).toHaveBeenLastCalledWith('flags_blue_two', expect.objectContaining({ callsign: undefined }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
+    send(call({ directiveId: 'directive_9_flags_blue_clear', category: 'flags_blue_clear', isCritical: true }));
+    expect(prepare).toHaveBeenLastCalledWith('flags_blue_clear', expect.objectContaining({ callsign: undefined }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: false, keptOnPtt: false }));
+    send(call({ directiveId: 'directive_10_rival_defend', category: 'rival_defend_drs', isCritical: true }));
+    expect(prepare).toHaveBeenLastCalledWith('rival_defend_drs', expect.objectContaining({ callsign: undefined }));
+    // The defend call cuts routine speech as any urgent call does, but doesn't cut an urgent one.
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: false, keptOnPtt: false }));
+    send(call({ directiveId: 'directive_11_flags_yellow', category: 'flags_yellow', isCritical: true }));
+    expect(prepare).toHaveBeenLastCalledWith('flags_yellow', expect.objectContaining({ callsign: 'Max' }));
+  });
+
   it('keeps a traffic call with no number through a push-to-talk press, not one with a number', () => {
     const { send, speak } = setup();
     send(call({ directiveId: 'directive_5_inlap_traffic_close', category: 'inlap_traffic_close', isCritical: true }));
@@ -248,6 +264,46 @@ describe('useProactiveRadioCalls', () => {
     expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: false }));
     send(call({ directiveId: 'directive_7_inlap_traffic_clear', category: 'inlap_traffic_clear', isCritical: true }));
     expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: false, keptOnPtt: false }));
+  });
+
+  it('says a slow or stopped car ahead in a race without the callsign, cutting in; right there outlasts push-to-talk', () => {
+    const { send, speak } = setup();
+    send(
+      call({ directiveId: 'directive_12_race_slow_car_ahead', category: 'race_stopped_car_ahead', isCritical: true })
+    );
+    expect(prepare).toHaveBeenLastCalledWith(
+      'race_stopped_car_ahead',
+      expect.objectContaining({ callsign: undefined })
+    );
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: false }));
+    send(
+      call({ directiveId: 'directive_13_race_slow_car_ahead', category: 'race_slow_car_ahead_now', isCritical: true })
+    );
+    expect(prepare).toHaveBeenLastCalledWith(
+      'race_slow_car_ahead_now',
+      expect.objectContaining({ callsign: undefined })
+    );
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
+  });
+
+  it('says the cars coming on a slow driver without the callsign; the ones with no number outlast push-to-talk', () => {
+    const { send, speak } = setup();
+    send(call({ directiveId: 'directive_14_race_car_behind', category: 'race_car_behind_two', isCritical: true }));
+    expect(prepare).toHaveBeenLastCalledWith('race_car_behind_two', expect.objectContaining({ callsign: undefined }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: false }));
+    send(
+      call({ directiveId: 'directive_15_race_car_behind_close', category: 'race_car_behind_close', isCritical: true })
+    );
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
+    send(
+      call({ directiveId: 'directive_16_race_car_behind_clear', category: 'race_car_behind_clear', isCritical: true })
+    );
+    expect(prepare).toHaveBeenLastCalledWith('race_car_behind_clear', expect.objectContaining({ callsign: undefined }));
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: false, keptOnPtt: false }));
+    send(
+      call({ directiveId: 'directive_17_race_pit_exit_traffic', category: 'race_pit_exit_traffic', isCritical: true })
+    );
+    expect(speak.mock.calls.at(-1)?.[4]).toEqual(expect.objectContaining({ cutIn: true, keptOnPtt: true }));
   });
 
   it('notes when the call came and whether the page was in front', async () => {
