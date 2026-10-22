@@ -75,7 +75,7 @@ type pitLaneVisit struct {
 type quietLap struct {
 	track   int8
 	lapNum  int  // the player's lap being sampled; 0 when none
-	spoiled bool // a flashback took the lap back: its samples aren't one lap
+	spoiled bool // a flashback took the lap back, or the player nearly stopped: not one lap at pace
 	samples []uint16
 	quiet   []uint16
 	speed   []float32 // sum of the samples' speeds, m/s
@@ -251,6 +251,9 @@ func (p *trackProfiles) sampleQuiet(track int8, trackLength float32, lapNum int,
 		return
 	}
 	b := min(int(lapDistance/QuietBinM), bins-1)
+	if float64(tele.Speed) < QuietSpoilKmh {
+		q.spoiled = true // a spin, an off, a stop: not the lap's pace
+	}
 	q.samples[b]++
 	q.speed[b] += float32(tele.Speed) / 3.6
 	if isQuietSample(tele) {
@@ -271,7 +274,8 @@ func (p *trackProfiles) spoilQuietLap() {
 }
 
 // endQuietLap folds the player's lap into the track's quiet stretches once they start lap nextLap:
-// only a whole lap, sampled at racing pace (no pit stop, Safety Car or flashback in it).
+// only a whole lap, sampled at racing pace (no pit stop, Safety Car or flashback in it, never
+// under QuietSpoilKmh or QuietSpoilShare of the speed learned in a bin).
 func (p *trackProfiles) endQuietLap(nextLap int) {
 	q := p.lap
 	if q.lapNum == 0 || nextLap == q.lapNum {
@@ -293,6 +297,11 @@ func (p *trackProfiles) endQuietLap(nextLap int) {
 	t := p.learning(q.track)
 	if len(t.quiet) != len(q.samples) {
 		t.quiet, t.speed, t.quietLaps = make([]float32, len(q.samples)), make([]float32, len(q.samples)), 0
+	}
+	for b, n := range q.samples {
+		if n > 0 && t.speed[b] > 0 && q.speed[b]/float32(n) < QuietSpoilShare*t.speed[b] {
+			return
+		}
 	}
 	for b, n := range q.samples {
 		if n == 0 {

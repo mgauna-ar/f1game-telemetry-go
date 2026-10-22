@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { RADIO_LINE } from '../constants/f1';
 import {
-  TRAFFIC_CALL_CATEGORIES,
+  NO_CALLSIGN_CATEGORIES,
   TRAFFIC_CUT_IN_CATEGORIES,
   TRAFFIC_KEPT_ON_PTT_CATEGORIES,
 } from '../constants/radioAlertCategories';
@@ -58,8 +58,8 @@ export function useProactiveRadioCalls(radio: ProactiveRadio): void {
     const call = prepareProactiveRadioCall(payload.category, {
       language: r.effectiveLanguage,
       persona: r.persona,
-      // A traffic call starts with the warning, not the driver's name.
-      callsign: TRAFFIC_CALL_CATEGORIES.has(payload.category) ? undefined : r.driverCallsign,
+      // A traffic call, a blue flag or the car right behind starts with the warning, not the driver's name.
+      callsign: NO_CALLSIGN_CATEGORIES.has(payload.category) ? undefined : r.driverCallsign,
       box: payload.box,
       values: payload.values,
       urgent: payload.isCritical,

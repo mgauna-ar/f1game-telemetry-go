@@ -72,6 +72,7 @@ export const ALERT_TOGGLE_KEYS = [
   'subTrackLimits',
   'subPenalties',
   'subFlags',
+  'subRaceTraffic',
   'subRaceEvents',
 ] as const satisfies readonly EngineerAlertSwitch[];
 
@@ -153,6 +154,7 @@ export const TRIGGER_PRESET_VALUES: Record<NamedTriggerPreset, TriggerPresetValu
     subTrackLimits: true,
     subPenalties: true,
     subFlags: true,
+    subRaceTraffic: true,
     subRaceEvents: true,
   },
   [RADIO_TRIGGER_PRESETS.COACHING]: {
@@ -219,6 +221,7 @@ export const TRIGGER_PRESET_VALUES: Record<NamedTriggerPreset, TriggerPresetValu
     subTrackLimits: true,
     subPenalties: true,
     subFlags: true,
+    subRaceTraffic: true,
     subRaceEvents: true,
   },
   [RADIO_TRIGGER_PRESETS.MINIMAL]: {
@@ -285,6 +288,7 @@ export const TRIGGER_PRESET_VALUES: Record<NamedTriggerPreset, TriggerPresetValu
     subTrackLimits: false,
     subPenalties: true,
     subFlags: true,
+    subRaceTraffic: true,
     subRaceEvents: false,
   },
 };

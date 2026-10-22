@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"math/bits"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -54,7 +55,9 @@ type AITTSRequest struct {
 	Pitch    string `json:"pitch,omitempty"` // e.g. "+0Hz"
 }
 
-// AudioCache holds cached synthesized MP3 chunks in memory for instant replay.
+// AudioCache holds cached synthesized MP3 chunks in memory for instant replay. When it is full, the
+// entry used longest ago goes: a hit counts as a use, so the lines said or synthesized ahead again
+// and again (the pit wall's traffic calls) stay.
 type AudioCache struct {
 	mu    sync.RWMutex
 	items map[string][]byte
@@ -69,9 +72,12 @@ var globalTTSCache = &AudioCache{
 }
 
 func (c *AudioCache) Get(key string) ([]byte, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	data, ok := c.items[key]
+	if ok {
+		c.touchLocked(key)
+	}
 	return data, ok
 }
 
@@ -81,6 +87,7 @@ func (c *AudioCache) Set(key string, data []byte) {
 
 	if _, exists := c.items[key]; exists {
 		c.items[key] = data
+		c.touchLocked(key)
 		return
 	}
 
@@ -91,6 +98,14 @@ func (c *AudioCache) Set(key string, data []byte) {
 	}
 
 	c.items[key] = data
+	c.order = append(c.order, key)
+}
+
+// touchLocked makes key the entry used last.
+func (c *AudioCache) touchLocked(key string) {
+	if i := slices.Index(c.order, key); i >= 0 {
+		c.order = slices.Delete(c.order, i, i+1)
+	}
 	c.order = append(c.order, key)
 }
 

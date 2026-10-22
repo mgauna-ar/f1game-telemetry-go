@@ -6,7 +6,7 @@ import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { SessionData } from '../types/telemetry';
 import { createRadioPhrasePicker } from '../utils/radioPhrases';
 import { CRITICAL_EMOTION } from './useProactiveTelemetryRadio';
-import { trafficCallLines, useTrafficCallPrefetch } from './useTrafficCallPrefetch';
+import { raceCallLines, trafficCallLines, useTrafficCallPrefetch } from './useTrafficCallPrefetch';
 
 const inSession = (sessionType: number) =>
   useSessionStatusStore.setState({ session: { SessionType: sessionType } as SessionData });
@@ -79,12 +79,35 @@ describe('useTrafficCallPrefetch', () => {
     expect(prefetchMessage).toHaveBeenLastCalledWith(trafficCallLines('en', 'bono', 11)[0], CRITICAL_EMOTION);
   });
 
-  it('does nothing in a race or with the radio off', () => {
+  it('synthesizes the blue flag and slow car calls in a race', async () => {
     inSession(SESSION_TYPES.RACE);
-    const { radio, prefetchMessage } = fakeRadio();
-    renderHook(() => useTrafficCallPrefetch(radio)).unmount();
+    const { radio, prefetchMessage, finishOne } = fakeRadio();
+    renderHook(() => useTrafficCallPrefetch(radio));
+
+    const lines = raceCallLines('en', 'bono', 8);
+    for (let i = 1; i < lines.length; i++) await finishOne();
+    expect(prefetchMessage.mock.calls.map((c: unknown[]) => c[0])).toEqual(lines);
+    const picker = createRadioPhrasePicker();
+    for (let i = 0; i < 5; i++) {
+      expect(lines).toContain(picker.proactive('flags_blue', { language: 'en', persona: 'bono' }));
+      expect(lines).toContain(picker.proactive('flags_blue_two', { language: 'en', persona: 'bono' }));
+      expect(lines).toContain(picker.proactive('flags_blue_clear', { language: 'en', persona: 'bono' }));
+      const ahead = { ahead: { gap_sec: 6.2, reach_sec: 8 } };
+      for (const category of ['race_slow_car_ahead', 'race_stopped_car_ahead'] as const) {
+        expect(lines).toContain(
+          picker.proactive(category, { language: 'en', persona: 'bono', urgent: true, values: ahead })
+        );
+      }
+      expect(lines).toContain(picker.proactive('race_slow_car_ahead_now', { language: 'en', persona: 'bono' }));
+    }
+  });
+
+  it('does nothing with the radio off or no session', () => {
     inSession(SESSION_TYPES.Q2);
-    renderHook(() => useTrafficCallPrefetch({ ...radio, isRadioEnabled: false }));
+    const { radio, prefetchMessage } = fakeRadio();
+    renderHook(() => useTrafficCallPrefetch({ ...radio, isRadioEnabled: false })).unmount();
+    useSessionStatusStore.setState({ session: null });
+    renderHook(() => useTrafficCallPrefetch(radio));
     expect(prefetchMessage).not.toHaveBeenCalled();
   });
 });

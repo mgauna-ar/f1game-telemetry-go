@@ -309,7 +309,7 @@ func TestFlagsRule_Unit(t *testing.T) {
 		t.Fatalf("expected flags_sc_in directive, got %+v", dirsSCEvt)
 	}
 
-	// 5. Blue Flag & Yellow Flag from CarStatus
+	// 5. Yellow Flag from CarStatus; the blue flag is the race traffic rule's
 	ctxBlueFlag := &EvaluationContext{
 		Session: sessionPktClear,
 		Status: &packets.PacketCarStatusData{
@@ -321,9 +321,8 @@ func TestFlagsRule_Unit(t *testing.T) {
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
 	}
-	dirsBlue := rule.Evaluate(ctxBlueFlag)
-	if len(dirsBlue) != 1 || dirsBlue[0].SubAlert != "flags_blue" {
-		t.Fatalf("expected flags_blue directive, got %+v", dirsBlue)
+	if dirsBlue := rule.Evaluate(ctxBlueFlag); len(dirsBlue) != 0 {
+		t.Fatalf("expected no call from the flags rule for a blue flag, got %+v", dirsBlue)
 	}
 
 	ctxYellowFlag := &EvaluationContext{

@@ -1,0 +1,282 @@
+package main
+
+import (
+	"cmp"
+	"log/slog"
+	"math"
+	"slices"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
+)
+
+// The race traffic scenario (a Grand Prix) drives a small field in real time on the traffic
+// scenario's lap, so the engineer's race calls can be checked against when the cars really meet:
+//   - lap 1: everyone at race pace, so the engineer learns the player's speeds;
+//   - lap 2: car 1, raceBattleSec behind the player from the start, stays there for the first half
+//     of the lap (a defend call), then drops back;
+//   - lap 3: the player is slower, and cars 2 and 3, a lap up, close on them from
+//     raceLapperBehindSec behind, raceLapperTrainSec apart. The player's flag turns blue once car 2
+//     is raceBlueFlagSec behind, and stays blue until both went by;
+//   - lap 4: car 4 stands stopped on a straight at raceStoppedAtM (a stopped car call), and goes
+//     out of the race raceSlowGoneSec after the player went by it. Then car 5 runs
+//     raceSlowAheadM ahead of the player at raceSlowShare (a slow car call), and speeds up to
+//     race pace once the player went by it.
+//
+// The other cars take no part. The scenario logs "Race scenario pass" as a car goes by the player,
+// or the player by a car.
+const (
+	raceCars             = 6
+	raceShare            = 0.97 // race pace, as a share of the push pace
+	raceBattleSec        = 0.8
+	raceBattleUntilM     = simTrackLengthM / 2
+	raceDropBackShare    = 0.9
+	raceLappedShare      = 0.9 // the player's pace on the lap they are lapped
+	raceLapperShare      = 1.0
+	raceLapperBehindSec  = 3.0
+	raceLapperTrainSec   = 0.8
+	raceBlueFlagSec      = 1.0
+	raceBlueFlagAfterSec = 1.0 // the flag stays blue this long after the last lapping car went by
+	raceLappedLap        = 3
+	raceStartM           = 200.0 // where the player is on lap 1 as the scenario starts
+	raceSlowLap          = raceLappedLap + 1
+	raceStoppedAtM       = 2100.0 // on the lap's longest straight
+	raceSlowGoneSec      = 5.0
+	raceSlowAheadM       = 800.0
+	raceSlowShare        = 0.5
+)
+
+// raceTrafficSim is the race traffic scenario's state.
+type raceTrafficSim struct {
+	simProfile
+	cars   [raceCars]trafficCar // the player and the cars with a part (see above)
+	active [raceCars]bool       // the car is in the race; the lapping cars join on raceLappedLap
+	passed [raceCars]bool       // the car went by the player this approach, or the player by it
+	// goneAt is the clock seconds car 4 goes out of the race (0: not set).
+	goneAt float64
+	// blue is whether the player's flag is blue, and blueUntil the clock seconds it stays blue
+	// until once the lapping cars went by (0: until then).
+	blue      bool
+	blueUntil float64
+	clock     float64 // session seconds since the scenario started
+}
+
+func newRaceTrafficSim() *raceTrafficSim {
+	t := &raceTrafficSim{simProfile: newSimProfile()}
+	t.placeAt(0, raceStartM)
+	t.cars[0].share = raceShare
+	t.active[0] = true
+	t.placeAt(1, raceStartM-t.secOverBehind(raceStartM, raceBattleSec, raceShare))
+	t.cars[1].share = raceShare
+	t.active[1] = true
+	return t
+}
+
+// total is how far car i has driven in the race, in metres.
+func (t *raceTrafficSim) total(i int) float64 {
+	c := t.cars[i]
+	return float64(c.lapNum-1)*simTrackLengthM + c.lapM
+}
+
+// placeAt puts car i at total metres into the race, on track.
+func (t *raceTrafficSim) placeAt(i int, total float64) {
+	c := &t.cars[i]
+	lap := math.Floor(total / simTrackLengthM)
+	c.lapNum, c.lapM = uint8(lap+1), total-lap*simTrackLengthM
+	c.status, c.pit = packets.DriverStatusOnTrack, packets.PitStatusNone
+}
+
+// secOverBehind is how many metres behind lap distance m a car at share of the push pace runs sec
+// seconds back.
+func (t *raceTrafficSim) secOverBehind(m, sec, share float64) float64 {
+	back := t.behindBy(m, sec*share)
+	return math.Mod(m-back+2*simTrackLengthM, simTrackLengthM)
+}
+
+// step runs the scenario on by dt seconds.
+func (t *raceTrafficSim) step(dt float64) {
+	var gaps [raceCars]float64
+	for i := 1; i < raceCars; i++ {
+		gaps[i] = t.gapBehind(i)
+	}
+	t.clock += dt
+	p := &t.cars[0]
+	prevLap := p.lapNum
+	t.drive(p, dt)
+	if p.lapNum != prevLap {
+		t.startLap()
+	}
+	for i := 1; i < raceCars; i++ {
+		if !t.active[i] {
+			continue
+		}
+		c := &t.cars[i]
+		if i == 1 && c.share == raceShare && p.lapNum == 2 && p.lapM >= raceBattleUntilM {
+			c.share = raceDropBackShare
+			slog.Info("Race scenario battle over", "car", 1)
+		}
+		t.drive(c, dt)
+		if i >= 4 {
+			t.notePlayerPass(i, gaps[i])
+		} else {
+			t.notePass(i, gaps[i])
+		}
+	}
+	t.updateSlowCars()
+	t.updateFlag()
+}
+
+// startLap sets up the player's new lap.
+func (t *raceTrafficSim) startLap() {
+	p := &t.cars[0]
+	slog.Info("Race scenario lap", "lap", p.lapNum)
+	switch p.lapNum {
+	case raceLappedLap:
+		// Two cars a lap up close from behind on a slower player.
+		p.share = raceLappedShare
+		lapper := t.total(0) + simTrackLengthM - t.secOverBehind(p.lapM, raceLapperBehindSec, raceLapperShare)
+		t.placeAt(2, lapper)
+		t.placeAt(3, lapper-t.secOverBehind(t.cars[2].lapM, raceLapperTrainSec, raceLapperShare))
+		for _, i := range []int{2, 3} {
+			c := &t.cars[i]
+			c.share, t.active[i], t.passed[i] = raceLapperShare, true, false
+			// Its lap times are as if it had raced here: from the line, and a whole lap before.
+			c.lapTimeMs = uint32(math.Round(t.secOver(0, c.lapM, c.share) * 1000))
+			c.lastLapMs = uint32(math.Round(t.secOver(0, simTrackLengthM, c.share) * 1000))
+		}
+	case raceSlowLap:
+		p.share = raceShare
+		// A car stopped on the straight ahead, as if it had raced to there.
+		t.placeAt(4, t.total(0)-p.lapM+raceStoppedAtM)
+		t.cars[4].share, t.active[4], t.passed[4] = 0, true, false
+		t.cars[4].lastLapMs = uint32(math.Round(t.secOver(0, simTrackLengthM, raceShare) * 1000))
+	}
+}
+
+// updateSlowCars moves the lap's slow cars on once the player went by them: car 4 goes out of
+// the race raceSlowGoneSec later, and car 5 comes out raceSlowAheadM ahead at raceSlowShare;
+// car 5 speeds up to race pace once the player went by it.
+func (t *raceTrafficSim) updateSlowCars() {
+	switch {
+	case t.active[4] && t.passed[4] && t.goneAt == 0:
+		t.goneAt = t.clock + raceSlowGoneSec
+		t.placeAt(5, t.total(0)+raceSlowAheadM)
+		c := &t.cars[5]
+		c.share, t.active[5], t.passed[5] = raceSlowShare, true, false
+		c.lapTimeMs = uint32(math.Round(t.secOver(0, c.lapM, raceShare) * 1000))
+		c.lastLapMs = uint32(math.Round(t.secOver(0, simTrackLengthM, raceShare) * 1000))
+		slog.Info("Race scenario slow car", "car", 5, "ahead_m", raceSlowAheadM, "share", raceSlowShare)
+	case t.active[4] && t.goneAt > 0 && t.clock >= t.goneAt:
+		t.active[4] = false
+	case t.active[5] && t.passed[5] && t.cars[5].share == raceSlowShare:
+		t.cars[5].share = raceShare
+	}
+}
+
+// gapBehind is how far car i runs behind the player on the road, in metres, in [0, lap).
+func (t *raceTrafficSim) gapBehind(i int) float64 {
+	return math.Mod(t.cars[0].lapM-t.cars[i].lapM+2*simTrackLengthM, simTrackLengthM)
+}
+
+// notePass logs the moment car i went by the player: its gap behind wrapped past half a lap.
+func (t *raceTrafficSim) notePass(i int, gapBefore float64) {
+	if t.passed[i] || gapBefore > simTrackLengthM/2 || t.gapBehind(i) < simTrackLengthM/2 {
+		return
+	}
+	t.passed[i] = true
+	slog.Info("Race scenario pass", "car", i, "player_lap_m", int(t.cars[0].lapM))
+}
+
+// notePlayerPass logs the moment the player went by car i: its gap behind them wrapped back under
+// half a lap.
+func (t *raceTrafficSim) notePlayerPass(i int, gapBefore float64) {
+	if t.passed[i] || gapBefore < simTrackLengthM/2 || t.gapBehind(i) > simTrackLengthM/2 {
+		return
+	}
+	t.passed[i] = true
+	slog.Info("Race scenario pass", "car", i, "by", "player", "player_lap_m", int(t.cars[0].lapM))
+}
+
+// updateFlag shows the player the blue flag once car 2, a lap up, is raceBlueFlagSec behind, until
+// raceBlueFlagAfterSec after both lapping cars went by.
+func (t *raceTrafficSim) updateFlag() {
+	if !t.active[2] {
+		return
+	}
+	switch {
+	case !t.blue && !t.passed[2] && t.secBehind(2) <= raceBlueFlagSec:
+		t.blue = true
+		slog.Info("Race scenario blue flag", "car", 2, "road_sec", math.Round(t.secBehind(2)*10)/10)
+	case t.blue && t.blueUntil == 0 && t.passed[2] && t.passed[3]:
+		t.blueUntil = t.clock + raceBlueFlagAfterSec
+	case t.blue && t.blueUntil > 0 && t.clock >= t.blueUntil:
+		t.blue = false
+	}
+}
+
+// secBehind is how many seconds car i runs behind the player on the road, at its pace.
+func (t *raceTrafficSim) secBehind(i int) float64 {
+	return t.secOver(t.cars[i].lapM, t.gapBehind(i), t.cars[i].share)
+}
+
+// playerFlag is the flag shown to the player.
+func (t *raceTrafficSim) playerFlag() int8 {
+	if t.blue {
+		return packets.VehicleFIAFlagBlue
+	}
+	return packets.VehicleFIAFlagGreen
+}
+
+// applyLap writes car i's part of the scenario into its lap data: the cars in the race by race
+// distance, the gaps between them at their pace; the cars without a part sit out the race.
+func (t *raceTrafficSim) applyLap(i int, l *packets.LapData) {
+	if i >= raceCars || !t.active[i] {
+		*l = packets.LapData{DriverStatus: packets.DriverStatusInGarage, ResultStatus: packets.ResultStatusInactive}
+		return
+	}
+	order := t.order()
+	pos := slices.Index(order, i)
+	c := t.cars[i]
+	*l = packets.LapData{
+		DriverStatus:       c.status,
+		PitStatus:          c.pit,
+		ResultStatus:       packets.ResultStatusActive,
+		CurrentLapNum:      c.lapNum,
+		LapDistance:        float32(c.lapM),
+		TotalDistance:      float32(t.total(i)),
+		CarPosition:        uint8(pos + 1),
+		GridPosition:       uint8(i + 1),
+		CurrentLapTimeInMS: c.lapTimeMs,
+		LastLapTimeInMS:    c.lastLapMs,
+		Sector:             uint8(min(int(c.lapM/(simTrackLengthM/3)), 2)),
+	}
+	if pos > 0 {
+		l.DeltaToCarInFrontMinutesPart, l.DeltaToCarInFrontMSPart = splitMS(t.secOver(c.lapM, t.total(order[pos-1])-t.total(i), c.share))
+		l.DeltaToRaceLeaderMinutesPart, l.DeltaToRaceLeaderMSPart = splitMS(t.secOver(c.lapM, t.total(order[0])-t.total(i), c.share))
+	}
+}
+
+// order is the cars in the race, first to last by race distance.
+func (t *raceTrafficSim) order() []int {
+	var order []int
+	for i := range t.cars {
+		if t.active[i] {
+			order = append(order, i)
+		}
+	}
+	slices.SortFunc(order, func(a, b int) int { return cmp.Compare(t.total(b), t.total(a)) })
+	return order
+}
+
+// splitMS splits sec into the lap data's minutes and milliseconds parts.
+func splitMS(sec float64) (minutes uint8, ms uint16) {
+	total := int(math.Round(sec * 1000))
+	return uint8(total / 60_000), uint16(total % 60_000)
+}
+
+// speedKmh is car i's speed for its telemetry.
+func (t *raceTrafficSim) speedKmh(i int) uint16 {
+	if i >= raceCars || !t.active[i] {
+		return 0
+	}
+	return uint16(t.cars[i].speedMps * 3.6)
+}

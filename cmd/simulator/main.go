@@ -177,7 +177,7 @@ type SimulatorConfig struct {
 func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
-	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1), traffic (Q1 in real time: push-lap traffic)")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, strategy, qualy (runs Q1), traffic (Q1 in real time: push-lap traffic), racetraffic (a race in real time: a battle, blue flags, a stopped and a slow car ahead)")
 	targetFlag := flag.String("target", getEnv("F1T_SIM_TARGET", defaultSimTarget()), "UDP address to send packets to (defaults to the server's F1T_UDP_ADDR port on 127.0.0.1)")
 	flag.Parse()
 
@@ -261,6 +261,7 @@ type simState struct {
 	lightsOn        bool                   // the start lights came on (start scenario)
 	lightsOut       bool                   // the start lights went out (start scenario)
 	traffic         *trafficSim            // the traffic scenario's cars; nil in the others
+	raceTraffic     *raceTrafficSim        // the race traffic scenario's cars; nil in the others
 }
 
 func main() {
@@ -302,6 +303,9 @@ func main() {
 	case cfg.Scenario == "traffic":
 		st.sessionTimeLeft = trafficStartSec
 		st.traffic = newTrafficSim()
+	case cfg.Scenario == "racetraffic":
+		st.sessionTimeLeft = 2400
+		st.raceTraffic = newRaceTrafficSim()
 	case cfg.Scenario == "qualy":
 		st.sessionTimeLeft = simQualyStartSec
 	case cfg.IsQualifying:
@@ -389,6 +393,15 @@ func main() {
 				if speedKmh < 200 {
 					throttle, brake = 0.2, simBrakingForce
 				}
+			case "racetraffic":
+				st.raceTraffic.step(sendInterval.Seconds())
+				player := st.raceTraffic.cars[0]
+				st.lapNum, st.lapTimeMs, lapDist = player.lapNum, player.lapTimeMs, float32(player.lapM)
+				speedKmh = st.raceTraffic.speedKmh(0)
+				throttle, brake = 1, 0
+				if speedKmh < 200 {
+					throttle, brake = 0.2, simBrakingForce
+				}
 			case "qualy":
 				if simQualyStage(st.lapNum) == simQualyGarage {
 					speedKmh = 0
@@ -435,8 +448,8 @@ func main() {
 				}
 			}
 
-			// 1b. Periodic Event Packet (ID: 3)
-			if st.frameID%120 == 40 {
+			// 1b. Periodic Event Packet (ID: 3); the race traffic scenario's race has none
+			if st.frameID%120 == 40 && st.raceTraffic == nil {
 				evtPkt := buildEventPacket(header, st.frameID, st.lapNum)
 				sendEventPacket(conn, &evtPkt)
 			}
@@ -458,6 +471,11 @@ func main() {
 			if st.traffic != nil {
 				for i := range telemetryCars {
 					telemetryCars[i].Speed = st.traffic.speedKmh(i)
+				}
+			}
+			if st.raceTraffic != nil {
+				for i := range telemetryCars {
+					telemetryCars[i].Speed = st.raceTraffic.speedKmh(i)
 				}
 			}
 			sendTelemetryPacket(conn, header, cfg.TotalSlots, telemetryCars, cfg.PacketFormat)
@@ -574,7 +592,7 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 		Sector2LapDistanceStart:   1750.0,
 		Sector3LapDistanceStart:   3500.0,
 	}
-	if cfg.Scenario == "traffic" {
+	if cfg.Scenario == "traffic" || cfg.Scenario == "racetraffic" {
 		sessionPkt.PitSpeedLimit = trafficPitLimitKmh
 	}
 
@@ -920,6 +938,9 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			if st.traffic != nil {
 				st.traffic.applyLap(i, &lapCars[i])
 			}
+			if st.raceTraffic != nil {
+				st.raceTraffic.applyLap(i, &lapCars[i])
+			}
 		} else {
 			// Observers / Spectators
 			lapCars[i] = packets.LapData{
@@ -974,6 +995,9 @@ func simDRSAllowed(cfg SimulatorConfig, st *simState, carIdx int) uint8 {
 // simFIAFlag is the flag a car sees: yellow for every car while the sc/vsc scenario neutralises
 // the race, and for the player in sector 2 of the qualifying scenario's push lap.
 func simFIAFlag(cfg SimulatorConfig, st *simState, carIdx int) int8 {
+	if st.raceTraffic != nil && carIdx == 0 {
+		return st.raceTraffic.playerFlag()
+	}
 	neutralised := cfg.Scenario == "sc" || cfg.Scenario == "safetycar" || cfg.Scenario == "vsc"
 	if neutralised && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
 		return packets.VehicleFIAFlagYellow

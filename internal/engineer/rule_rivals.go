@@ -54,11 +54,14 @@ func (r *RivalsRule) ValidPhases() []DrivingPhase {
 
 func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
+		// The defend calls are urgent: a new car right behind is called a few seconds after the last.
 		"rival_defend": {
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
 			MaxDelayMs:              MomentMaxDelayMs,
+			MinRepeatMs:             BattleMinRepeatMs,
+			SpeechMs:                TrafficSpeechMs,
 		},
 		"rival_defend_override": {
 			Category:                DirectiveCategoryRivals,
@@ -66,12 +69,15 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
 			MaxDelayMs:              MomentMaxDelayMs,
+			MinRepeatMs:             BattleMinRepeatMs,
+			SpeechMs:                TrafficSpeechMs,
 		},
 		"rival_attack": {
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
 			MaxDelayMs:              MomentMaxDelayMs,
+			CooldownGroup:           cooldownBattleAhead,
 		},
 		"rival_attack_override": {
 			Category:                DirectiveCategoryRivals,
@@ -79,6 +85,7 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
 			MaxDelayMs:              MomentMaxDelayMs,
+			CooldownGroup:           cooldownBattleAhead,
 		},
 		"aero_straight_anticipation": {
 			Category:      DirectiveCategoryRivals,
@@ -354,8 +361,9 @@ func rivalPenaltyCall(ctx *EvaluationContext, i int, ahead bool) (Directive, boo
 }
 
 // defendCall warns of car i, right behind, once it comes within RivalGapSec; the same car is
-// called again only after dropping back past the threshold. DRS is only said when the car behind
-// can use it (not on the first laps, in the wet or when race control has it off).
+// called again only after dropping back past the threshold. It is urgent: said at once, even under
+// braking, since the driver must know before the next straight. DRS is only said when the car
+// behind can use it (not on the first laps, in the wet or when race control has it off).
 func (r *RivalsRule) defendCall(ctx *EvaluationContext, i, playerPos int, is2026 bool) (Directive, bool) {
 	gapSec := raceGapSec(ctx, ctx.PlayerCarIndex, i)
 	if r.lastDrsWarningIndex == i && (gapSec > float64(ctx.Config.RivalGapSec+RivalRearmHysteresisSec) || ctx.CallLost(r.defendKey, r.defendAt, MomentMaxDelayMs)) {
@@ -391,7 +399,7 @@ func (r *RivalsRule) defendCall(ctx *EvaluationContext, i, playerPos int, is2026
 		SubAlert: subAlert,
 		Title:    title,
 		Message:  msg,
-		Urgency:  UrgencyMedium,
+		Urgency:  UrgencyHigh,
 		Values:   &DirectiveValues{Behind: gap},
 	}, true
 }

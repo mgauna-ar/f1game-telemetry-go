@@ -505,6 +505,27 @@ describe('radioAudio utils', () => {
       await flush();
       expect(fetchMock).toHaveBeenCalledTimes(limit + 2);
     });
+
+    it('keeps a clip that is used: the one used longest ago goes first', async () => {
+      const fetchMock = mockTTSFetch();
+      const limit = RADIO_AUDIO_CONSTANTS.TTS_CACHE_MAX_ENTRIES;
+
+      for (let i = 0; i < limit; i++) {
+        prefetchRadioSpeech(`Sentence ${i}.`);
+      }
+      await flush();
+      prefetchRadioSpeech('Sentence 0.'); // a hit: used again
+      prefetchRadioSpeech(`Sentence ${limit}.`);
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(limit + 1);
+
+      prefetchRadioSpeech('Sentence 0.');
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(limit + 1);
+      prefetchRadioSpeech('Sentence 1.');
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(limit + 2);
+    });
   });
 
   describe('getting a call to the driver without timers', () => {

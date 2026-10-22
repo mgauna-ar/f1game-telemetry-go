@@ -154,15 +154,15 @@ func TestEngineerEngine_ReportsAndAeroZonesKeepTheirOwnCooldown(t *testing.T) {
 		})
 	}
 
-	// The battle calls still share theirs.
+	// The attack calls keep their own: a defend call doesn't hold them back once the radio is free.
 	r := newTimedRace(t)
-	r.make("rival_defend", UrgencyMedium)
+	r.make("rival_defend", UrgencyHigh)
 	r.tick(0)
-	r.tick(afterRadio)
+	r.tick(time.Duration(RadioDeliveryLatencyMs+TrafficSpeechMs+GlobalRadioChatterCooldownMs) * time.Millisecond)
 	r.make("rival_attack", UrgencyMedium)
 	r.tick(0)
-	if n := spoken(t, r.b, "rival_attack"); n != 0 {
-		t.Errorf("the attack call right after a defend call was said %d times, want it held by the rivals cooldown", n)
+	if n := spoken(t, r.b, "rival_attack"); n != 1 {
+		t.Errorf("the attack call after a defend call was said %d times, want once: not held by the defend call's cooldown", n)
 	}
 }
 

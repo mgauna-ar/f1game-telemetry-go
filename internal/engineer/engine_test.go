@@ -1552,7 +1552,7 @@ func TestEngineerEngine_NeutralizationLifecycleAndFIAFlags(t *testing.T) {
 		t.Fatalf("expected flags_green directive upon safety car period ending")
 	}
 
-	// 4. Blue Flag from CarStatusData
+	// 4. Blue Flag from CarStatusData, said on the next lap data
 	statusBlue := &packets.PacketCarStatusData{
 		Header: header,
 		CarStatusData: [packets.MaxCars]packets.CarStatusData{
@@ -1560,6 +1560,7 @@ func TestEngineerEngine_NeutralizationLifecycleAndFIAFlags(t *testing.T) {
 		},
 	}
 	engine.ProcessPacket(ctx, statusBlue)
+	engine.ProcessPacket(ctx, lapPkt)
 
 	if _, exists := engine.lastDirectives["flags_blue"]; !exists {
 		t.Fatalf("expected flags_blue directive when driver is shown blue flags")

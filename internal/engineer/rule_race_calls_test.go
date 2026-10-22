@@ -386,3 +386,46 @@ func TestFinalLap(t *testing.T) {
 		}
 	})
 }
+
+// The defend call is urgent: said at once under braking, right after an attack call, and for a
+// new car right behind a few seconds after the last.
+func TestRivalsRule_DefendSaidAtOnce(t *testing.T) {
+	t.Run("under braking", func(t *testing.T) {
+		r := newRivalRace(t)
+		r.e.ProcessPacket(context.Background(), &packets.PacketCarTelemetryData{Header: r.h,
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{{Brake: 0.9, Speed: 120}}})
+		r.lap.LapData[rrBehind].DeltaToCarInFrontMSPart = 800
+		r.send()
+		calls := spokenCalls(t, r.b, "rival_defend")
+		if len(calls) != 1 || calls[0].Urgency != UrgencyHigh {
+			t.Fatalf("defend calls under braking = %+v, want one, urgent", calls)
+		}
+	})
+	t.Run("right after an attack call", func(t *testing.T) {
+		r := newRivalRace(t)
+		r.lap.LapData[rrPlayer].DeltaToCarInFrontMSPart = 1000
+		r.send()
+		if n := spoken(t, r.b, "rival_attack"); n != 1 {
+			t.Fatalf("attack calls = %d, want 1", n)
+		}
+		r.lap.LapData[rrBehind].DeltaToCarInFrontMSPart = 800
+		r.send()
+		if n := spoken(t, r.b, "rival_defend"); n != 1 {
+			t.Fatalf("defend calls a second after the attack call = %d, want 1", n)
+		}
+	})
+	t.Run("a new car right behind 4 s after the last", func(t *testing.T) {
+		r := newRivalRace(t)
+		r.lap.LapData[rrBehind].DeltaToCarInFrontMSPart = 800
+		r.send()
+		// The car behind goes by the next car, which comes within a second.
+		r.clock.advance(3 * time.Second)
+		r.lap.LapData[rrBehind].CarPosition = 7
+		r.lap.LapData[3] = packets.LapData{CurrentLapNum: 10, CarPosition: 6, LapDistance: 1200, TotalDistance: 46_150,
+			DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusActive, DeltaToCarInFrontMSPart: 700}
+		r.send()
+		if n := spoken(t, r.b, "rival_defend"); n != 2 {
+			t.Fatalf("defend calls = %d, want 2: one per car", n)
+		}
+	})
+}

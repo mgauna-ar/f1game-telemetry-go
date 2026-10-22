@@ -68,9 +68,26 @@ type trafficCar struct {
 	speedMps  float64
 }
 
+// simProfile is the lap's shape in time (trafficProfileSegments), scaled so a push lap takes the
+// player's simulated lap time: the traffic scenarios drive their cars on it.
+type simProfile struct {
+	scale float64 // push-pace speed over the profile's
+}
+
+func newSimProfile() simProfile {
+	var profileSec float64
+	from := 0.0
+	for _, seg := range trafficProfileSegments {
+		profileSec += (seg.toM - from) / seg.mps
+		from = seg.toM
+	}
+	s := simSectorsMS(0, 1)
+	return simProfile{scale: profileSec / (float64(s[0]+s[1]+s[2]) / 1000)}
+}
+
 // trafficSim is the scenario's state.
 type trafficSim struct {
-	scale    float64 // push-pace speed over the profile's
+	simProfile
 	stage    int
 	stageSec float64
 	runs     int                     // the runs the player started
@@ -81,15 +98,7 @@ type trafficSim struct {
 }
 
 func newTrafficSim() *trafficSim {
-	t := &trafficSim{}
-	var profileSec float64
-	from := 0.0
-	for _, seg := range trafficProfileSegments {
-		profileSec += (seg.toM - from) / seg.mps
-		from = seg.toM
-	}
-	s := simSectorsMS(0, 1)
-	t.scale = profileSec / (float64(s[0]+s[1]+s[2]) / 1000)
+	t := &trafficSim{simProfile: newSimProfile()}
 	t.cars[0] = trafficCar{lapNum: 1, status: packets.DriverStatusInGarage, pit: packets.PitStatusInPitArea}
 	t.cars[1] = trafficCar{lapNum: 1, status: packets.DriverStatusFlyingLap, pit: packets.PitStatusNone, share: 1}
 	for i := 2; i < trafficCars; i++ {
@@ -99,31 +108,51 @@ func newTrafficSim() *trafficSim {
 }
 
 // speedAt is the push-pace speed at lap distance m, in m/s.
-func (t *trafficSim) speedAt(m float64) float64 {
+func (p simProfile) speedAt(m float64) float64 {
 	m = math.Mod(m, simTrackLengthM)
 	for _, seg := range trafficProfileSegments {
 		if m < seg.toM {
-			return seg.mps * t.scale
+			return seg.mps * p.scale
 		}
 	}
-	return trafficProfileSegments[len(trafficProfileSegments)-1].mps * t.scale
+	return trafficProfileSegments[len(trafficProfileSegments)-1].mps * p.scale
 }
 
-// behindBy is the lap distance dt seconds of car 1's push pace behind lap distance m.
-func (t *trafficSim) behindBy(m, dt float64) float64 {
+// behindBy is the lap distance dt seconds of push pace behind lap distance m.
+func (p simProfile) behindBy(m, dt float64) float64 {
 	for left := dt; left > 0; left -= 0.05 {
-		m -= t.speedAt(math.Mod(m+simTrackLengthM, simTrackLengthM)) * min(0.05, left)
+		m -= p.speedAt(math.Mod(m+simTrackLengthM, simTrackLengthM)) * min(0.05, left)
 	}
 	return math.Mod(m+2*simTrackLengthM, simTrackLengthM)
 }
 
+// secOver is how long length metres of the lap from lap distance m take at share of the push pace.
+func (p simProfile) secOver(m, length, share float64) float64 {
+	var sec float64
+	m = math.Mod(m+simTrackLengthM, simTrackLengthM)
+	for left := length; left > 1e-9; {
+		step := min(p.stretchEnd(m)-m, left)
+		sec += step / (share * p.speedAt(m))
+		left -= step
+		if m += step; m >= simTrackLengthM-1e-9 {
+			m = 0
+		}
+	}
+	return sec
+}
+
 // drive moves car c on by dt seconds at its share of the profile, counting its laps. A step
-// that reaches the end of a stretch goes on at the next stretch's speed from there.
-func (t *trafficSim) drive(c *trafficCar, dt float64) {
+// that reaches the end of a stretch goes on at the next stretch's speed from there. A car with
+// no share stands still.
+func (p simProfile) drive(c *trafficCar, dt float64) {
 	c.lapTimeMs += uint32(math.Round(dt * 1000))
+	if c.share <= 0 {
+		c.speedMps = 0
+		return
+	}
 	for left := dt; left > 1e-9; {
-		c.speedMps = c.share * t.speedAt(c.lapM)
-		end := t.stretchEnd(c.lapM)
+		c.speedMps = c.share * p.speedAt(c.lapM)
+		end := p.stretchEnd(c.lapM)
 		step := min(c.speedMps*left, end-c.lapM)
 		left -= step / c.speedMps
 		c.lapM += step
@@ -136,7 +165,7 @@ func (t *trafficSim) drive(c *trafficCar, dt float64) {
 }
 
 // stretchEnd is where the profile's stretch at lap distance m ends.
-func (t *trafficSim) stretchEnd(m float64) float64 {
+func (p simProfile) stretchEnd(m float64) float64 {
 	for _, seg := range trafficProfileSegments {
 		if m < seg.toM {
 			return seg.toM

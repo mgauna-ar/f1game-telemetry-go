@@ -42,7 +42,7 @@ type radioDelivery struct {
 }
 
 // trafficLeadKeys are the calls whose delivery times the traffic calls: the ones that cut in.
-var trafficLeadKeys = []string{"inlap_traffic_behind", "qualy_traffic_ahead"}
+var trafficLeadKeys = []string{"inlap_traffic_behind", "qualy_traffic_ahead", "flags_blue", "race_slow_car_ahead"}
 
 // leadMs is how long a traffic call takes from the server to its first word: the
 // TrafficLeadPercentile of the latest reports, so most calls are on time. RadioDeliveryLatencyMs

@@ -32,6 +32,10 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
   const setSubPenalties = useRadioSettingsStore((s) => s.setSubPenalties);
   const subFlags = useRadioSettingsStore((s) => s.subFlags);
   const setSubFlags = useRadioSettingsStore((s) => s.setSubFlags);
+  const subRaceTraffic = useRadioSettingsStore((s) => s.subRaceTraffic);
+  const setSubRaceTraffic = useRadioSettingsStore((s) => s.setSubRaceTraffic);
+  const qualyTrafficWarnSec = useRadioSettingsStore((s) => s.qualyTrafficWarnSec);
+  const setQualyTrafficWarnSec = useRadioSettingsStore((s) => s.setQualyTrafficWarnSec);
   const subRaceEvents = useRadioSettingsStore((s) => s.subRaceEvents);
   const setSubRaceEvents = useRadioSettingsStore((s) => s.setSubRaceEvents);
   const cornerCutWarnThreshold = useRadioSettingsStore((s) => s.cornerCutWarnThreshold);
@@ -99,6 +103,12 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
         />
         <ToggleRow
           compact
+          label={t('ai_engineer.proactiveAlerts.raceTraffic')}
+          checked={subRaceTraffic}
+          onChange={setSubRaceTraffic}
+        />
+        <ToggleRow
+          compact
           label={t('ai_engineer.proactiveAlerts.raceEvents')}
           checked={subRaceEvents}
           onChange={setSubRaceEvents}
@@ -131,6 +141,16 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
           max={80}
           step={5}
           onChange={setRainProbPct}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.qualyTrafficWarn')}
+          value={qualyTrafficWarnSec}
+          unit="s"
+          min={4}
+          max={15}
+          step={1}
+          formatValue={(v) => `${v.toFixed(0)}s`}
+          onChange={setQualyTrafficWarnSec}
         />
       </div>
     </SubsystemAccordion>

@@ -67,6 +67,7 @@ var AlertSwitchKeys = []string{
 	"subTrackLimits",
 	"subPenalties",
 	"subFlags",
+	"subRaceTraffic",
 	"subRaceEvents",
 }
 
@@ -136,7 +137,8 @@ var alertGates = []alertGate{
 	{"flagsPensAlertsEnabled", "subWeatherChanges", []string{"weather_change", "track_temp_swing"}},
 	{"flagsPensAlertsEnabled", "subTrackLimits", []string{"track_limits"}},
 	{"flagsPensAlertsEnabled", "subPenalties", []string{"penalties", "penalty_served"}},
-	{"flagsPensAlertsEnabled", "subFlags", []string{"flags_blue", "flags_yellow", "flags_green", "flags_sc_in", "flags_drs_enabled", "flags_drs_disabled"}},
+	{"flagsPensAlertsEnabled", "subFlags", []string{"flags_blue", "flags_blue_clear", "flags_yellow", "flags_green", "flags_sc_in", "flags_drs_enabled", "flags_drs_disabled"}},
+	{"flagsPensAlertsEnabled", "subRaceTraffic", []string{"race_slow_car_ahead"}},
 	{"flagsPensAlertsEnabled", "subRaceEvents", []string{"car_collision", "car_retirement", "race_fastest_lap", "race_final_lap"}},
 }
 

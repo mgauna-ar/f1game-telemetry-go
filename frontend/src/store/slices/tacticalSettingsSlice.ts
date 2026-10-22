@@ -72,6 +72,7 @@ export interface TacticalSettingsSlice {
   subTrackLimits: boolean;
   subPenalties: boolean;
   subFlags: boolean;
+  subRaceTraffic: boolean;
   subRaceEvents: boolean;
 
   setSmartDiscretionEnabled: (enabled: boolean) => void;
@@ -140,6 +141,7 @@ export interface TacticalSettingsSlice {
   setSubTrackLimits: (enabled: boolean) => void;
   setSubPenalties: (enabled: boolean) => void;
   setSubFlags: (enabled: boolean) => void;
+  setSubRaceTraffic: (enabled: boolean) => void;
   setSubRaceEvents: (enabled: boolean) => void;
 }
 
@@ -209,6 +211,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubTrackLimits'
   | 'setSubPenalties'
   | 'setSubFlags'
+  | 'setSubRaceTraffic'
   | 'setSubRaceEvents'
 > {
   // First run starts on the Immersive preset so the panel label matches what's enabled.
@@ -309,6 +312,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubTrackLimits: createBoolAction('subTrackLimits', true),
     setSubPenalties: createBoolAction('subPenalties', true),
     setSubFlags: createBoolAction('subFlags', true),
+    setSubRaceTraffic: createBoolAction('subRaceTraffic', true),
     setSubRaceEvents: createBoolAction('subRaceEvents', true),
   };
 };

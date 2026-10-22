@@ -44,6 +44,17 @@ func heardSec(ctx *EvaluationContext, m trafficMeeting) float64 {
 	return m.reachSec - float64(ctx.DeliveryLeadMs+TrafficNumberHeardMs)/1000
 }
 
+// trafficLog is what a rule's traffic calls are logged as: once the radio said one, and once the
+// car went by.
+type trafficLog struct {
+	said, passed string
+}
+
+var (
+	pushLapTrafficLog = trafficLog{said: "Push-lap traffic", passed: "Push-lap car passed"}
+	raceTrafficLog    = trafficLog{said: "Race traffic", passed: "Race traffic passed"}
+)
+
 // followTrafficLocked forgets what was worked out from motion samples since dropped (a
 // flashback), and checks the calls made on the last packet got on the radio: one that didn't (the
 // repeat limit took it) is made again, so a second car is still called.
@@ -53,34 +64,8 @@ func (r *QualifyingRule) followTrafficLocked(ctx *EvaluationContext) {
 		r.behind = [packets.MaxCars]trafficApproach{}
 		r.ahead = [packets.MaxCars]trafficApproach{}
 	}
-	confirm := func(states *[packets.MaxCars]trafficApproach, key string) {
-		for i := range states {
-			a := &states[i]
-			if !a.warned || a.confirmed {
-				continue
-			}
-			if ctx.LastSaid[key] < a.madeAt {
-				*a = trafficApproach{}
-				continue
-			}
-			a.confirmed = true
-			// What the player and the car ran over each window, to see where the shares came from.
-			prof := trafficProfile(ctx)
-			window := func(idx int, ms int64) float64 {
-				share, _ := ctx.Motion.paceShare(idx, ms, prof)
-				return roundTo(share, 3)
-			}
-			slog.Info("Push-lap traffic",
-				"key", a.subAlert, "car", i, "road_sec", roundTo(a.meet.roadSec, 1),
-				"reach_sec", roundTo(a.meet.reachSec, 1), "said_sec", a.reachSec,
-				"fast_share", roundTo(a.meet.fast, 3), "slow_share", roundTo(a.meet.slow, 3),
-				"player_short", window(ctx.PlayerCarIndex, PaceWindowShortMs), "player_long", window(ctx.PlayerCarIndex, PaceWindowLongMs),
-				"car_short", window(i, PaceWindowShortMs), "car_long", window(i, PaceWindowLongMs),
-				"profile", a.source, "lead_ms", a.leadMs)
-		}
-	}
-	confirm(&r.behind, "inlap_traffic_behind")
-	confirm(&r.ahead, "qualy_traffic_ahead")
+	confirmTraffic(ctx, &r.behind, "inlap_traffic_behind", pushLapTrafficLog)
+	confirmTraffic(ctx, &r.ahead, "qualy_traffic_ahead", pushLapTrafficLog)
 
 	// The follow-ups the radio didn't say are made again; a car said clear is done with.
 	for i := range r.behind {
@@ -111,10 +96,42 @@ func (r *QualifyingRule) followTrafficLocked(ctx *EvaluationContext) {
 	}
 }
 
-// trackApproach moves a warned car's state on: it passed (gap wrapped past half a lap: kept, with
-// when, for "clear" when clearAfter), or fell back far enough for long enough to be warned again.
+// confirmTraffic checks the calls made under alert key for states got on the radio: one the
+// radio didn't say is forgotten, so it is made again; one it said is logged as log.said.
+func confirmTraffic(ctx *EvaluationContext, states *[packets.MaxCars]trafficApproach, key string, log trafficLog) {
+	for i := range states {
+		a := &states[i]
+		if !a.warned || a.confirmed {
+			continue
+		}
+		if ctx.LastSaid[key] < a.madeAt {
+			*a = trafficApproach{}
+			continue
+		}
+		a.confirmed = true
+		// What the player and the car ran over each window, to see where the shares came from.
+		prof := trafficProfile(ctx)
+		window := func(idx int, ms int64) float64 {
+			share, _ := ctx.Motion.paceShare(idx, ms, prof)
+			return roundTo(share, 3)
+		}
+		car := &ctx.LapData.LapData[i]
+		slog.Info(log.said,
+			"key", a.subAlert, "car", i, "road_sec", roundTo(a.meet.roadSec, 1),
+			"reach_sec", roundTo(a.meet.reachSec, 1), "said_sec", a.reachSec,
+			"fast_share", roundTo(a.meet.fast, 3), "slow_share", roundTo(a.meet.slow, 3),
+			"player_short", window(ctx.PlayerCarIndex, PaceWindowShortMs), "player_long", window(ctx.PlayerCarIndex, PaceWindowLongMs),
+			"car_short", window(i, PaceWindowShortMs), "car_long", window(i, PaceWindowLongMs),
+			"driver_status", car.DriverStatus, "result_status", car.ResultStatus,
+			"profile", a.source, "lead_ms", a.leadMs)
+	}
+}
+
+// trackApproach moves a warned car's state on: it passed (gap wrapped past half a lap: logged as
+// log.passed, and kept, with when, for "clear" when clearAfter), or fell back far enough for long
+// enough to be warned again.
 // It reports whether the car is still on its way to the player.
-func trackApproach(ctx *EvaluationContext, a *trafficApproach, idx int, gapM, lapM float32, heard float64, clearAfter bool) bool {
+func trackApproach(ctx *EvaluationContext, a *trafficApproach, idx int, gapM, lapM float32, heard float64, clearAfter bool, log trafficLog) bool {
 	if !a.warned || a.passedAt > 0 {
 		return false
 	}
@@ -124,7 +141,7 @@ func trackApproach(ctx *EvaluationContext, a *trafficApproach, idx int, gapM, la
 		if a.reachSec > 0 {
 			expected = roundTo(float64(a.reachSec)+float64(a.leadMs+TrafficNumberHeardMs)/1000, 1)
 		}
-		slog.Info("Push-lap car passed",
+		slog.Info(log.passed,
 			"key", a.subAlert, "car", idx, "said_sec", a.reachSec,
 			"after_call_sec", roundTo(float64(ctx.Now-a.madeAt)/1000, 1), "expected_sec", expected)
 		if !clearAfter {
@@ -231,7 +248,7 @@ func (r *QualifyingRule) evaluateCarBehind(ctx *EvaluationContext, playerLap *pa
 		m := meeting(prof, rival.LapDistance, gapM, pushingShare(ctx, i, prof), slow)
 		meets[i], pushing[i] = m, true
 		heard := heardSec(ctx, m)
-		if trackApproach(ctx, a, i, gapM, lapM, heard, true) {
+		if trackApproach(ctx, a, i, gapM, lapM, heard, true, pushLapTrafficLog) {
 			coming = coming || heard <= warnSec
 			closeHeard := m.reachSec - float64(ctx.DeliveryLeadMs+TrafficKeyHeardMs)/1000
 			if a.confirmed && !a.train && a.closeAt == 0 && (a.reachSec >= TrafficCloseMinSaidSec || a.fromPitExit) &&
@@ -437,7 +454,7 @@ func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap 
 		gapM := trackGapM(playerLap.LapDistance, rival.LapDistance, lapM)
 		m := meeting(prof, playerLap.LapDistance, gapM, fast, slowShare(ctx, i, prof))
 		heard := heardSec(ctx, m)
-		if trackApproach(ctx, a, i, gapM, lapM, heard, false) || !calling || heard > trafficWarnSec(ctx) ||
+		if trackApproach(ctx, a, i, gapM, lapM, heard, false, pushLapTrafficLog) || !calling || heard > trafficWarnSec(ctx) ||
 			m.reachSec*fast > toLineSec {
 			continue
 		}
