@@ -963,6 +963,9 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 		if i == 0 && st.raceTraffic != nil {
 			pitLimiter = st.raceTraffic.playerLimiter()
 		}
+		if i == 0 && st.traffic != nil {
+			pitLimiter = st.traffic.playerLimiter()
+		}
 		tyreAge := uint8(3 + i*2)
 		if i == 0 && cfg.Scenario == "strategy" {
 			tyreAge = simStrategyTyreAge(st.lapNum, st.lapDist)

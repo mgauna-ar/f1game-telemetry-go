@@ -7,7 +7,7 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-// TeammateRule manages teammate proximity and pit status alerts.
+// TeammateRule manages teammate proximity and pit status alerts, in races.
 type TeammateRule struct {
 	mu                            sync.Mutex
 	lastTeammatePittingWarned     bool
@@ -77,6 +77,11 @@ func (r *TeammateRule) Evaluate(ctx *EvaluationContext) []Directive {
 	defer r.mu.Unlock()
 
 	if ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet) {
+		return nil
+	}
+	// In qualifying and practice a car in the pit lane is going out on a run or coming back from
+	// one: there is no stop to share the box for. The teammate-ahead call is a race's.
+	if timedSession(ctx) {
 		return nil
 	}
 

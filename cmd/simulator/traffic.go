@@ -299,6 +299,15 @@ func (t *trafficSim) setStage(stage int) {
 	slog.Info("Traffic scenario stage", "stage", []string{"garage", "pit lane", "out-lap", "push lap", "in-lap"}[stage], "lap", t.cars[0].lapNum)
 }
 
+// playerLimiter is whether the player's pit limiter is on: in the garage and all the way down the
+// pit lane.
+func (t *trafficSim) playerLimiter() uint8 {
+	if t.cars[0].pit != packets.PitStatusNone {
+		return 1
+	}
+	return 0
+}
+
 func (t *trafficSim) garage(i int) {
 	c := &t.cars[i]
 	c.status, c.pit, c.speedMps = packets.DriverStatusInGarage, packets.PitStatusInPitArea, 0
