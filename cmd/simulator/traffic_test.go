@@ -12,10 +12,12 @@ func TestTrafficSim_Run(t *testing.T) {
 	var pushLapMs uint32
 	passedOnStage := map[int]int{}
 	left := false
+	limiterOnStage := map[int]bool{} // whether the pit limiter was ever on in each stage
 	for k := 0; k < 20*500 && (!left || ts.stage != trafficGarage); k++ {
 		stage := ts.stage
 		left = left || stage != trafficGarage
 		ts.step(0.05)
+		limiterOnStage[ts.stage] = limiterOnStage[ts.stage] || ts.playerLimiter() == 1
 		for i := 1; i <= 2; i++ {
 			if _, seen := passedOnStage[i]; !seen && ts.passed[i] {
 				passedOnStage[i] = stage
@@ -31,5 +33,9 @@ func TestTrafficSim_Run(t *testing.T) {
 	}
 	if passedOnStage[1] != trafficOutLap || passedOnStage[2] != trafficPushLap {
 		t.Errorf("passes by stage %v: want car 1 on the out-lap and car 2 on the push lap", passedOnStage)
+	}
+	// The player leaves the pits on the limiter and turns it off for the out-lap.
+	if !limiterOnStage[trafficPitLane] || limiterOnStage[trafficOutLap] || limiterOnStage[trafficPushLap] {
+		t.Errorf("pit limiter on by stage %v: want on in the pit lane only", limiterOnStage)
 	}
 }

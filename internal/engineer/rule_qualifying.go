@@ -418,7 +418,7 @@ func (r *QualifyingRule) evaluateLapResult(ctx *EvaluationContext, playerLap *pa
 
 	values := &DirectiveValues{Position: pos, Elimination: eliminationStatus(ctx, pos)}
 	subAlert := "qualy_lap_no_improvement"
-	msg := fmt.Sprintf("No improvement on that lap (%s), still P%d.", packets.FormatLapTimeMS(lapMS), pos)
+	msg := fmt.Sprintf("No improvement on that lap (%s), now P%d.", packets.FormatLapTimeMS(lapMS), pos)
 	switch {
 	case improved && pos == 1:
 		subAlert = "qualy_lap_pole"

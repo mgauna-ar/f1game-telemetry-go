@@ -357,7 +357,7 @@ export const ai_engineer = {
     wingDamage: 'Front Wing Endplate / Flap Loss',
     floorDamage: 'Floor & Diffuser Aerodynamic Loss',
     engineWear: 'Internal Engine Component Wear (ICE, MGU-K, TC)',
-    mechanicalFaults: 'Mechanical DRS & ERS System Faults',
+    mechanicalFaults: 'Mechanical DRS, ERS & Engine Failures',
     engineOverheat: 'Internal Engine Overheating (Dirty Air / Traffic)',
     wingDamageThreshold: 'Front Wing Damage Limit',
     floorDamageThreshold: 'Floor Damage Limit',
@@ -366,7 +366,7 @@ export const ai_engineer = {
     damageWing: 'Front Wing Endplate / Flap Loss',
     damageFloor: 'Floor & Diffuser Aerodynamic Loss',
     damageEngine: 'Internal Engine Component Wear (ICE, MGU-K, TC)',
-    damageFaults: 'Mechanical DRS & ERS System Faults',
+    damageFaults: 'Mechanical DRS, ERS & Engine Failures',
     wingThreshold: 'Front Wing Damage Limit',
     floorThreshold: 'Floor Damage Limit',
     // 3. ERS & Engine

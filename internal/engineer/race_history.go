@@ -191,7 +191,11 @@ func (e *EngineerEngine) describeRaceEventLocked(p *packets.PacketEventData) str
 		}
 	case packets.EventRetirement:
 		if d, ok := p.RetirementData(); ok {
-			return fmt.Sprintf("%s retired", e.driverNameLocked(int(d.VehicleIdx)))
+			name := e.driverNameLocked(int(d.VehicleIdx))
+			if reason := packets.ResultReasonName(d.Reason); reason != "" && d.Reason != packets.ResultReasonRetired {
+				return fmt.Sprintf("%s out of the race (%s)", name, reason)
+			}
+			return fmt.Sprintf("%s retired", name)
 		}
 	case packets.EventPenaltyIssued:
 		if d, ok := p.PenaltyData(); ok {

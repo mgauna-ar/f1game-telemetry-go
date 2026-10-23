@@ -171,6 +171,25 @@ const (
 	ResultReasonSessionSimulated  uint8 = 10
 )
 
+var resultReasonNames = map[uint8]string{
+	ResultReasonRetired:           "retired",
+	ResultReasonFinished:          "finished",
+	ResultReasonTerminalDamage:    "terminal damage",
+	ResultReasonInactive:          "inactive",
+	ResultReasonNotEnoughLaps:     "not enough laps completed",
+	ResultReasonBlackFlagged:      "black flagged",
+	ResultReasonRedFlagged:        "red flagged",
+	ResultReasonMechanicalFailure: "mechanical failure",
+	ResultReasonSessionSkipped:    "session skipped",
+	ResultReasonSessionSimulated:  "session simulated",
+}
+
+// ResultReasonName returns the lower-case reason a car's result came about, "" for an invalid or
+// unknown one.
+func ResultReasonName(reason uint8) string {
+	return resultReasonNames[reason]
+}
+
 // Tyre compound name constants
 const (
 	CompoundNameSoft         = "SOFT"

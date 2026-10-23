@@ -37,9 +37,10 @@ func (r *TrafficRule) Category() string {
 }
 
 // ValidPhases includes PhaseInGarage, the phase of a car standing in its pit box, so the rule sees
-// the stop it times; its calls are said in the pit lane and after.
+// the stop it times, and PhaseSafetyCar, so it follows the pit limiter through a stop under a
+// Safety Car; its calls are said in the pit lane and after.
 func (r *TrafficRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhasePitLane, PhaseInLap, PhaseOutLap, PhaseInGarage}
+	return []DrivingPhase{PhaseRacing, PhasePitLane, PhaseInLap, PhaseOutLap, PhaseInGarage, PhaseSafetyCar}
 }
 
 func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
@@ -76,23 +77,29 @@ func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
 	}
 }
 
+// Reset forgets everything for a new session. A new stint doesn't touch the pit visit: it starts
+// during the stop (the stop count, the new tyres), maybe on the packet the car leaves its box, and
+// the stop is still to be timed. The visit is re-armed on the way into the pit lane (enterPitLane).
 func (r *TrafficRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if scope == DedupScopeStint || scope == DedupScopeNone {
-		r.penaltyReminderFired = false
-		r.pitTimerReported = false
-		r.limiterOverspeedFired = false
-		r.lastRecordedPitTimerMS = 0
-		r.stopGoServedSec = 0
-		r.penaltyHoldSec = 0
+	if scope == DedupScopeNone {
+		r.enterPitLane()
 		r.lastPitLimiterStatus = 0
 		r.lastPitStatus = 0
-	}
-	if scope == DedupScopeNone {
 		r.cleanAirLap = 0
 	}
+}
+
+// enterPitLane re-arms the calls made once a pit visit.
+func (r *TrafficRule) enterPitLane() {
+	r.penaltyReminderFired = false
+	r.pitTimerReported = false
+	r.limiterOverspeedFired = false
+	r.lastRecordedPitTimerMS = 0
+	r.stopGoServedSec = 0
+	r.penaltyHoldSec = 0
 }
 
 func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
@@ -103,6 +110,9 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	playerLap := ctx.PlayerLap()
 	status := ctx.PlayerStatus()
+	if playerLap != nil && r.lastPitStatus == packets.PitStatusNone && playerLap.PitStatus != packets.PitStatusNone {
+		r.enterPitLane()
+	}
 
 	// 0. Pit Entry Speed Limiter Overspeed Warning
 	if (ctx.Phase == PhasePitLane || (playerLap != nil && playerLap.PitStatus == packets.PitStatusPitting)) &&
@@ -125,14 +135,16 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	// 1. Pit Limiter Exit Directive (from CarStatusData). Not "push now" just after a warning of a
-	// car coming past the pit exit.
+	// car coming past the pit exit, nor in qualifying or practice: leaving the pits there starts an
+	// out-lap, not a push. Nor under a Safety Car or VSC, where the delta holds the pace.
 	if status != nil {
+		neutralised := ctx.Session != nil && neutralisedStatus(ctx.Session.SafetyCarStatus)
 		pitExitWarned := false
 		for _, key := range []string{"qualy_pit_exit_traffic", "race_pit_exit_traffic"} {
 			warnedAt, warned := ctx.LastSaid[key]
 			pitExitWarned = pitExitWarned || (warned && ctx.Now-warnedAt < PitExitCallFreshMs)
 		}
-		if r.lastPitLimiterStatus == 1 && status.PitLimiterStatus == 0 && !pitExitWarned &&
+		if r.lastPitLimiterStatus == 1 && status.PitLimiterStatus == 0 && !pitExitWarned && !timedSession(ctx) && !neutralised &&
 			(ctx.Phase == PhasePitLane || ctx.Phase == PhaseOutLap || ctx.Phase == PhaseRacing) {
 			directives = append(directives, Directive{
 				ID:       "pit_limiter_exit",
@@ -213,16 +225,18 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 }
 
 // pitStopDurationDirective tells the driver how long the crew's stop took: fast, slow or neither.
+// It says the time and the crew's work only, not to push: under a Safety Car or VSC the delta holds
+// the pace, and the limiter call says to push after a green-flag stop.
 func pitStopDurationDirective(durationSec float32) Directive {
 	subAlert := "pit_stop_duration"
-	durMsg := fmt.Sprintf("Stationary time %.1fs. Clean stop, push now.", durationSec)
+	durMsg := fmt.Sprintf("Stationary time %.1fs. Clean stop.", durationSec)
 	switch {
 	case durationSec <= FastPitStopDurationSec:
 		subAlert = "pit_stop_fast"
 		durMsg = fmt.Sprintf("Rapid stop! Stationary time was %.1fs, brilliant work by the crew.", durationSec)
 	case durationSec >= SlowPitStopDurationSec:
 		subAlert = "pit_stop_slow"
-		durMsg = fmt.Sprintf("Stationary time was %.1fs, longer than planned. Let's make up time on the out-lap.", durationSec)
+		durMsg = fmt.Sprintf("Stationary time was %.1fs, longer than planned.", durationSec)
 	}
 	return Directive{
 		ID:       "pit_stop_duration",

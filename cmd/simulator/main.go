@@ -848,8 +848,14 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				carPosition = simStrategyPosition(i)
 				if i == 0 {
 					pitStatus = simStrategyPitStatus(st.lapNum, lapDist)
-					if pitStatus != packets.PitStatusNone {
+					switch {
+					case pitStatus != packets.PitStatusNone:
 						driverStatus = packets.DriverStatusInLap
+						if lapDist < simPitExitM {
+							pitStopTimerInMS = 2400 // from the box on
+						}
+					case simStrategyOutLap(st.lapNum):
+						driverStatus = packets.DriverStatusOutLap
 					}
 				} else if pitLap, ok := simStrategyAIPitLaps[i]; ok {
 					pitStatus = simPitStatus(simCarLap(st.lapNum, lapDist, carLapDist), carLapDist, pitLap)
@@ -962,6 +968,9 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 		}
 		if i == 0 && st.raceTraffic != nil {
 			pitLimiter = st.raceTraffic.playerLimiter()
+		}
+		if i == 0 && st.traffic != nil {
+			pitLimiter = st.traffic.playerLimiter()
 		}
 		tyreAge := uint8(3 + i*2)
 		if i == 0 && cfg.Scenario == "strategy" {

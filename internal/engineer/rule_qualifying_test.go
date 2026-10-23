@@ -585,3 +585,61 @@ func TestEngineerEngine_LapResultGates(t *testing.T) {
 		})
 	}
 }
+
+// Leaving the pits in qualifying starts an out-lap, and a teammate in the pit lane is going out on
+// a run or coming back from one: no "push now", no "teammate pitting", no double-stack. A race
+// with the same moves says them.
+func TestEngineerEngine_NoRaceCallsInQualifyingPitLane(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		session uint8
+		want    int
+	}{
+		{"qualifying", packets.SessionQ1, 0},
+		{"race", packets.SessionRace, 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			b := &mockBroadcaster{}
+			e := newTestEngineerEngine(b)
+			clock := newTestClock()
+			clock.install(e)
+			h := createTestHeader(packets.PacketFormat2025, 7070, 0)
+			e.ProcessPacket(ctx, &packets.PacketSessionData{Header: h, SessionType: tt.session, TrackLength: qualyTrackLen, TotalLaps: 20, SessionTimeLeft: 900})
+			e.teammateCarIndex = 1
+
+			lap := &packets.PacketLapData{Header: h}
+			lap.LapData[0] = qualyCar(packets.DriverStatusOutLap, 300, 15_300)
+			lap.LapData[0].PitStatus = packets.PitStatusPitting
+			lap.LapData[1] = qualyCar(packets.DriverStatusFlyingLap, 2500, 17_500)
+			limiter := func(on uint8) {
+				status := &packets.PacketCarStatusData{Header: h}
+				status.CarStatusData[0].PitLimiterStatus = on
+				e.ProcessPacket(ctx, status)
+			}
+			step := func() {
+				clock.advance(10 * time.Second)
+				e.ProcessPacket(ctx, lap)
+				e.ProcessPacket(ctx, lap)
+			}
+
+			// Down the pit lane on the limiter, then out onto the track.
+			e.ProcessPacket(ctx, lap)
+			limiter(1)
+			limiter(0)
+			lap.LapData[0].PitStatus, lap.LapData[0].LapDistance = packets.PitStatusNone, 400
+			step()
+			// The teammate drives down the pit lane, then the player comes in behind it.
+			lap.LapData[1].PitStatus, lap.LapData[1].DriverStatus = packets.PitStatusPitting, packets.DriverStatusInLap
+			step()
+			lap.LapData[0].DriverStatus, lap.LapData[0].PitStatus = packets.DriverStatusInLap, packets.PitStatusPitting
+			step()
+
+			for _, key := range []string{"pit_limiter_exit", "teammate_pitting", "teammate_doublestack"} {
+				if n := spoken(t, b, key); n != tt.want {
+					t.Errorf("%s said %d times, want %d", key, n, tt.want)
+				}
+			}
+		})
+	}
+}

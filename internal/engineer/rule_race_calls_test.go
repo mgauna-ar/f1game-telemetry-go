@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -428,4 +429,198 @@ func TestRivalsRule_DefendSaidAtOnce(t *testing.T) {
 			t.Fatalf("defend calls = %d, want 2: one per car", n)
 		}
 	})
+}
+
+// A stop under a VSC says the stop time, and no "limiter off, push now": not at the pit exit
+// line, nor when the VSC ends with the limiter turned off past the line; the green flag is said
+// on the out-lap. A green-flag stop is unchanged.
+func TestEngineerEngine_NoPushAfterAStopUnderTheVSC(t *testing.T) {
+	ctx := context.Background()
+	limiter := func(r *planRace, on uint8) {
+		r.e.ProcessPacket(ctx, &packets.PacketCarStatusData{Header: r.h, CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{TyresAgeLaps: 10, PitLimiterStatus: on}, // the new set shows later: the stop count starts the stint
+		}})
+	}
+	// The stop count goes up as the car leaves its box (from lap 10 here), which starts a new stint on
+	// that packet: the stop is still timed.
+	lap := func(r *planRace, lapNum uint8, dist float32, driver, pit uint8, timerMs uint16) {
+		r.clock.advance(time.Second)
+		stops := uint8(0)
+		if lapNum == 10 {
+			stops = 1
+		}
+		r.e.ProcessPacket(ctx, &packets.PacketLapData{Header: r.h, LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: lapNum, CarPosition: 5, LapDistance: dist, DriverStatus: driver, PitStatus: pit, PitStopTimerInMS: timerMs,
+				NumPitStops: stops},
+		}})
+	}
+	tests := []struct {
+		name           string
+		sc             uint8
+		offPastTheLine bool
+		want           int
+	}{
+		{"green flag", packets.SafetyCarNone, false, 1},
+		{"green flag, limiter off past the line", packets.SafetyCarNone, true, 1},
+		{"VSC", packets.SafetyCarVirtual, false, 0},
+		{"VSC, limiter off past the line", packets.SafetyCarVirtual, true, 0},
+		{"Safety Car, limiter off past the line", packets.SafetyCarFull, true, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newPlanRace(t, 0, 0)
+			r.drive(9, 1000, packets.PitStatusNone)
+			r.safetyCar(tt.sc)
+			limiter(r, 1)
+			lap(r, 9, 4850, packets.DriverStatusOnTrack, packets.PitStatusPitting, 0)
+			lap(r, 9, 4900, packets.DriverStatusOnTrack, packets.PitStatusInPitArea, 2400)
+			lap(r, 10, 50, packets.DriverStatusOnTrack, packets.PitStatusPitting, 2400)
+			if !tt.offPastTheLine {
+				limiter(r, 0)
+			}
+			lap(r, 10, 300, packets.DriverStatusOutLap, packets.PitStatusNone, 0)
+			limiter(r, 0)
+			r.clock.advance(20 * time.Second)
+			r.safetyCar(packets.SafetyCarNone)
+			lap(r, 10, 1500, packets.DriverStatusOutLap, packets.PitStatusNone, 0)
+			limiter(r, 0)
+
+			if n := spoken(t, r.b, "pit_stop_fast"); n != 1 {
+				t.Errorf("stop time said %d times, want once", n)
+			}
+			if n := spoken(t, r.b, "pit_limiter_exit"); n != tt.want {
+				t.Errorf("pit_limiter_exit said %d times, want %d", n, tt.want)
+			}
+			// The restart finds the player on their out-lap: green is still said.
+			wantGreen := 0
+			if tt.sc != packets.SafetyCarNone {
+				wantGreen = 1
+			}
+			if n := spoken(t, r.b, "flags_green"); n != wantGreen {
+				t.Errorf("flags_green said %d times, want %d", n, wantGreen)
+			}
+		})
+	}
+}
+
+func TestPitStopDurationDirective_NeverSaysToPush(t *testing.T) {
+	for _, sec := range []float32{2.2, 3.2, 5.5} {
+		msg := strings.ToLower(pitStopDurationDirective(sec).Message)
+		if strings.Contains(msg, "push") || strings.Contains(msg, "make up") {
+			t.Errorf("%.1f s stop: %q says to push", sec, msg)
+		}
+	}
+}
+
+// The end of a Safety Car comes twice: the session status and the "Resume Race" event. Green is
+// said once, whichever comes first, however far apart, and again for the next Safety Car.
+func TestEngineerEngine_GreenFlagOncePerSafetyCar(t *testing.T) {
+	resume := func(r *planRace) {
+		var payload [12]byte
+		payload[0], payload[1] = packets.SafetyCarFull, packets.SafetyCarEventResumeRace
+		r.e.ProcessPacket(context.Background(), &packets.PacketEventData{
+			Header: r.h, EventStringCode: [4]uint8{'S', 'C', 'A', 'R'}, EventDetails: packets.EventDataDetails{Data: payload},
+		})
+	}
+	for _, statusFirst := range []bool{true, false} {
+		t.Run(map[bool]string{true: "status first", false: "event first"}[statusFirst], func(t *testing.T) {
+			r := newPlanRace(t, 0, 0)
+			r.drive(12, 1000, packets.PitStatusNone)
+			for period := 1; period <= 2; period++ {
+				r.safetyCar(packets.SafetyCarFull)
+				r.clock.advance(30 * time.Second)
+				r.drive(12, 1500, packets.PitStatusNone)
+				if statusFirst {
+					r.safetyCar(packets.SafetyCarNone)
+					r.clock.advance(15 * time.Second)
+					r.drive(12, 1600, packets.PitStatusNone)
+					resume(r)
+				} else {
+					resume(r)
+					r.clock.advance(15 * time.Second)
+					r.drive(12, 1600, packets.PitStatusNone)
+					r.safetyCar(packets.SafetyCarNone)
+				}
+				r.clock.advance(15 * time.Second)
+				r.drive(12, 2000, packets.PitStatusNone)
+				if n := spoken(t, r.b, "flags_green"); n != period {
+					t.Fatalf("after Safety Car %d green said %d times, want %d", period, n, period)
+				}
+			}
+		})
+	}
+}
+
+// A retirement is called when it may leave a car or debris out on track.
+func TestFlagsRule_RetirementByReason(t *testing.T) {
+	tests := []struct {
+		name   string
+		reason uint8
+		pit    uint8
+		driver uint8
+		want   bool
+	}{
+		{"no reason given", packets.ResultReasonInvalid, packets.PitStatusNone, packets.DriverStatusOnTrack, true},
+		{"retired", packets.ResultReasonRetired, packets.PitStatusNone, packets.DriverStatusOnTrack, true},
+		{"terminal damage", packets.ResultReasonTerminalDamage, packets.PitStatusNone, packets.DriverStatusOnTrack, true},
+		{"mechanical failure", packets.ResultReasonMechanicalFailure, packets.PitStatusNone, packets.DriverStatusOnTrack, true},
+		{"retired in the pit lane", packets.ResultReasonRetired, packets.PitStatusPitting, packets.DriverStatusOnTrack, false},
+		{"retired in the garage", packets.ResultReasonRetired, packets.PitStatusNone, packets.DriverStatusInGarage, false},
+		{"black flagged", packets.ResultReasonBlackFlagged, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+		{"inactive", packets.ResultReasonInactive, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+		{"not enough laps", packets.ResultReasonNotEnoughLaps, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+		{"finished", packets.ResultReasonFinished, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+		{"red flagged", packets.ResultReasonRedFlagged, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+		{"session skipped", packets.ResultReasonSessionSkipped, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+		{"session simulated", packets.ResultReasonSessionSimulated, packets.PitStatusNone, packets.DriverStatusOnTrack, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lapPkt := &packets.PacketLapData{}
+			lapPkt.LapData[3] = packets.LapData{PitStatus: tt.pit, DriverStatus: tt.driver}
+			var details packets.EventDataDetails
+			details.Data[0], details.Data[1] = 3, tt.reason
+			ctx := &EvaluationContext{
+				Packet:  &packets.PacketEventData{EventStringCode: [4]uint8{'R', 'T', 'M', 'T'}, EventDetails: details},
+				LapData: lapPkt, Config: DefaultEngineerConfig(), Phase: PhaseRacing, TeammateCarIndex: -1,
+				Session: &packets.PacketSessionData{SessionType: packets.SessionRace},
+			}
+			if got := directiveFor(seededFlagsRule().Evaluate(ctx), "car_retirement") != nil; got != tt.want {
+				t.Errorf("retirement called %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// A flashback takes a track limits warning back: the next one is called again.
+func TestFlagsRule_TrackLimitsAfterAFlashback(t *testing.T) {
+	rule := seededFlagsRule()
+	threshold := uint8(DefaultEngineerConfig().CornerCutWarnThreshold)
+	for i, tt := range []struct {
+		warnings uint8
+		want     bool
+	}{{threshold, true}, {threshold - 1, false}, {threshold, true}, {threshold + 1, true}} {
+		lapPkt := &packets.PacketLapData{}
+		lapPkt.LapData[0] = packets.LapData{CornerCuttingWarnings: tt.warnings}
+		ctx := &EvaluationContext{Packet: lapPkt, LapData: lapPkt, Config: DefaultEngineerConfig(), Phase: PhaseRacing,
+			Session: &packets.PacketSessionData{SessionType: packets.SessionRace}}
+		if got := directiveFor(rule.Evaluate(ctx), "track_limits_warnings") != nil; got != tt.want {
+			t.Errorf("step %d, %d warnings: called %v, want %v", i, tt.warnings, got, tt.want)
+		}
+	}
+}
+
+// An engine failure is a fault, not wear: it stays on with the engine wear switch off, as in the
+// Immersive and Minimal presets.
+func TestAlertGates_TerminalEngineIsAFault(t *testing.T) {
+	sw := allSwitches(true)
+	sw["subDamageEngine"] = false
+	if !EnabledCategoriesFromSwitches(sw)["damage_terminal_engine"] {
+		t.Error("damage_terminal_engine is off with the engine wear switch off")
+	}
+	sw = allSwitches(true)
+	sw["subDamageFaults"] = false
+	if EnabledCategoriesFromSwitches(sw)["damage_terminal_engine"] {
+		t.Error("damage_terminal_engine stays on with the mechanical faults switch off")
+	}
 }

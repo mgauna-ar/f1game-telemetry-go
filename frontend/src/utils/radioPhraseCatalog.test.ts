@@ -679,6 +679,18 @@ describe('the radio phrase catalog', () => {
     }
   });
 
+  // A stop under a Safety Car or VSC rejoins behind the delta: the stop time leaves pushing to the
+  // limiter call, made after green-flag stops only.
+  it.each(LOCALES)('never says to push after a stop, in %s', (language) => {
+    for (const category of ['pit_stop_duration', 'pit_stop_fast', 'pit_stop_slow'] as RadioAlertCategory[]) {
+      for (const template of allTemplates(RADIO_PHRASE_CATALOG[language][category])) {
+        expect(template, category).not.toMatch(
+          /push|out-lap|make (it|up)|get it back|go, go|empuj\p{L}*|recuper\p{L}*|remont\p{L}*|descont\p{L}*|vuelta de salida/iu
+        );
+      }
+    }
+  });
+
   it.each(LOCALES)('never says when a penalty is served, in %s', (language) => {
     for (const category of ['penalties_incurred', 'penalty_drive_through', 'penalty_stop_go'] as RadioAlertCategory[]) {
       for (const template of allTemplates(RADIO_PHRASE_CATALOG[language][category])) {
