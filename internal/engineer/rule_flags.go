@@ -21,8 +21,11 @@ type FlagsRule struct {
 	lastStopGoPnlCount       uint8
 	lastVehicleFIAFlag       int8
 	scEndingTriggered        bool
-	lastWrongWayAlert        bool
-	finalLapSaid             bool
+	// scDeployedAt is when the last Safety Car or VSC period started (0: none yet). Its end has two
+	// triggers, the session status and the "Resume Race" event; green is said for the first.
+	scDeployedAt      int64
+	lastWrongWayAlert bool
+	finalLapSaid      bool
 	// sessionSeen and lapSeen: the first session and lap data only record the counts (red flags,
 	// penalties, warnings) and the weather, so joining a session midway doesn't announce old news.
 	sessionSeen bool
@@ -69,9 +72,11 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
 		},
+		// On an out-lap or in-lap too: a stop under the Safety Car often leaves the player on their
+		// out-lap at the restart.
 		"flags_green": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar, PhaseOutLap, PhaseInLap},
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_yellow": {
@@ -195,6 +200,7 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.lastStopGoPnlCount = 0
 		r.lastVehicleFIAFlag = packets.VehicleFIAFlagNone
 		r.scEndingTriggered = false
+		r.scDeployedAt = 0
 		r.lastWrongWayAlert = false
 		r.finalLapSaid = false
 		r.sessionSeen = false
@@ -365,6 +371,10 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 		return nil
 	}
 	r.lastSafetyCarStatus = scStatus
+	slog.Info("Safety Car status changed", "from", prevStatus, "to", scStatus, "session_time", ctx.Session.Header.SessionTime)
+	if neutralisedStatus(scStatus) && !neutralisedStatus(prevStatus) {
+		r.scDeployedAt = ctx.Now
+	}
 	switch scStatus {
 	case packets.SafetyCarFull:
 		if safetyCarStopNear(ctx, scStatus) {
@@ -409,8 +419,11 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			BoxCall:  BoxCallOption,
 		}
 	case packets.SafetyCarNone:
-		if prevStatus == packets.SafetyCarFull || prevStatus == packets.SafetyCarVirtual {
+		if neutralisedStatus(prevStatus) {
 			r.scEndingTriggered = false
+			if r.greenSaid(ctx) {
+				return nil
+			}
 			return &Directive{
 				ID:       "flags_green",
 				Category: DirectiveCategoryFlags,
@@ -426,6 +439,19 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 	}
 }
 
+// neutralisedStatus reports whether a session Safety Car status neutralises the race: a full Safety
+// Car or a VSC.
+func neutralisedStatus(status uint8) bool {
+	return status == packets.SafetyCarFull || status == packets.SafetyCarVirtual
+}
+
+// greenSaid reports whether the green flag was said since the last Safety Car or VSC came out: the
+// other trigger of its end then says nothing.
+func (r *FlagsRule) greenSaid(ctx *EvaluationContext) bool {
+	said, ok := ctx.LastSaid["flags_green"]
+	return ok && r.scDeployedAt > 0 && said >= r.scDeployedAt
+}
+
 func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEventData) *Directive {
 	switch p.EventCode() {
 	case packets.EventSafetyCarStatus:
@@ -436,6 +462,7 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 		if !ok {
 			return nil
 		}
+		slog.Info("Safety Car event", "type", d.SafetyCarType, "event", d.EventType, "session_time", p.Header.SessionTime)
 		switch d.EventType {
 		case packets.SafetyCarEventReturning:
 			if !r.scEndingTriggered {
@@ -461,6 +488,9 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 			}
 		case packets.SafetyCarEventResumeRace:
 			r.scEndingTriggered = false
+			if r.greenSaid(ctx) {
+				return nil
+			}
 			return &Directive{
 				ID:       "flags_green",
 				Category: DirectiveCategoryFlags,
@@ -522,7 +552,7 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 			return nil
 		}
 		if ret, ok := p.RetirementData(); ok {
-			if int(ret.VehicleIdx) == ctx.PlayerCarIndex {
+			if int(ret.VehicleIdx) == ctx.PlayerCarIndex || !retirementOnTrack(ctx, ret) {
 				return nil
 			}
 			driverName := fmt.Sprintf("Car %d", ret.VehicleIdx)
@@ -750,12 +780,16 @@ func penaltyServedDirective(msg string) *Directive {
 }
 
 // evaluateTrackLimits calls each new corner cutting warning from CornerCutWarnThreshold on, in
-// races only: in qualifying and practice a cut deletes the lap instead (qualy_invalid).
+// races only: in qualifying and practice a cut deletes the lap instead (qualy_invalid). The count
+// is followed down too (a flashback), so the next warning is still called.
 func (r *FlagsRule) evaluateTrackLimits(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
 	if ctx.Session != nil && !ctx.IsRaceSession() {
 		return nil
 	}
 	cutWarnings := playerLap.CornerCuttingWarnings
+	if cutWarnings < r.lastCornerCutWarnings {
+		r.lastCornerCutWarnings = cutWarnings
+	}
 	if int(cutWarnings) >= ctx.Config.CornerCutWarnThreshold && cutWarnings > r.lastCornerCutWarnings {
 		r.lastCornerCutWarnings = cutWarnings
 		return &Directive{
@@ -830,6 +864,26 @@ func (r *FlagsRule) evaluateLiveWeather(ctx *EvaluationContext) *Directive {
 		}
 	}
 	return nil
+}
+
+// retirementOnTrack reports whether a retirement may leave a car or debris on track, so it is
+// called: a car that stopped (retired, terminal damage, a mechanical failure, or no reason given),
+// out on track. A car retiring in the pit lane or its garage, a disqualification, a player leaving
+// an online race, or a session the game ended or simulated isn't called. Each is logged.
+func retirementOnTrack(ctx *EvaluationContext, ret packets.RetirementEventData) bool {
+	inPits := false
+	if ctx.LapData != nil && int(ret.VehicleIdx) < len(ctx.LapData.LapData) {
+		lap := &ctx.LapData.LapData[ret.VehicleIdx]
+		inPits = lap.PitStatus != packets.PitStatusNone || lap.DriverStatus == packets.DriverStatusInGarage
+	}
+	stopped := false
+	switch ret.Reason {
+	case packets.ResultReasonInvalid, packets.ResultReasonRetired, packets.ResultReasonTerminalDamage,
+		packets.ResultReasonMechanicalFailure:
+		stopped = true
+	}
+	slog.Info("Car retired", "car", ret.VehicleIdx, "reason", ret.Reason, "in_pits", inPits, "called", stopped && !inPits)
+	return stopped && !inPits
 }
 
 // collisionDirective is the call for a contact the player was part of. From 2026 the game rates

@@ -111,8 +111,11 @@ func raceCarBehindCall(calls behindCalls) Directive {
 
 // racePitExitLocked warns a player leaving their box after a stop of a car on track that will
 // pass the pit exit as they get there, at its race pace (pitExitLocked). A drive-through has no
-// stop in the box, so no call.
+// stop in the box, so no call; nor under a Safety Car or VSC, where no car runs at race pace.
 func (r *RaceTrafficRule) racePitExitLocked(ctx *EvaluationContext, player *packets.LapData, prof paceProfile, shares [packets.MaxCars]float64) *Directive {
+	if ctx.Session != nil && neutralisedStatus(ctx.Session.SafetyCarStatus) {
+		return nil
+	}
 	car, afterSec := r.pitExitLocked(ctx, player, ctx.PreviousPhase == PhaseInGarage, prof,
 		func(i int, _ *packets.LapData) bool { return shares[i] > 0 },
 		func(i int) float64 { return shares[i] })

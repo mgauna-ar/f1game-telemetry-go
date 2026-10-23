@@ -83,6 +83,17 @@ func simStrategyPitStatus(lapNum uint8, lapDist float32) uint8 {
 	return packets.PitStatusNone
 }
 
+// simStrategyOutLap reports whether lap lapNum is the player's out-lap: the lap after a stop, once
+// out of the pit lane.
+func simStrategyOutLap(lapNum uint8) bool {
+	for _, p := range simStrategyStops {
+		if lapNum == p+1 {
+			return true
+		}
+	}
+	return false
+}
+
 // simStrategyPlan is the game's plan for the player's next stop (ideal, latest lap); none after
 // the last. The game moves it as the car leaves the box, while it is still in the pit lane.
 func simStrategyPlan(lapNum uint8, lapDist float32) (ideal, latest uint8) {

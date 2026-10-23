@@ -357,7 +357,7 @@ export const ai_engineer = {
     wingDamage: 'Rotura de Alerón Delantero / Flaps',
     floorDamage: 'Pérdida de Carga en Piso y Difusor',
     engineWear: 'Desgaste de Componentes de Motor (ICE, MGU-K, TC)',
-    mechanicalFaults: 'Falla Mecánica de DRS y ERS',
+    mechanicalFaults: 'Fallas Mecánicas de DRS, ERS y Motor',
     engineOverheat: 'Sobrecalentamiento de Motor (Tráfico / Aire Sucio)',
     wingDamageThreshold: 'Límite de Daño de Alerón',
     floorDamageThreshold: 'Límite de Daño de Piso',
@@ -366,7 +366,7 @@ export const ai_engineer = {
     damageWing: 'Rotura de Alerón Delantero / Flaps',
     damageFloor: 'Pérdida de Carga en Piso y Difusor',
     damageEngine: 'Desgaste de Componentes de Motor (ICE, MGU-K, TC)',
-    damageFaults: 'Falla Mecánica de DRS y ERS',
+    damageFaults: 'Fallas Mecánicas de DRS, ERS y Motor',
     wingThreshold: 'Límite de Daño de Alerón',
     floorThreshold: 'Límite de Daño de Piso',
     // 3. ERS y Motor

@@ -168,12 +168,13 @@ func TestRaceTrafficRule_BlueFlagAfterCarComing(t *testing.T) {
 }
 
 // Leaving the box after a stop, a car reaching the pit exit as the player gets there is warned
-// of, once; a drive-through has no call.
+// of, once; a drive-through has no call, nor a stop under a Safety Car or VSC.
 func TestRaceTrafficRule_PitExit(t *testing.T) {
 	leaving := raceCar(2100, 46_100)
 	leaving.PitStatus = packets.PitStatusPitting
-	eval := func(rule *RaceTrafficRule, said map[string]int64, now int64, previous DrivingPhase, car packets.LapData) []Directive {
+	eval := func(rule *RaceTrafficRule, said map[string]int64, now int64, previous DrivingPhase, sc uint8, car packets.LapData) []Directive {
 		ctx := withMotion(qualyCtx(packets.SessionRace, PhasePitLane, leaving, car), map[int]float64{0: 22.2, 1: float64(raceSpeed)})
+		ctx.Session.SafetyCarStatus = sc
 		ctx.PreviousPhase = previous
 		ctx.Telemetry = &packets.PacketCarTelemetryData{}
 		ctx.Telemetry.CarTelemetryData[0].Speed = 80
@@ -188,16 +189,19 @@ func TestRaceTrafficRule_PitExit(t *testing.T) {
 		name     string
 		car      packets.LapData
 		previous DrivingPhase
+		sc       uint8
 		want     bool
 	}{
-		{"a car there 1.5 s after the player", raceCar(1618, 45_618), PhaseInGarage, true},
-		{"a car well after", raceCar(1390, 45_390), PhaseInGarage, false},
-		{"a drive-through", raceCar(1618, 45_618), PhaseRacing, false},
+		{"a car there 1.5 s after the player", raceCar(1618, 45_618), PhaseInGarage, packets.SafetyCarNone, true},
+		{"a car well after", raceCar(1390, 45_390), PhaseInGarage, packets.SafetyCarNone, false},
+		{"a drive-through", raceCar(1618, 45_618), PhaseRacing, packets.SafetyCarNone, false},
+		{"under the Safety Car", raceCar(1618, 45_618), PhaseInGarage, packets.SafetyCarFull, false},
+		{"under the VSC", raceCar(1618, 45_618), PhaseInGarage, packets.SafetyCarVirtual, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rule, said := NewRaceTrafficRule(), map[string]int64{}
-			dirs := eval(rule, said, 1000, tt.previous, tt.car)
+			dirs := eval(rule, said, 1000, tt.previous, tt.sc, tt.car)
 			d := directiveFor(dirs, "race_pit_exit_traffic")
 			if got := d != nil; got != tt.want {
 				t.Fatalf("pit exit call %v, want %v (%v)", got, tt.want, subAlerts(dirs))
@@ -209,7 +213,7 @@ func TestRaceTrafficRule_PitExit(t *testing.T) {
 				t.Errorf("the car gets there %v s after the player, want 1.5", d.Values.Behind.GapSec)
 			}
 			sayAll(said, dirs, 1000)
-			if dirs := eval(rule, said, 1100, tt.previous, tt.car); len(dirs) != 0 {
+			if dirs := eval(rule, said, 1100, tt.previous, tt.sc, tt.car); len(dirs) != 0 {
 				t.Fatalf("said again: %v", subAlerts(dirs))
 			}
 			if a := rule.behind[1]; !a.warned || !a.fromPitExit {
