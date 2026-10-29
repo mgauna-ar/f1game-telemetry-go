@@ -371,6 +371,15 @@ func (p *trackProfiles) learnPushSpeed(track int8, trackLength, lapM float32, mp
 	p.pushDirty = true
 }
 
+// pushSteps learns track's push speeds from the steps of the cars on a push lap.
+func (p *trackProfiles) pushSteps(track int8, trackLength float32) motionStep {
+	return func(_ int, l *packets.LapData, fromM float32, step float64, ms int64) {
+		if l.DriverStatus == packets.DriverStatusFlyingLap && onTrack(l) {
+			p.learnPushSpeed(track, trackLength, fromM+float32(step)/2, step/(float64(ms)/1000))
+		}
+	}
+}
+
 // savePushSpeeds saves the push speeds learned since the last save, once the player is on another
 // lap than then.
 func (p *trackProfiles) savePushSpeeds(playerLap int) {

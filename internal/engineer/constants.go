@@ -343,6 +343,13 @@ const (
 	RaceStoppedShare           = 0.1
 	RaceTrafficMinClosingShare = 0.25
 	PitEntryGuardM             = 300.0
+	// Race speeds: the slow car check runs on how fast the field runs each QuietBinM bin in this
+	// race, the median of the bin's last RaceSpeedPasses passes (a pass counts when the car drove
+	// RaceSpeedMinPassShare of the bin), once PushMinCoverage of the bins have RaceSpeedMinPasses.
+	// Until then only a stopped car is called.
+	RaceSpeedPasses       = 10
+	RaceSpeedMinPasses    = 5
+	RaceSpeedMinPassShare = 0.8
 	// MaxStepBackM: a car's lap distance stepping back by up to this much (a spin, a stopped car's
 	// jitter) is standing still, not nearly a lap driven.
 	MaxStepBackM = 25.0

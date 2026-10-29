@@ -24,12 +24,13 @@ func learnedTrackAt(speed float32) *trackProfile {
 	return tp
 }
 
-// slowEval evaluates rule on lap data of a race on a learned track, with the player (car 0) at
-// 2000 m and car i driving at speeds[i] m/s over the last seconds, at now, with the calls the
-// radio said in lastSaid.
+// slowEval evaluates rule on lap data of a race on a learned track whose field's speeds are
+// known, with the player (car 0) at 2000 m and car i driving at speeds[i] m/s over the last
+// seconds, at now, with the calls the radio said in lastSaid.
 func slowEval(rule *RaceTrafficRule, lastSaid map[string]int64, now int64, speeds map[int]float64, cars ...packets.LapData) []Directive {
 	ctx := withMotion(qualyCtx(packets.SessionRace, PhaseRacing, append([]packets.LapData{raceCar(2000, 46_000)}, cars...)...), speeds)
 	ctx.TrackProfile = learnedTrackAt(raceSpeed)
+	ctx.RaceSpeeds = fieldAt(raceSpeedsAt(raceSpeed))
 	ctx.Now, ctx.LastSaid = now, lastSaid
 	return rule.Evaluate(ctx)
 }
@@ -67,6 +68,7 @@ func TestRaceTrafficRule_SlowCarAhead(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := withMotion(qualyCtx(packets.SessionRace, PhaseRacing, raceCar(2000, 46_000), tt.car), map[int]float64{0: v, 1: tt.speed})
 			ctx.TrackProfile = learnedTrackAt(raceSpeed)
+			ctx.RaceSpeeds = fieldAt(raceSpeedsAt(raceSpeed))
 			if tt.entryM > 0 {
 				ctx.TrackProfile.entryM = []float32{tt.entryM}
 			}
@@ -240,6 +242,7 @@ func TestEngineerEngine_SlowCarReachedWhenSaid(t *testing.T) {
 			e, b, clock, h := raceEngine(t)
 			tp := e.profiles.learning(0)
 			tp.speed, tp.quiet, tp.quietLaps = r.speeds, make([]float32, len(r.speeds)), 1
+			e.raceSpeeds = *fieldAt(r.speeds)
 			calledAt, reach, passedAt := -1.0, 0, 0.0
 			for k := 0; k < 1200; k++ {
 				now := float64(k) * 0.05
