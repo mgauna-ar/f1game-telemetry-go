@@ -27,9 +27,11 @@ type RaceTrafficRule struct {
 	// clearAt is when "clear" was made for the cars that went by, until the radio said it.
 	clearAt int64
 	// ahead is where the rule stands with each slow car ahead; noProfileLogged says the log has
-	// said there is no pace profile to time them on.
+	// said there is no pace profile to time them on, noFieldLogged that the field's speeds aren't
+	// known yet.
 	ahead           [packets.MaxCars]trafficApproach
 	noProfileLogged bool
+	noFieldLogged   bool
 	// The cars coming from behind a slow player, and the pit exit call.
 	carsBehind
 	// motionEpoch is the motion samples' epoch the road gaps were worked out in.
@@ -156,7 +158,7 @@ func (r *RaceTrafficRule) Reset(scope DedupScope) {
 		r.lapping = [packets.MaxCars]lappingCar{}
 		r.flag, r.blueAt, r.blueCalled, r.fallbackAt = packets.VehicleFIAFlagNone, 0, false, 0
 		r.clearAt, r.motionEpoch = 0, 0
-		r.ahead, r.noProfileLogged = [packets.MaxCars]trafficApproach{}, false
+		r.ahead, r.noProfileLogged, r.noFieldLogged = [packets.MaxCars]trafficApproach{}, false, false
 		r.carsBehind = carsBehind{}
 	}
 }
@@ -193,7 +195,8 @@ func (r *RaceTrafficRule) followLocked(ctx *EvaluationContext) {
 		r.behind = [packets.MaxCars]trafficApproach{}
 		r.clearAt = 0
 	}
-	confirmTraffic(ctx, &r.ahead, "race_slow_car_ahead", raceTrafficLog)
+	prof, _ := slowCarProfile(ctx)
+	confirmTraffic(ctx, &r.ahead, "race_slow_car_ahead", prof, raceTrafficLog)
 	r.followBehindLocked(ctx, raceBehindKeys, raceTrafficLog)
 	for i := range r.lapping {
 		c := &r.lapping[i]

@@ -30,7 +30,7 @@ type behindKeys struct {
 // radio didn't say is made again (logged as log.said once said), and so are the follow-ups; a car
 // said clear is done with. A pit exit call said makes its car warned of, for its follow-ups.
 func (c *carsBehind) followBehindLocked(ctx *EvaluationContext, keys behindKeys, log trafficLog) {
-	confirmTraffic(ctx, &c.behind, keys.warn, log)
+	confirmTraffic(ctx, &c.behind, keys.warn, trafficProfile(ctx), log)
 	for i := range c.behind {
 		a := &c.behind[i]
 		if a.closeAt > 0 && !a.closeSaid {

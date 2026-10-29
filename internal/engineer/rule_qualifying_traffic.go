@@ -65,7 +65,7 @@ func (r *QualifyingRule) followTrafficLocked(ctx *EvaluationContext) {
 		r.ahead = [packets.MaxCars]trafficApproach{}
 	}
 	r.followBehindLocked(ctx, qualyBehindKeys, pushLapTrafficLog)
-	confirmTraffic(ctx, &r.ahead, "qualy_traffic_ahead", pushLapTrafficLog)
+	confirmTraffic(ctx, &r.ahead, "qualy_traffic_ahead", trafficProfile(ctx), pushLapTrafficLog)
 }
 
 // qualyBehindKeys are the qualifying rule's cars-behind alert keys.
@@ -74,8 +74,9 @@ var qualyBehindKeys = behindKeys{
 }
 
 // confirmTraffic checks the calls made under alert key for states got on the radio: one the
-// radio didn't say is forgotten, so it is made again; one it said is logged as log.said.
-func confirmTraffic(ctx *EvaluationContext, states *[packets.MaxCars]trafficApproach, key string, log trafficLog) {
+// radio didn't say is forgotten, so it is made again; one it said is logged as log.said, with
+// the pace windows on prof, the profile the calls run on.
+func confirmTraffic(ctx *EvaluationContext, states *[packets.MaxCars]trafficApproach, key string, prof paceProfile, log trafficLog) {
 	for i := range states {
 		a := &states[i]
 		if !a.warned || a.confirmed {
@@ -87,7 +88,6 @@ func confirmTraffic(ctx *EvaluationContext, states *[packets.MaxCars]trafficAppr
 		}
 		a.confirmed = true
 		// What the player and the car ran over each window, to see where the shares came from.
-		prof := trafficProfile(ctx)
 		window := func(idx int, ms int64) float64 {
 			share, _ := ctx.Motion.paceShare(idx, ms, prof)
 			return roundTo(share, 3)

@@ -499,6 +499,9 @@ type EvaluationContext struct {
 	// Motion is how each car moved over the last seconds of lap data; nil when not followed. Read
 	// only.
 	Motion *carMotion
+	// RaceSpeeds is how fast the field runs round the lap in this race; nil when not followed.
+	// Read only.
+	RaceSpeeds *raceSpeeds
 	// DeliveryLeadMs is how long a traffic call takes from the server to its first word, as the
 	// dashboards reported it.
 	DeliveryLeadMs int64

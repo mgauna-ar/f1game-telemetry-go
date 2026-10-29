@@ -666,7 +666,7 @@ func TestPaceProfile_LearnedSpeeds(t *testing.T) {
 func TestTrackProfiles_LearnPushSpeeds(t *testing.T) {
 	p := newTrackProfiles()
 	var m carMotion
-	learn := func(lapM float32, mps float64) { p.learnPushSpeed(0, qualyTrackLen, lapM, mps) }
+	learn := p.pushSteps(0, qualyTrackLen)
 	feed := func(at float32, pushing, other float32) {
 		lap := &packets.PacketLapData{}
 		lap.LapData[0] = qualyCar(packets.DriverStatusOutLap, other, 0)

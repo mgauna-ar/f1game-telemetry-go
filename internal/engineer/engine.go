@@ -78,6 +78,8 @@ type EngineerEngine struct {
 	profiles *trackProfiles
 	// motion is how each car moved over the last seconds, for the qualifying traffic calls.
 	motion carMotion
+	// raceSpeeds is how fast the field runs round the lap in this race, for the slow car calls.
+	raceSpeeds raceSpeeds
 
 	// Box calls: where the player is, calls to box waiting for the line, and the lap a call told
 	// the player to box on (0: none).
@@ -265,6 +267,7 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.clockSessionTime, e.clockSeenAt, e.clockRuns, e.clockStill = 0, 0, false, false
 	e.profiles.resetSession()
 	e.motion = carMotion{}
+	e.raceSpeeds = raceSpeeds{}
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
 	e.latestSession = nil
@@ -325,6 +328,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 			e.lineWait = make(map[string]lineWaitDirective)
 			e.profiles.spoilQuietLap()
 			e.motion.reset()
+			e.raceSpeeds.dropPasses()
 		}
 		e.recordRaceEventLocked(p)
 	case *packets.PacketParticipantsData:
@@ -354,14 +358,13 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		if s := e.latestSession; s != nil {
 			trackLen := float32(s.TrackLength)
 			// Push speeds are learned in timed sessions only: in a race, the cars marked on a push
-			// lap may be behind a Safety Car, starting, or crawling back.
-			var learnPush func(lapM float32, mps float64)
-			if !packets.IsRaceSession(s.SessionType) {
-				learnPush = func(lapM float32, mps float64) {
-					e.profiles.learnPushSpeed(s.TrackId, trackLen, lapM, mps)
-				}
+			// lap may be behind a Safety Car, starting, or crawling back. The race speeds are
+			// learned from every car racing, with no Safety Car and no yellow flag where it is.
+			learn := e.profiles.pushSteps(s.TrackId, trackLen)
+			if packets.IsRaceSession(s.SessionType) {
+				learn = e.raceSpeeds.steps(s, trackLen)
 			}
-			e.motion.sample(p, header.SessionTime, trackLen, learnPush)
+			e.motion.sample(p, header.SessionTime, trackLen, learn)
 			if e.playerCarIndex >= 0 && e.playerCarIndex < len(p.LapData) {
 				e.profiles.savePushSpeeds(int(p.LapData[e.playerCarIndex].CurrentLapNum))
 			}
@@ -450,6 +453,7 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		TrackProfile:     e.trackProfileLocked(),
 		LastSaid:         e.lastDirectives,
 		Motion:           &e.motion,
+		RaceSpeeds:       &e.raceSpeeds,
 		DeliveryLeadMs:   e.delivery.leadMs(),
 	}
 	if _, ok := pkt.(*packets.PacketLapData); ok {

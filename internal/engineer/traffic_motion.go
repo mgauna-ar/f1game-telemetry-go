@@ -55,10 +55,13 @@ func (m *carMotion) ready(player int) bool {
 	return m == nil || (player >= 0 && player < packets.MaxCars && m.cars[player].spanMs() >= PaceWindowShortMs)
 }
 
+// motionStep is told each step car idx drove (its lap data l): step metres from lap distance
+// fromM in ms.
+type motionStep func(idx int, l *packets.LapData, fromM float32, step float64, ms int64)
+
 // sample adds where each car is on lap data p at session time sessionTime (s), on a lap of
-// trackLen metres. Each step a car on a push lap drives goes to learnPush (nil: none): where it
-// was, half way, and its speed.
-func (m *carMotion) sample(p *packets.PacketLapData, sessionTime, trackLen float32, learnPush func(lapM float32, mps float64)) {
+// trackLen metres. Each step a car drives goes to learn (nil: none).
+func (m *carMotion) sample(p *packets.PacketLapData, sessionTime, trackLen float32, learn motionStep) {
 	if p == nil || trackLen <= 0 {
 		return
 	}
@@ -66,8 +69,8 @@ func (m *carMotion) sample(p *packets.PacketLapData, sessionTime, trackLen float
 	for i := range p.LapData {
 		l := &p.LapData[i]
 		from, step, ok := m.cars[i].add(now, l.LapDistance, trackLen)
-		if ok && learnPush != nil && l.DriverStatus == packets.DriverStatusFlyingLap && onTrack(l) {
-			learnPush(from.lapM+float32(step)/2, step/(float64(now-from.sessionMs)/1000))
+		if ok && learn != nil {
+			learn(i, l, from.lapM, step, now-from.sessionMs)
 		}
 	}
 }
@@ -183,6 +186,17 @@ func trafficProfile(ctx *EvaluationContext) paceProfile {
 		p.speeds, p.from = ctx.TrackProfile.speed, "player"
 	}
 	return p
+}
+
+// raceProfile is the pace profile of the field's speeds in this race (raceSpeeds); ok is false
+// until they are known round the lap.
+func raceProfile(ctx *EvaluationContext) (paceProfile, bool) {
+	lapM := ctx.TrackLengthM()
+	speeds := ctx.RaceSpeeds.speedsFor(lapM)
+	if speeds == nil {
+		return paceProfile{}, false
+	}
+	return paceProfile{lapM: lapM, speeds: speeds, from: "race", flatMps: AverageRaceSpeedMetersPerSec}, true
 }
 
 // sec is how long length metres of lap from lap distance from take at the profile's pace.

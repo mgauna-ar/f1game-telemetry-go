@@ -14,14 +14,28 @@ type slowCarAhead struct {
 	stopped bool
 }
 
+// slowCarProfile is the pace profile the slow car calls run on: the field's speeds in this race
+// (field true), so a car braking where the field brakes isn't slow; until they are known, the
+// track's pace profile, on which only a stopped car is called.
+func slowCarProfile(ctx *EvaluationContext) (prof paceProfile, field bool) {
+	if prof, ok := raceProfile(ctx); ok {
+		return prof, true
+	}
+	return trafficProfile(ctx), false
+}
+
 // evaluateSlowCarAhead warns the player of a slow or stopped car on the road ahead (a crash,
 // damage, a car rejoining), so they hear QualyTrafficWarnSec before they reach it: from the
-// player's race pace and the car's on the track's pace profile, as the qualifying traffic calls.
+// player's race pace and the car's on the field's speeds here, as the qualifying traffic calls.
 // Each car once per approach, with a second one QualyTrainSec behind it counted in the same call.
-// Never on a flat profile (at a track first driven, until the player's own speeds are learned):
-// a car in a slow corner would seem stopped.
+// Until the field's speeds are known (most of lap 1), a stopped car only, and never on a flat
+// profile (at a track first driven): a car in a slow corner would seem stopped.
 func (r *RaceTrafficRule) evaluateSlowCarAhead(ctx *EvaluationContext, player *packets.LapData) *Directive {
-	prof := trafficProfile(ctx)
+	prof, field := slowCarProfile(ctx)
+	if !field && !r.noFieldLogged {
+		r.noFieldLogged = true
+		slog.Info("Race traffic waits for the field's speeds", "lap", player.CurrentLapNum)
+	}
 	if prof.source() == "flat" {
 		if !r.noProfileLogged {
 			r.noProfileLogged = true
@@ -56,6 +70,9 @@ func (r *RaceTrafficRule) evaluateSlowCarAhead(ctx *EvaluationContext, player *p
 			continue
 		}
 		stopped := short < RaceStoppedShare
+		if !stopped && !field {
+			continue
+		}
 		if !stopped && entryM > 0 && trackGapM(rival.LapDistance, entryM, lapM) <= PitEntryGuardM {
 			continue
 		}
