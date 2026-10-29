@@ -15,6 +15,7 @@ const mockRadio: UseRadioControllerReturn = {
   driverCallsign: '',
   effectiveLanguage: 'es',
   lastTranscript: null,
+  openMic: false,
   lastResponse: null,
   error: null,
   isPTTActive: false,
@@ -86,6 +87,21 @@ describe('LiveRadioHUD Component', () => {
 
     expect(screen.getByText(/TRANSMITTING|TRANSMITIENDO/i)).toBeInTheDocument();
     expect(screen.getByText(/Box this lap/i)).toBeInTheDocument();
+  });
+
+  it('tells the driver how an open radio is sent, until the first words come through', () => {
+    const openRadio = { ...mockRadio, radioState: 'transmitting' as const, openMic: true };
+
+    const { rerender } = renderWithI18n(<LiveRadioHUD radio={openRadio} />);
+    expect(screen.getByText(/Stop talking or press again to send|Dejá de hablar/i)).toBeInTheDocument();
+
+    rerender(
+      <I18nProvider>
+        <LiveRadioHUD radio={{ ...openRadio, lastTranscript: 'Box this lap' }} />
+      </I18nProvider>
+    );
+    expect(screen.getByText(/Box this lap/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Stop talking or press again to send|Dejá de hablar/i)).not.toBeInTheDocument();
   });
 
   it('renders speaking state when engineer is speaking', () => {

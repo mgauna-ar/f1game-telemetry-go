@@ -208,6 +208,7 @@ export const ai_engineer = {
     buttonNumber: 'Botón {number}',
     pttNotSet: 'Sin botón de PTT asignado',
     pttSetUp: 'Configurar',
+    openMicHint: 'Escuchando. Dejá de hablar o volvé a apretar para enviar',
     notSupported: 'El reconocimiento de voz no está soportado en este navegador.',
     notHeard: 'No se escuchó nada en tu última transmisión.',
     micBlocked: 'El micrófono está bloqueado para esta página. Permitilo en la configuración del sitio del navegador.',

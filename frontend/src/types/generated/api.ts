@@ -109,6 +109,8 @@ export interface PTTLearnedMessage {
   mapping: Mapping;
 }
 
+export type PTTOpenMicEnd = 'silence' | 'press' | 'no_speech' | 'max';
+
 /** Go: api.PTTSettingsResponse */
 export interface PTTSettingsResponse extends PTT {
   saved: boolean;
@@ -124,6 +126,7 @@ export interface PTTTraceRequest {
   held_ms: number;
   press_source?: PTTSource;
   release_source?: PTTSource;
+  open_mic_end?: PTTOpenMicEnd;
   visible_at_press: boolean;
   visible_at_release: boolean;
   recognizer_started: boolean;

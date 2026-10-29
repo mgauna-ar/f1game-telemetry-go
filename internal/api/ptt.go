@@ -175,6 +175,11 @@ var PTTTraceOutcomes = []string{"answered", "answer_failed", "not_heard", "radio
 // union for the frontend.
 var PTTSources = []string{"global", "gamepad", "keyboard"}
 
+// PTTOpenMicEnds lists how an open-mic transmission ended (PTTTraceRequest.OpenMicEnd): the driver
+// stopped talking, pressed again, said nothing, or talked for the longest one allowed. It builds the
+// union for the frontend.
+var PTTOpenMicEnds = []string{"silence", "press", "no_speech", "max"}
+
 // pttTraceMaxText caps each text a trace carries into the log.
 const pttTraceMaxText = 200
 
@@ -188,6 +193,9 @@ type PTTTraceRequest struct {
 	// PressSource and ReleaseSource say where the press and the release came from.
 	PressSource   string `json:"press_source,omitempty" tstype:"PTTSource"`
 	ReleaseSource string `json:"release_source,omitempty" tstype:"PTTSource"`
+	// OpenMicEnd is set when the app's in-game button came back up almost at once and the radio stayed
+	// open on its own; it says what ended the transmission.
+	OpenMicEnd string `json:"open_mic_end,omitempty" tstype:"PTTOpenMicEnd"`
 	// VisibleAtPress and VisibleAtRelease say whether the page was in front, or hidden behind the game.
 	VisibleAtPress   bool `json:"visible_at_press"`
 	VisibleAtRelease bool `json:"visible_at_release"`
@@ -234,6 +242,7 @@ func (s *Server) handlePTTTrace(w http.ResponseWriter, r *http.Request) {
 		"held_ms", req.HeldMs,
 		"press_source", clip(req.PressSource, pttTraceMaxText),
 		"release_source", clip(req.ReleaseSource, pttTraceMaxText),
+		"open_mic_end", clip(req.OpenMicEnd, pttTraceMaxText),
 		"visible_at_press", req.VisibleAtPress,
 		"visible_at_release", req.VisibleAtRelease,
 		"recognizer_started", req.RecognizerStarted,

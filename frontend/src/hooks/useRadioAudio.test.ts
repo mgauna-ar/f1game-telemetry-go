@@ -653,6 +653,156 @@ describe('useRadioAudio hook', () => {
       }
     });
 
+    describe('when the in-game button comes back up at once', () => {
+      beforeEach(() => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      // The app reports the wheel button down, then up almost at once, while the driver holds it.
+      function pressInGame(result: { current: ReturnType<typeof useRadioAudio> }) {
+        act(() => {
+          result.current.onPTTPress('global');
+        });
+        act(() => {
+          void result.current.onPTTRelease('global', 'hold');
+        });
+      }
+
+      const advance = (ms: number) =>
+        act(async () => {
+          vi.advanceTimersByTime(ms);
+        });
+
+      // The driver's end beep; the engineer's answer ends with its own, at a lower volume.
+      const endBeeps = () =>
+        vi.mocked(radioAudio.playRadioBeep).mock.calls.filter((call) => call.length === 1 && call[0] === 'end');
+
+      it('keeps the radio open and sends the question once the driver stops talking', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        pressInGame(result);
+        expect(result.current.radioState).toBe('transmitting');
+        expect(result.current.openMic).toBe(true);
+        expect(endBeeps()).toEqual([]);
+
+        act(() => {
+          FakeSpeechRecognition.say('Box this lap?');
+        });
+        await advance(1000);
+        act(() => {
+          FakeSpeechRecognition.say('Box this lap? Over');
+        });
+        // Each new word restarts the wait.
+        await advance(1000);
+        expect(result.current.radioState).toBe('transmitting');
+        expect(api.stream).not.toHaveBeenCalled();
+
+        await advance(600);
+        await act(async () => {
+          await vi.waitFor(() => expect(traces()).toHaveLength(1));
+        });
+
+        expect(endBeeps()).toHaveLength(1);
+        expect(requestBody(0).messages).toEqual([
+          { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Box this lap? Over"' },
+        ]);
+        expect(traces()).toEqual([
+          expect.objectContaining({ outcome: 'answered', release_source: 'global', open_mic_end: 'silence' }),
+        ]);
+        expect(result.current.openMic).toBe(false);
+      });
+
+      it('sends at once when the driver presses again', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        pressInGame(result);
+        act(() => {
+          FakeSpeechRecognition.say('Gap behind?');
+        });
+        act(() => {
+          result.current.onPTTPress('global');
+        });
+        // The second press's own release finds nothing left to send.
+        await act(async () => {
+          await result.current.onPTTRelease('global', 'hold');
+          await vi.waitFor(() => expect(traces()).toHaveLength(1));
+        });
+
+        expect(api.stream).toHaveBeenCalledTimes(1);
+        expect(requestBody(0).messages).toEqual([
+          { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Gap behind?"' },
+        ]);
+        expect(traces()).toEqual([expect.objectContaining({ outcome: 'answered', open_mic_end: 'press' })]);
+      });
+
+      it('closes quietly when nothing is said', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        pressInGame(result);
+        await advance(5900);
+        expect(result.current.radioState).toBe('transmitting');
+
+        await advance(100);
+        await act(async () => {
+          await vi.waitFor(() => expect(traces()).toHaveLength(1));
+        });
+
+        expect(traces()).toEqual([expect.objectContaining({ outcome: 'tap', open_mic_end: 'no_speech' })]);
+        expect(spoken()).toEqual([]);
+        expect(result.current.error).toBeNull();
+        expect(result.current.radioState).toBe('idle');
+        expect(result.current.openMic).toBe(false);
+      });
+
+      it('closes after the longest transmission allowed', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        pressInGame(result);
+        for (let second = 0; second < 20; second++) {
+          expect(result.current.radioState).toBe('transmitting');
+          act(() => {
+            FakeSpeechRecognition.say(`Still talking ${second}`);
+          });
+          await advance(1000);
+        }
+        await act(async () => {
+          await vi.waitFor(() => expect(traces()).toHaveLength(1));
+        });
+
+        expect(traces()).toEqual([expect.objectContaining({ outcome: 'answered', open_mic_end: 'max' })]);
+      });
+
+      it('still ends a short tap on the page, and a short press in Toggle mode', async () => {
+        const { result } = renderHook(() => useRadioAudio());
+
+        for (const [source, mode] of [
+          ['gamepad', 'hold'],
+          ['keyboard', 'hold'],
+          ['global', 'toggle'],
+        ] as const) {
+          act(() => {
+            result.current.onPTTPress(source);
+          });
+          await act(async () => {
+            await result.current.onPTTRelease(source, mode);
+          });
+        }
+
+        expect(result.current.openMic).toBe(false);
+        expect(traces().map((trace) => [trace.outcome, trace.open_mic_end])).toEqual([
+          ['tap', undefined],
+          ['tap', undefined],
+          ['tap', undefined],
+        ]);
+      });
+    });
+
     it('hears a question with a pause in it whole', async () => {
       vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
       const { result } = renderHook(() => useRadioAudio());

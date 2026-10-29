@@ -28,15 +28,17 @@ export const RadioDialogueTranscript: React.FC<RadioDialogueTranscriptProps> = (
       ? { tone: 'speaking', text: `"${radio.lastResponse}"` }
       : radio.radioState === 'transmitting' && radio.lastTranscript
         ? { tone: 'transmitting', text: `"${radio.lastTranscript}..."` }
-        : radio.radioState === 'idle' && radio.error
-          ? { tone: 'problem', text: radio.error }
-          : radio.lastResponse
-            ? { tone: undefined, text: `"${radio.lastResponse}"` }
-            : {
-                tone: 'placeholder',
-                text:
-                  connected && session ? t('live.cockpit.noRecentTransmissions') : t('live.cockpit.waitingSubtitle'),
-              };
+        : radio.radioState === 'transmitting' && radio.openMic
+          ? { tone: 'transmitting', text: t('ai_engineer.radio.openMicHint') }
+          : radio.radioState === 'idle' && radio.error
+            ? { tone: 'problem', text: radio.error }
+            : radio.lastResponse
+              ? { tone: undefined, text: `"${radio.lastResponse}"` }
+              : {
+                  tone: 'placeholder',
+                  text:
+                    connected && session ? t('live.cockpit.noRecentTransmissions') : t('live.cockpit.waitingSubtitle'),
+                };
 
   return (
     <div className={styles.card}>

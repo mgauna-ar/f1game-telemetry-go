@@ -14,6 +14,7 @@ const mockRadio: UseRadioControllerReturn = {
   effectiveLanguage: 'en',
   driverCallsign: 'Lewis',
   lastTranscript: null,
+  openMic: false,
   lastResponse: null,
   error: null,
   isPTTActive: false,
@@ -89,6 +90,24 @@ describe('VoiceCockpitView', () => {
 
     expect(screen.getByText(/What is my gap to the leader\?/i)).toBeInTheDocument();
     expect(screen.getByText(/TRANSMITTING/i)).toBeInTheDocument();
+  });
+
+  it('tells the driver how an open radio is sent before any words come through', () => {
+    const openRadio = { ...mockRadio, radioState: 'transmitting' as const, openMic: true };
+
+    renderWithI18n(
+      <VoiceCockpitView
+        radio={openRadio}
+        session={null}
+        lap={null}
+        carStatus={null}
+        carDamage={null}
+        telemetry={null}
+        connected={true}
+      />
+    );
+
+    expect(screen.getByText(/Stop talking or press again to send|Dejá de hablar/i)).toBeInTheDocument();
   });
 
   it('renders engineer response dialogue bubble when speaking', () => {

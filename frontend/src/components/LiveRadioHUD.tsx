@@ -82,6 +82,8 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
                   </span>
                 ) : state === 'transmitting' && radio.lastTranscript ? (
                   <span className={styles.quote}>{radio.lastTranscript}...</span>
+                ) : state === 'transmitting' && radio.openMic ? (
+                  <span role="status">{t('ai_engineer.radio.openMicHint')}</span>
                 ) : state === 'idle' && radio.error ? (
                   <span className={styles.problem} title={radio.error} role="status">
                     {radio.error}

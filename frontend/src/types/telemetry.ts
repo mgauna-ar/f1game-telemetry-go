@@ -123,6 +123,7 @@ export type {
 
 /** What the dashboard reports about each push-to-talk exchange, for the app log. */
 export type {
+  PTTOpenMicEnd,
   PTTSource,
   PTTTraceOutcome,
   PTTTraceRequest,

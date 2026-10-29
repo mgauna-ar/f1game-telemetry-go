@@ -82,3 +82,42 @@ func TestButtonStatePoll(t *testing.T) {
 		})
 	}
 }
+
+func TestButtonStateRecordsHowAPressEnded(t *testing.T) {
+	tests := []struct {
+		name          string
+		polls         []reading
+		wantHeldPolls int
+		wantEndedBy   string
+	}{
+		{
+			name:          "let go",
+			polls:         readings(repeat(held, 10), repeat(released, releasePolls)),
+			wantHeldPolls: 9 + releasePolls,
+			wantEndedBy:   endedReleased,
+		},
+		{
+			name:          "can't be read",
+			polls:         readings(repeat(held, 3), repeat(failed, maxFailedPolls)),
+			wantHeldPolls: 2 + maxFailedPolls,
+			wantEndedBy:   endedReadFailed,
+		},
+		{
+			name:          "a second press counts from its own start",
+			polls:         readings(repeat(held, 20), repeat(released, releasePolls), repeat(held, 2), repeat(released, releasePolls)),
+			wantHeldPolls: 1 + releasePolls,
+			wantEndedBy:   endedReleased,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s buttonState
+			for _, r := range tt.polls {
+				s.poll(r.ok, r.pressed)
+			}
+			if s.heldPolls != tt.wantHeldPolls || s.endedBy != tt.wantEndedBy {
+				t.Errorf("heldPolls, endedBy = %d, %q, want %d, %q", s.heldPolls, s.endedBy, tt.wantHeldPolls, tt.wantEndedBy)
+			}
+		})
+	}
+}

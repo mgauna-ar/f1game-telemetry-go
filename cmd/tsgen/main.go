@@ -117,6 +117,7 @@ func registry() *tsgen.Generator {
 	// What the dashboard reports about each push-to-talk exchange, for the app log.
 	g.TypeAlias("api", "PTTTraceOutcome", stringUnion(api.PTTTraceOutcomes))
 	g.TypeAlias("api", "PTTSource", stringUnion(api.PTTSources))
+	g.TypeAlias("api", "PTTOpenMicEnd", stringUnion(api.PTTOpenMicEnds))
 	// What the dashboard reports about each proactive call it handled, for the app log.
 	g.TypeAlias("api", "RadioHeardOutcome", stringUnion(api.RadioHeardOutcomes))
 
