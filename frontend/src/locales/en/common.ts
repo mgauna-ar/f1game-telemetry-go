@@ -124,6 +124,7 @@ export const common = {
     macArmPkg: 'macOS (Apple Silicon M1–M4)',
     macIntelPkg: 'macOS (Intel x64)',
     winX64Pkg: 'Windows (64-bit x64)',
+    winInstallerPkg: 'Windows installer (64-bit x64)',
     winArmPkg: 'Windows (ARM64)',
     linuxX64Pkg: 'Linux (64-bit x64)',
     linuxArmPkg: 'Linux (ARM64)',

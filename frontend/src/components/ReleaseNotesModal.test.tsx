@@ -189,6 +189,28 @@ describe('ReleaseNotesModal', () => {
     expect(screen.queryByText('Windows (64-bit x64)')).not.toBeInTheDocument();
   });
 
+  it('tells the Windows installer from the zip', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0; Win64; x64)');
+    const assets: UpdateCheckResponse['assets'] = [
+      ...mockUpdateData.assets,
+      {
+        name: 'f1telemetry_v1.0.0-beta.2_windows_amd64_setup.exe',
+        size: 16777216,
+        download_url: 'https://example.com/dl/setup.exe',
+        platform: 'windows',
+      },
+    ];
+    render(
+      <I18nProvider>
+        <ReleaseNotesModal isOpen onClose={() => {}} updateData={{ ...mockUpdateData, assets }} />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('Windows installer (64-bit x64)')).toBeInTheDocument();
+    expect(screen.getByText('Windows (64-bit x64)')).toBeInTheDocument();
+    expect(screen.queryByText(/darwin_arm64/)).not.toBeInTheDocument();
+  });
+
   describe('on the PC running a release build', () => {
     beforeEach(() => {
       useDesktopStore.setState({

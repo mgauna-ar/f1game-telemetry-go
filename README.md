@@ -60,47 +60,57 @@
 
 ## 🚀 Quick Start
 
-### 📦 Download Standalone Executable (Recommended)
+### 📦 Download (Recommended)
 
-Pre-compiled, self-contained single binaries with the embedded web dashboard are available under **[GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**. **No runtime dependencies or installations are required** (no Go or Node.js needed to run).
+Pre-compiled, self-contained builds with the embedded web dashboard are available under **[GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**. You don't need Go or Node.js to run them.
 
-1. Download the archive for your operating system from the **[Latest Release](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**:
-   * **Windows (x64):** `f1telemetry_<version>_windows_amd64.zip`
+1. Download the file for your operating system from the **[Latest Release](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**:
+   * **Windows (x64):** the installer, `f1telemetry_<version>_windows_amd64_setup.exe`, or the portable `f1telemetry_<version>_windows_amd64.zip`
    * **macOS (Apple Silicon M-series):** `f1telemetry_<version>_darwin_arm64.zip`
    * **Linux (x64):** `f1telemetry_<version>_linux_amd64.tar.gz`
 
    Other platforms (Intel Macs, ARM Linux) aren't published as binaries: build from source with `make build-embedded`. Windows on ARM runs the x64 build.
-2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). A small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, an **Open dashboard** button and, when a new release is out, **Update now** (see [Updating](#-updating)). It's a Chrome, Edge, Chromium or Brave window without tabs (Edge comes with Windows; without one of these it opens as a tab in your default browser). On macOS it opens in your own browser profile, so the browser stays the one you're signed in to. Closing it keeps the app running: on Windows in the tray, on macOS / Linux in its terminal (stop it with Ctrl+C or the window's **Quit** button). Turn off **Show this window at startup** in it to start straight to the tray or terminal. Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+2. Install or extract it:
+   * **Windows installer:** run it. It installs F1 Telemetry for your user (no administrator prompt) in `%LOCALAPPDATA%\Programs\F1 Telemetry` and adds it to the Start menu. It also installs Microsoft's WebView2 Runtime, which the app's window needs, on a PC that doesn't have it (Windows 11 and an up-to-date Windows 10 do). Uninstall it from **Settings → Apps**: your sessions, settings and log stay in its folder.
+   * **Windows zip:** extract it to a folder you can write to and run `f1telemetry.exe`. The zip needs the WebView2 Runtime too.
+   * **macOS / Linux:** extract it and run `./f1telemetry`.
 
-#### 🖥️ On Windows: lives in the notification area
+   The database (`f1telemetry.db`), the log and a `.env` live next to the app, in the installer's folder as in the zip's. Already using the zip? **Update now** keeps your folder and data (see [Updating](#-updating)); to use the installer instead, install it into that folder.
+3. **On Windows**, F1 Telemetry opens in a window of its own with the whole dashboard (see **On Windows** below). **On macOS / Linux** a small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, an **Open dashboard** button and, when a new release is out, **Update now**. It's a Chrome, Edge, Chromium or Brave window without tabs (without one of these it opens as a tab in your default browser); on macOS it opens in your own browser profile, so the browser stays the one you're signed in to. Closing it keeps the app running in its terminal (stop it with Ctrl+C or the window's **Quit** button), and **Show this window at startup** in it starts the app straight to the terminal. Starting it again while it's already running does nothing.
 
-There's no console window: the app runs with an icon in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible).
+Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
 
-* **Left-click** the icon to bring the app window back. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Show window**, **Open dashboard**, **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out; install it from the app window.
-* The icon shows a green dot while the game is sending telemetry.
-* **Start with Windows** (in the menu or the app window) starts it in the tray when you sign in, without the window, using the same database.
+#### 🖥️ On Windows: its own window and the notification area
+
+* **Its own window:** the dashboard opens in an F1 Telemetry window, not in a browser. It remembers its size, its place and the monitor it was on. Closing it keeps the app running in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible), and the radio keeps talking if the window was on Live. Starting the app again brings the window up.
+* **The notification area icon:** **left-click** it to bring the window back. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Open F1 Telemetry**, **Live view**, **Race Control in a new window**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. When a new release is out the menu says so, and the notice opens **Settings → App**. The icon shows a green dot while the game is sending telemetry, and the menu follows your Windows display language (English or Spanish).
+* **Race Control on a second monitor:** **Race Control in a new window** (in the menu, or the button next to the view switch on Live) opens the Race Control view in a window of its own. It never speaks.
+* **One radio per PC:** on the PC running the app, only the main window speaks and listens to push-to-talk. The Race Control window and a dashboard opened in a browser on that PC stay silent (their radio switch is greyed out), so nothing talks over the window or answers a press twice. Phones and tablets keep their own switch. Push-to-talk speech in the window is recognized by Microsoft's service, as in Edge.
+* **Links:** pages from other sites (release notes, AI provider pages, links in AI answers) open in your default browser.
+* **This device:** the window keeps its own copy of the **This device** settings (volume, radio effects, language, units, views), so they start at this PC's defaults the first time. The engineer's voice, push-to-talk and AI keys come from the server, as on every device.
+* **Settings → App** (only on the PC running the app): the version and **Update now**, whether the window opens when F1 Telemetry starts (off: it starts in the tray), **Start with Windows**, the dashboard's address for a phone or tablet, and **Quit**.
+* **Start with Windows** (in the menu or Settings → App) starts it in the tray when you sign in, without the window, using the same database.
 * The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
 * Each radio call the Live page handles gets a `Radio call heard` line in the log: whether you heard it (`said`), it was cut off, went stale before its turn or had no voice, how long it waited, how long its voice took to make (`synth_ms`, or `cached`), how long after it came the first word was said (`start_ms`) and whether the page was in front (`visible`). `Push-lap traffic` says when a traffic call was made and the number it said, and `Push-lap car passed` how long after the call the car went by. `Blue flag shown` says how far back the car lapping you was when the game showed the flag, and `Lapping car passed` how long after it the car went by. `Race traffic` and `Race traffic passed` do the same for a slow or stopped car ahead, or a car coming on you, in a race.
-* The menu follows your Windows display language (English or Spanish).
 
 > [!NOTE]
 > **Windows Defender / SmartScreen Notice:**
-> Because this is a free, community open-source project without an expensive commercial code-signing certificate, Windows Defender SmartScreen may display a blue warning (*"Windows protected your PC"* or *"Unknown Publisher"*). This is standard and expected for newly released, unsigned open-source executables.
+> Because this is a free, community open-source project without an expensive commercial code-signing certificate, Windows Defender SmartScreen may display a blue warning (*"Windows protected your PC"* or *"Unknown Publisher"*) for the installer or the app. This is standard and expected for newly released, unsigned open-source executables.
 >
 > To proceed: click **"More info"** → **"Run anyway"**. You can also verify binary integrity against the official SHA-256 hashes published in `checksums.txt`, or compile the binary yourself from source.
 
 ### 🔄 Updating
 
-When a new release is out, the app window shows it with a **What's new** link and an **Update now** button. One click downloads the release for your system from GitHub, checks it against the release's `checksums.txt`, makes sure it starts, puts it in place of the app and restarts it. The window reloads on the new version. Your sessions, settings and log stay where they are, and the app keeps its flags (port, database). It works on Windows, macOS and Linux, even during a session (the restart drops a few seconds of telemetry).
+When a new release is out, the dashboard shows it next to the version in the top bar. On the PC running the app, its release notes, **Settings → App** and the macOS / Linux app window have an **Update now** button; on Windows the tray menu says so too. One click downloads the release for your system from GitHub, checks it against the release's `checksums.txt`, makes sure it starts, puts it in place of the app and restarts it. On Windows the window reopens on **Settings → App** with the new version; a page in a browser reloads on it. Your sessions, settings and log stay where they are, and the app keeps its flags (port, database). It works on Windows, macOS and Linux, installed or from the zip, even during a session (the restart drops a few seconds of telemetry).
 
-* The app needs to be able to write to its own folder. If it can't (for example a copy in `/usr/local/bin`), the window says why and links to the release to download it by hand.
+* The app needs to be able to write to its own folder. If it can't (for example a copy in `/usr/local/bin`), it says why and links to the release to download it by hand.
 * Only the PC running the app sees the button, not a phone or tablet.
+* Coming from 1.x on Windows: **Update now** in 1.x's small window installs 2.0 in the same folder. That small window then says F1 Telemetry has its own window now: click **Open F1 Telemetry** and it closes.
 * Versions before the first one with **Update now** don't have it: download that one by hand once.
 
 ### 🧪 Development Builds (Without a Release)
 
-Every CI run of a pull request or of `main` builds all three binaries. You can also start one by hand for any branch: **Actions** → **CI/CD Pipeline** → **Run workflow**. Open the run, scroll to **Artifacts**, and download the one for your system (e.g. `f1telemetry-windows-amd64`). They are kept for 14 days. These builds report a `dev-<commit>` version, so they don't offer release updates. On macOS / Linux, make the extracted file executable first (`chmod +x f1telemetry_*`).
+Every CI run of a pull request or of `main` builds all three binaries. You can also start one by hand for any branch: **Actions** → **CI/CD Pipeline** → **Run workflow** (tick **installer** to also build the Windows installer, `f1telemetry-windows-amd64-setup`). Open the run, scroll to **Artifacts**, and download the one for your system (e.g. `f1telemetry-windows-amd64`). They are kept for 14 days. These builds report a `dev-<commit>` version, so they don't offer release updates. On macOS / Linux, make the extracted file executable first (`chmod +x f1telemetry_*`).
 
 ---
 
@@ -206,8 +216,8 @@ Server settings can be set with command-line flags, environment variables, or a 
 | `-udp` | `F1T_UDP_ADDR` | UDP telemetry listener address | `0.0.0.0:20777` |
 | `-http` | `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
 | `-db` | `F1T_DB_PATH` | SQLite database file (relative paths are resolved from the current folder; the full path is shown at startup) | `f1telemetry.db` |
-| `-open-browser` | `F1T_OPEN_BROWSER` | Open the dashboard in the browser on startup (`-no-browser` is still accepted and does nothing) | `false` |
-| `-no-tray` | `F1T_NO_TRAY` | Windows: run without the notification-area icon (the release build then has no window at all; stop it from Task Manager) | `false` |
+| `-open-browser` | `F1T_OPEN_BROWSER` | macOS / Linux: open the dashboard in the browser on startup; Windows opens its own window (`-no-browser` is still accepted and does nothing) | `false` |
+| `-no-tray` | `F1T_NO_TRAY` | Windows: run without the window and the notification-area icon (the release build then shows nothing; stop it from Task Manager) | `false` |
 | `-version` | — | Print version, commit, and build date, then exit | `false` |
 | | `GEMINI_API_KEY` | Google Gemini API key for the AI Race Engineer | *(Can be set in UI)* |
 | | `OPENAI_API_KEY` | OpenAI API key for the AI Race Engineer | *(Can be set in UI)* |
@@ -219,11 +229,11 @@ The database keeps every car's laps, so you can compare yourself with anyone in 
 
 The Live tab shows the UDP port the server listens on and this PC's network addresses (with copy buttons), which is what to enter in the game's telemetry settings on a console. The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
 
-All settings are on one page, opened from the gear in the top bar (`/settings/voice`, `/settings/alerts`, `/settings/ptt`, `/settings/ai`, `/settings/comparator` and `/settings/device`); the radio, AI and comparator dialogs stay as shortcuts with an "All settings" link.
+All settings are on one page, opened from the gear in the top bar (`/settings/voice`, `/settings/alerts`, `/settings/ptt`, `/settings/ai`, `/settings/comparator`, `/settings/device`, and `/settings/app` on the PC running the app); the radio, AI and comparator dialogs stay as shortcuts with an "All settings" link.
 
 Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, push-to-talk, and who the lap comparator compares you with by default. When one device saves a change, the other open dashboards reload it right away, and if two devices change the radio alert rules at once, the later save is refused and that dashboard shows the newer rules instead of overwriting them. A save that fails shows a notice. Saved API keys are never sent back to a browser; the settings only show that a key is saved. The settings page's "This device" section holds what stays per browser: volume, radio effects, whether the radio speaks on this screen, UI language (the dashboard downloads only the language on screen), units (km/h or mph, °C or °F, a 24- or 12-hour clock; they start from the browser's region and apply to every speed, temperature and clock time, live views included), which live view opens on a computer and on a phone, the Race Control layout, the AI chat window (compact, large, or docked beside the page) and performance mode. The comparator's chart view and strip layout and the session list's grouping and saved filters are per browser too. A comparator rival saved in a browser by an older version moves to the server the first time it opens.
 
-The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`. The app window's startup options and Quit (`/api/desktop`) only answer the PC the app runs on, so a phone or tablet on your network can't stop it.
+The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`. Settings → App, the app window and the Windows window's own requests (`/api/desktop`) only answer the PC the app runs on, so a phone or tablet on your network can't stop the app or update it.
 
 ---
 

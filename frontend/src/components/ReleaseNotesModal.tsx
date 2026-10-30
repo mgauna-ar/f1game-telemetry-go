@@ -87,6 +87,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       return t('common.updates.macPkg');
     }
     if (asset.platform === 'windows') {
+      if (lower.endsWith('_setup.exe')) return t('common.updates.winInstallerPkg');
       if (lower.includes('arm64')) return t('common.updates.winArmPkg');
       if (lower.includes('amd64') || lower.includes('x64')) return t('common.updates.winX64Pkg');
       return t('common.updates.windowsPkg');

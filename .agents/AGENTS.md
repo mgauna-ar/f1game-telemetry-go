@@ -35,8 +35,8 @@ Boundaries, invariants and verification gates.
   - `settings/`: Shared JSON settings (`settings.Sections`: `ai`, `voice`, `ptt`, `engineer`, `comparator`).
   - `locales/`: Type-safe `PromptCatalog`, thread-safe registry (`Resolve`, `Get`), `EnglishCatalog`/`SpanishCatalog`, Edge TTS voice mappings (no boolean flags).
   - `input/`: Global PTT (`winmm.dll` DirectInput wheels, `user32.dll` keyboard on Windows; Gamepad API + `Space` fallback).
-  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`) + self-update (`InstallRelease`; `Restart` sets `F1T_UPDATED`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance`, `OpenAppWindow`.
-  - `desktop/`: `App` behind loopback-only `/api/desktop` (`LoadDesktop`, HKCU `Run`, update, window, link, quit). Windows: Wails v3 windows on the local server (no bindings, `production` tag), tray, Race Control window; else `/desktop` in a browser. One radio per PC (`useRadioHere`), `openLinksOutside`. `-H=windowsgui`, log by DB. Icons: `go generate`.
+  - `system/`: Version, GitHub update check (`system.DefaultGitHubRepo`) + self-update (`InstallRelease`; `Restart` sets `F1T_UPDATED`), LAN addresses (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance`, `OpenAppWindow`.
+  - `desktop/`: `App` behind loopback-only `/api/desktop` (settings, HKCU `Run`, update, window, link, quit; Settings → App). Windows: Wails v3 windows on the server (no bindings, `production` tag), tray, Race Control window, `build/windows/` installer; else `/desktop` in a browser. One radio per PC (`useRadioHere`), `openLinksOutside`. `-H=windowsgui`, log by DB. Icons: `go generate`.
   - `tsgen/`: Stdlib Go-to-TS wire type generator (`cmd/tsgen`).
 
 ### Wire Types & REST Contracts
@@ -90,4 +90,4 @@ Boundaries, invariants and verification gates.
 
 ## 6. Multi-Language, CI/CD & Documentation
 * **Localization:** `locales/en/` is base schema, always bundled; others load on demand (`loadLocale`, preloaded in tests); radio phrases load with Live. Backend: `internal/locales`. `I18nProvider` + `useI18n` (`context/`) support `en` and `es` (`"Español (Latinoamérica)"`), saved as `f1_telemetry_language`.
-* **CI & Docs:** Add new tests, generators or linters to `.github/workflows/ci.yml`. Update docs on architecture/flag/feature changes: `README.md`, rules in `.agents/AGENTS.md` (`< 20 KB`, so it never truncates).
+* **CI & Docs:** New tests/generators/linters: `.github/workflows/ci.yml`; releases: `CONTRIBUTING.md`. Architecture/flag/feature changes: `README.md`, these rules (`< 20 KB`, never truncated).
