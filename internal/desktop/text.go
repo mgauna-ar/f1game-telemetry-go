@@ -2,14 +2,16 @@ package desktop
 
 import "strings"
 
-// appName is the name the tray, its tooltip and dialogs show.
+// appName is the name the windows, the tray, its tooltip and dialogs show.
 const appName = "F1 Telemetry"
 
-// text is what the tray and dialogs say, in the user's Windows display language.
+// text is what the tray, the windows' titles and dialogs say, in the user's Windows display
+// language.
 type text struct {
-	ShowWindow       string
-	OpenDashboard    string
-	OpenLive         string
+	Open             string
+	LiveView         string
+	Engineer         string
+	EngineerTitle    string // the engineer window's title
 	UpdateAvailable  string // %s: the new version
 	StartWithWindows string
 	DevBuildHint     string
@@ -23,9 +25,10 @@ type text struct {
 }
 
 var englishText = text{
-	ShowWindow:       "Show window",
-	OpenDashboard:    "Open dashboard",
-	OpenLive:         "Open live view",
+	Open:             "Open F1 Telemetry",
+	LiveView:         "Live view",
+	Engineer:         "Race engineer",
+	EngineerTitle:    "F1 Telemetry · Race engineer",
 	UpdateAvailable:  "Update available: %s",
 	StartWithWindows: "Start with Windows",
 	DevBuildHint:     "Not available for a build run with go run",
@@ -39,9 +42,10 @@ var englishText = text{
 }
 
 var spanishText = text{
-	ShowWindow:       "Mostrar ventana",
-	OpenDashboard:    "Abrir panel",
-	OpenLive:         "Abrir vista en vivo",
+	Open:             "Abrir F1 Telemetry",
+	LiveView:         "Vista en vivo",
+	Engineer:         "Ingeniero de carrera",
+	EngineerTitle:    "F1 Telemetry · Ingeniero de carrera",
 	UpdateAvailable:  "Actualización disponible: %s",
 	StartWithWindows: "Iniciar con Windows",
 	DevBuildHint:     "No disponible al ejecutar con go run",

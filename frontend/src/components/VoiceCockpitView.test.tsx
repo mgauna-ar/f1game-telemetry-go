@@ -8,6 +8,7 @@ import { makeLiveCarDamage, makeLiveCarStatus, makeLiveCarTelemetry2, makeLiveLa
 
 const mockRadio: UseRadioControllerReturn = {
   isRadioEnabled: true,
+  radioHere: true,
   setIsRadioEnabled: vi.fn(),
   radioState: 'idle',
   persona: 'bono',

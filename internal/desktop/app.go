@@ -5,19 +5,12 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"slices"
+	"sync"
 	"sync/atomic"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/settings"
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
-)
-
-// The app window's size: a small panel, not a second dashboard. On macOS the page gives the window
-// this size itself (APP_WINDOW_SIZE in frontend/src/desktop/useFitWindowToContent.ts).
-const (
-	windowWidth  = 440
-	windowHeight = 720
-	// windowPath is the dashboard page the app window shows.
-	windowPath = "/desktop"
 )
 
 // ErrStartWithOSUnavailable is returned when starting at sign-in can't be changed: only the
@@ -34,20 +27,36 @@ var (
 	ErrUpdateInProgress = errors.New("the update is already being installed")
 )
 
+// Errors from ShowWindow and OpenExternal.
+var (
+	// ErrNoWindow: the app has no window of its own here (macOS, Linux, or Windows with -no-tray).
+	ErrNoWindow = errors.New("the app has no window of its own here")
+	// ErrUnknownWindow: the request names none of WindowNames.
+	ErrUnknownWindow = errors.New("unknown window")
+	// ErrWindowPath: the page to open isn't one of the dashboard's.
+	ErrWindowPath = errors.New("the page must be a path on the dashboard, such as /live")
+	// ErrExternalURL: only web pages open in the browser.
+	ErrExternalURL = errors.New("only http and https links open in the browser")
+)
+
 // installRelease puts a release in place of the executable (a var so tests don't download).
 var installRelease = system.InstallRelease
 
+// openBrowser opens a link in the default browser (a var so tests don't open one).
+var openBrowser = system.OpenBrowser
+
 // DesktopState is GET /api/desktop: how the app behaves on the PC it runs on.
 type DesktopState struct {
-	// ShowWindowAtStart is whether a start (not at sign-in) opens the app window.
+	// ShowWindowAtStart is whether a start (not at sign-in) opens the app's window.
 	ShowWindowAtStart bool `json:"show_window_at_start"`
 	// StartWithOS is whether the app starts when the user signs in to Windows.
 	StartWithOS bool `json:"start_with_os"`
 	// StartWithOSAvailable is whether StartWithOS can be changed here (the Windows app).
 	StartWithOSAvailable bool `json:"start_with_os_available"`
-	// Tray is whether the app keeps running in the notification area once its window is closed;
-	// otherwise it runs in a terminal.
-	Tray bool `json:"tray"`
+	// NativeWindow is whether the app runs its own windows and notification-area icon (Windows):
+	// closing a window keeps it running, and its engineer window is where the radio speaks on this
+	// PC. Otherwise the app runs in a terminal and its small window is a browser's.
+	NativeWindow bool `json:"native_window"`
 	// CanUpdate is whether the app can install a newer release itself (a release build).
 	CanUpdate bool `json:"can_update"`
 }
@@ -63,6 +72,19 @@ type DesktopUpdate struct {
 	StartWithOS       *bool `json:"start_with_os,omitempty"`
 }
 
+// WindowRequest is POST /api/desktop/window: one of the app's own windows to bring up, and the
+// dashboard page to open in the main window ("" keeps the page it shows). The engineer window
+// always shows the race engineer.
+type WindowRequest struct {
+	Window string `json:"window" tstype:"DesktopWindowName"`
+	Path   string `json:"path,omitempty"`
+}
+
+// ExternalLinkRequest is POST /api/desktop/open: a web page to open in the default browser.
+type ExternalLinkRequest struct {
+	URL string `json:"url"`
+}
+
 // AppConfig is what NewApp needs.
 type AppConfig struct {
 	// Store keeps the desktop settings (the app's database).
@@ -71,8 +93,8 @@ type AppConfig struct {
 	DashboardURL string
 	// AutostartArgs are the arguments starting at sign-in runs the executable with.
 	AutostartArgs []string
-	// Tray is whether the tray runs.
-	Tray bool
+	// NativeWindow is whether the app runs its own window and notification-area icon (Windows).
+	NativeWindow bool
 	// Quit stops the app.
 	Quit func()
 	// CheckUpdates looks for a newer release; nil (dev builds) turns updating off.
@@ -81,8 +103,14 @@ type AppConfig struct {
 	Restart func()
 }
 
-// App is the app on the PC it runs on, behind /api/desktop and the tray: its small window, whether
-// a start opens it, starting at sign-in, and quitting.
+// windowShell is the app's own windows on Windows, attached while they run.
+type windowShell interface {
+	// show brings a window up, opening the dashboard page path in it when it isn't "".
+	show(name, path string)
+}
+
+// App is the app on the PC it runs on, behind /api/desktop and the notification-area icon: its
+// window, whether a start opens it, starting at sign-in, updating and quitting.
 type App struct {
 	cfg AppConfig
 	exe string
@@ -90,6 +118,11 @@ type App struct {
 	startWithOSChanged chan bool
 	// updating is set while an update is installed, and stays set once it is, until the restart.
 	updating atomic.Bool
+	// settingsMu keeps one change of the saved desktop settings at a time.
+	settingsMu sync.Mutex
+
+	shellMu sync.Mutex
+	shell   windowShell
 }
 
 // NewApp returns the desktop app.
@@ -112,7 +145,7 @@ func (a *App) State(ctx context.Context) (DesktopState, error) {
 		ShowWindowAtStart:    d.ShowWindowAtStart,
 		StartWithOS:          available && autostartEnabled(a.exe),
 		StartWithOSAvailable: available,
-		Tray:                 a.cfg.Tray,
+		NativeWindow:         a.cfg.NativeWindow,
 		CanUpdate:            a.canUpdate(),
 	}, nil
 }
@@ -129,16 +162,24 @@ func (a *App) Update(ctx context.Context, u DesktopUpdate) (DesktopState, error)
 		}
 	}
 	if u.ShowWindowAtStart != nil {
-		d, err := settings.LoadDesktop(ctx, a.cfg.Store)
+		err := a.changeDesktop(ctx, func(d *settings.Desktop) { d.ShowWindowAtStart = *u.ShowWindowAtStart })
 		if err != nil {
-			return DesktopState{}, err
-		}
-		d.ShowWindowAtStart = *u.ShowWindowAtStart
-		if err := settings.SaveDesktop(ctx, a.cfg.Store, d); err != nil {
 			return DesktopState{}, err
 		}
 	}
 	return a.State(ctx)
+}
+
+// changeDesktop saves a change to the desktop settings.
+func (a *App) changeDesktop(ctx context.Context, change func(*settings.Desktop)) error {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+	d, err := settings.LoadDesktop(ctx, a.cfg.Store)
+	if err != nil {
+		return err
+	}
+	change(&d)
+	return settings.SaveDesktop(ctx, a.cfg.Store, d)
 }
 
 // SetStartWithOS turns starting at sign-in on or off.
@@ -162,14 +203,95 @@ func (a *App) startWithOSAvailable() bool {
 	return a.exe != "" && canAutostart(a.exe)
 }
 
-// OpenWindow opens the app window: a small browser window of its own on the /desktop page.
-func (a *App) OpenWindow() error {
-	return system.OpenAppWindow(a.cfg.DashboardURL+windowPath, windowWidth, windowHeight)
+// ShowWindow brings one of the app's own windows up, opening a dashboard page in it when path
+// isn't "". It returns before the window is up, so a request asking for it never waits on the
+// window, even while the app is quitting.
+func (a *App) ShowWindow(name, path string) error {
+	if !slices.Contains(WindowNames, name) {
+		return ErrUnknownWindow
+	}
+	if !isDashboardPath(path) {
+		return ErrWindowPath
+	}
+	s := a.currentShell()
+	if s == nil {
+		return ErrNoWindow
+	}
+	s.show(name, path)
+	return nil
 }
 
-// OpenDashboard opens the dashboard in the user's browser.
-func (a *App) OpenDashboard() error {
-	return system.OpenBrowser(a.cfg.DashboardURL)
+// OpenExternal opens a web page from outside the dashboard, such as release notes, in the default
+// browser: the app's own window shows only the dashboard.
+func (a *App) OpenExternal(link string) error {
+	if !isWebLink(link) {
+		return ErrExternalURL
+	}
+	return openBrowser(link)
+}
+
+// attachShell hands the App the windows to show; nil once they are gone.
+func (a *App) attachShell(s windowShell) {
+	a.shellMu.Lock()
+	defer a.shellMu.Unlock()
+	a.shell = s
+}
+
+func (a *App) currentShell() windowShell {
+	a.shellMu.Lock()
+	defer a.shellMu.Unlock()
+	return a.shell
+}
+
+// windowPlace is where a window opens: its saved frame when one of the work areas still shows
+// its title bar (frame), and whether it was maximised.
+func (a *App) windowPlace(ctx context.Context, name string, workAreas []rect) (place settings.WindowBounds, frame bool) {
+	d, err := settings.LoadDesktop(ctx, a.cfg.Store)
+	if err != nil {
+		slog.Warn("Could not read where the window was", "window", name, "error", err)
+		return settings.WindowBounds{}, false
+	}
+	place = d.Windows[name]
+	return place, place.Width > 0 && place.Height > 0 && onScreen(boundsRect(place), workAreas)
+}
+
+// saveWindowPlace remembers where a window is, so it opens there next time. A maximised window
+// keeps the frame it had before it was maximised (frame nil), to go back to when it's restored.
+func (a *App) saveWindowPlace(ctx context.Context, name string, frame *rect, maximised bool) error {
+	return a.changeWindow(ctx, name, func(place *settings.WindowBounds) {
+		if frame != nil {
+			place.X, place.Y, place.Width, place.Height = frame.X, frame.Y, frame.Width, frame.Height
+		}
+		place.Maximised = maximised
+	})
+}
+
+// windowShown reports whether a window was showing when the app last quit.
+func (a *App) windowShown(ctx context.Context, name string) bool {
+	d, err := settings.LoadDesktop(ctx, a.cfg.Store)
+	if err != nil {
+		slog.Warn("Could not read whether the window was showing", "window", name, "error", err)
+		return false
+	}
+	return d.Windows[name].Shown
+}
+
+// saveWindowShown remembers whether a window is showing as the app quits, to show it at the next
+// start.
+func (a *App) saveWindowShown(ctx context.Context, name string, shown bool) error {
+	return a.changeWindow(ctx, name, func(place *settings.WindowBounds) { place.Shown = shown })
+}
+
+// changeWindow changes what's saved of one window.
+func (a *App) changeWindow(ctx context.Context, name string, change func(*settings.WindowBounds)) error {
+	return a.changeDesktop(ctx, func(d *settings.Desktop) {
+		place := d.Windows[name]
+		change(&place)
+		if d.Windows == nil {
+			d.Windows = map[string]settings.WindowBounds{}
+		}
+		d.Windows[name] = place
+	})
 }
 
 // Quit stops the app.

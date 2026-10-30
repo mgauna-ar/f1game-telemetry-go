@@ -1,6 +1,6 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
-/** The app window's size: the one the server opens it at on Windows and Linux (internal/desktop/app.go). */
+/** The app window's size: the one the server opens it at on Linux (internal/desktop/desktop_other.go). */
 export const APP_WINDOW_SIZE = { width: 440, height: 720 } as const;
 
 /** The parts of a window fitWindowToContent reads and resizes. */
@@ -23,7 +23,7 @@ export function sizeAppWindow(win: Pick<Window, 'outerWidth' | 'resizeTo'>): boo
 /**
  * Grows the window so its content fits without a scroll bar, up to the screen's height, keeping it
  * `width` wide. The app window opens at a fixed size, but its content grows with the PC's network
- * addresses, the Windows-only switch and the language. A normal browser tab ignores resizeTo.
+ * addresses, an update notice and the language. A normal browser tab ignores resizeTo.
  */
 export function fitWindowToContent(win: FittableWindow, width = win.outerWidth): void {
   const overflow = win.document.documentElement.scrollHeight - win.innerHeight;

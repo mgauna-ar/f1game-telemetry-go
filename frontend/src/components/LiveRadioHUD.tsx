@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Settings, Power } from 'lucide-react';
+import { AppWindow, Mic, Volume2, VolumeX, Settings, Power } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
 import type { RadioSettingsTab } from './RadioSettingsPanel';
@@ -9,6 +9,7 @@ import { RadioStateIcon } from './cockpit/RadioStateIcon';
 import { getPersonaInfo, getRadioVisualState } from '../utils/radioVisuals';
 import { Button, IconButton } from './ui/Button';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { useShowWindow } from '../hooks/useShowWindow';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 import styles from './LiveRadioHUD.module.css';
 
@@ -22,6 +23,29 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
   const [settingsTab, setSettingsTab] = useState<RadioSettingsTab | undefined>(undefined);
   const volume = useRadioSettingsStore((s) => s.volume);
   const setVolume = useRadioSettingsStore((s) => s.setVolume);
+  const showWindow = useShowWindow();
+
+  // On a PC whose engineer has its own window, it speaks there: the pill leads to it
+  if (!radio.radioHere) {
+    return (
+      <div className={styles.hud}>
+        <div className={styles.pill} data-state="elsewhere" data-testid="live-radio-elsewhere">
+          <div className={styles.icon}>
+            <Mic size={16} aria-hidden="true" />
+          </div>
+          <span className={styles.status}>{t('live.engineerWindow.pill')}</span>
+          <Button
+            size="sm"
+            icon={<AppWindow size={14} aria-hidden="true" />}
+            onClick={() => showWindow('engineer')}
+            aria-label={t('live.engineerWindow.open')}
+          >
+            {t('live.engineerWindow.openShort')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const openSettings = (tab?: RadioSettingsTab) => {
     setSettingsTab(tab);

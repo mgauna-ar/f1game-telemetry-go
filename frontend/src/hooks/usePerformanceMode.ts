@@ -26,7 +26,7 @@ export function usePerformanceMode(): PerformanceMode {
   return { on, context, toggle };
 }
 
-/** Puts performance mode on <html> for the page on screen. Mounted once, in App. */
+/** Puts performance mode on <html> for the page on screen. Mounted once per page: App and the engineer's. */
 export function usePerformanceModeAttribute(): void {
   const { on } = usePerformanceMode();
   useEffect(() => {

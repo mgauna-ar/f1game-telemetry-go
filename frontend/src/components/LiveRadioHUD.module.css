@@ -68,6 +68,19 @@
   opacity: 1;
 }
 
+/* The engineer speaks in its own window: a small pill that leads to it */
+.pill[data-state='elsewhere'] {
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2) var(--space-1-5) var(--space-1-5);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.pill[data-state='elsewhere'] .icon {
+  width: 28px;
+  height: 28px;
+}
+
 .icon {
   display: flex;
   flex-shrink: 0;

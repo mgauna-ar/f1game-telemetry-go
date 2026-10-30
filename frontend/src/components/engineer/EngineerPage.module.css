@@ -1,0 +1,8 @@
+/* The engineer window's page: the session header over the voice cockpit, with no menu above them */
+.page {
+  composes: page from '../../styles/page.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+}

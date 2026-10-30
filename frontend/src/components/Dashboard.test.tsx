@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { resetDevicePreferences } from '../store/useDevicePreferencesStore';
 import { api } from '../utils/apiClient';
@@ -9,6 +9,8 @@ import * as storeModule from '../store/useTelemetryStore';
 import { makeLiveCarStatus, makeLiveLap, makeLiveParticipant, makeLiveSession } from '../test/wireFactories';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { useRaceEngineerActions, useRaceEngineerState } from '../context/RaceEngineerContext';
+
+type HostWindow = Window & { chrome?: { webview?: unknown } };
 
 // Mock connectTelemetryWebSocket to avoid actual network calls
 vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
@@ -279,6 +281,31 @@ describe('Dashboard', () => {
       expect(renders).toEqual(before);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('leads to the engineer window from the Live page in the app window on the PC', async () => {
+    (window as HostWindow).chrome = { webview: {} };
+    window.history.replaceState(null, '', '/live/dashboard');
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+    try {
+      render(<Dashboard />);
+      // The radio speaks in the engineer window: the pill says so instead of the radio standby
+      expect(screen.getByTestId('live-radio-elsewhere')).toBeInTheDocument();
+      expect(screen.queryByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeNull();
+
+      // The voice cockpit is the engineer window's
+      fireEvent.click(screen.getByTestId('live-view-toggle-cockpit'));
+      expect(screen.queryByTestId('voice-cockpit-container')).toBeNull();
+      expect(screen.getByText('The engineer has its own window')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('engineer-window-open'));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith('/api/desktop/window', { window: 'engineer', path: undefined })
+      );
+    } finally {
+      delete (window as HostWindow).chrome;
+      post.mockRestore();
+      window.history.replaceState(null, '', '/');
     }
   });
 });

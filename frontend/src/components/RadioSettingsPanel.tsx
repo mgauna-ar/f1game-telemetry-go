@@ -61,9 +61,17 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({ isOpen, 
                 {radio.isRadioEnabled ? 'ON' : 'OFF'}
               </Badge>
             </span>
-            <span className={styles.masterDesc}>{t('ai_engineer.radio.masterToggleDesc')}</span>
+            <span className={styles.masterDesc}>
+              {t(radio.radioHere ? 'ai_engineer.radio.masterToggleDesc' : 'ai_engineer.radio.speaksInEngineerWindow')}
+            </span>
           </span>
-          <Switch size="md" tone="success" checked={radio.isRadioEnabled} onChange={radio.setIsRadioEnabled} />
+          <Switch
+            size="md"
+            tone="success"
+            checked={radio.isRadioEnabled}
+            onChange={radio.setIsRadioEnabled}
+            disabled={!radio.radioHere}
+          />
         </label>
 
         <Tabs

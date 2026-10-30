@@ -82,8 +82,15 @@ export const HeroPersonaBadge: React.FC<HeroPersonaBadgeProps> = ({
         <IconButton
           variant="secondary"
           className={radio.isRadioEnabled ? undefined : styles.powerOff}
-          label={radio.isRadioEnabled ? t('live.cockpit.turnRadioOff') : t('live.cockpit.turnRadioOn')}
+          label={
+            !radio.radioHere
+              ? t('ai_engineer.radio.speaksInEngineerWindow')
+              : radio.isRadioEnabled
+                ? t('live.cockpit.turnRadioOff')
+                : t('live.cockpit.turnRadioOn')
+          }
           onClick={() => radio.setIsRadioEnabled(!radio.isRadioEnabled)}
+          disabled={!radio.radioHere}
           data-testid="voice-cockpit-power-btn"
         >
           <Power size={16} />

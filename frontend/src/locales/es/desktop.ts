@@ -18,12 +18,8 @@ export const desktop = {
   openDashboard: 'Abrir panel',
   startupHeading: 'Inicio',
   showAtStart: 'Mostrar esta ventana al iniciar',
-  showAtStartHintTray: 'Si está apagado, F1 Telemetry inicia en la bandeja.',
-  showAtStartHintTerminal: 'Si está apagado, F1 Telemetry inicia en su terminal sin esta ventana.',
-  startWithWindows: 'Iniciar con Windows',
-  startWithWindowsHint: 'Inicia en la bandeja cuando entrás a Windows, sin esta ventana.',
-  closeNoteTray: 'Al cerrar esta ventana, F1 Telemetry sigue funcionando en la bandeja. Hacé clic en su ícono para volver a abrirla.',
-  closeNoteTerminal: 'Al cerrar esta ventana, F1 Telemetry sigue funcionando en su terminal.',
+  showAtStartHint: 'Si está apagado, F1 Telemetry inicia en su terminal sin esta ventana.',
+  closeNote: 'Al cerrar esta ventana, F1 Telemetry sigue funcionando en su terminal.',
   controlsUnavailable: 'Las opciones de inicio y Salir solo están disponibles en la PC donde corre F1 Telemetry.',
   saveFailed: 'No se pudo cambiar la opción: {error}',
   openFailed: 'No se pudo abrir el panel: {error}',
@@ -31,6 +27,13 @@ export const desktop = {
   quit: 'Salir de F1 Telemetry',
   stoppedTitle: 'F1 Telemetry se detuvo',
   stoppedBody: 'Ya podés cerrar esta ventana.',
+  // Una ventanita de 1.x que sigue abierta después de actualizar a 2.0 en Windows
+  ownWindow: {
+    title: 'F1 Telemetry ahora tiene su propia ventana',
+    body: 'El panel, las opciones de inicio, las actualizaciones y Salir están ahí, en Configuración → Aplicación. Ya podés cerrar esta ventana.',
+    open: 'Abrir F1 Telemetry',
+    openFailed: 'No se pudo abrir la ventana de F1 Telemetry: {error}',
+  },
   update: {
     available: 'La versión {version} está disponible',
     whatsNew: 'Novedades',

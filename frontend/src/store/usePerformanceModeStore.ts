@@ -22,11 +22,21 @@ export interface PerformanceModeState {
 const load = (context: PerformanceContext): boolean =>
   storage.get<boolean>(STORAGE_KEYS[context], DEFAULTS[context]) === true;
 
+const loadEnabled = (): Record<PerformanceContext, boolean> => ({ driver: load('driver'), general: load('general') });
+
+/** The keys the choices are saved under. */
+export const PERFORMANCE_MODE_KEYS = Object.values(STORAGE_KEYS);
+
 /** Performance mode (solid surfaces, no glow or motion), saved per device and per context. */
 export const usePerformanceModeStore = create<PerformanceModeState>((set) => ({
-  enabled: { driver: load('driver'), general: load('general') },
+  enabled: loadEnabled(),
   setEnabled: (context, on) => {
     storage.set(STORAGE_KEYS[context], on);
     set((s) => ({ enabled: { ...s.enabled, [context]: on } }));
   },
 }));
+
+/** Reads the choices again, after another window of the app changed them. */
+export function reloadPerformanceMode(): void {
+  usePerformanceModeStore.setState({ enabled: loadEnabled() });
+}

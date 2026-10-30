@@ -8,8 +8,10 @@ export const settings = {
   scope: {
     shared: 'Every device',
     device: 'This device',
+    pc: 'This PC',
     sharedHint: 'Saved on the server as you change it; every device uses it.',
     deviceHint: 'Kept in this browser; other devices keep their own.',
+    pcHint: 'The app on the PC that runs F1 Telemetry. Only this PC shows these.',
   },
   sections: {
     voice: {
@@ -42,6 +44,11 @@ export const settings = {
       short: 'This device',
       description: 'Sound, language, views and layout for this screen. Other devices keep their own.',
     },
+    app: {
+      title: 'App',
+      short: 'App',
+      description: 'F1 Telemetry on this PC: its version and updates, how it starts, the address for a phone or tablet, and Quit.',
+    },
   },
   device: {
     units: 'Units',
@@ -66,5 +73,26 @@ export const settings = {
     performanceGeneral: 'Every page but the Driver view',
     performanceDriver: 'Driver view',
     performanceDriverDesc: 'On by default: a phone on the rig reads it at a glance.',
+  },
+  app: {
+    version: 'Version',
+    running: 'F1 Telemetry {version}',
+    upToDate: 'It’s the newest version.',
+    devBuild: 'A development build: it doesn’t update itself.',
+    startup: 'Startup',
+    openWindow: 'Open the window when F1 Telemetry starts',
+    openWindowDesc: 'When off, it starts in the tray. The race engineer starts either way. Click the tray icon to open the window.',
+    openAppWindow: 'Open the app window when F1 Telemetry starts',
+    openAppWindowDesc: 'The small window with the addresses and Quit. When off, F1 Telemetry starts in its terminal without it.',
+    startWithWindows: 'Start with Windows',
+    startWithWindowsDesc: 'Starts in the tray when you sign in, without the windows. The race engineer speaks all the same.',
+    otherDevice: 'Phone or tablet',
+    otherDeviceHint: 'Open this address in the browser of a phone or tablet on the same network as this PC.',
+    noOtherDevice: 'This PC has no address a phone or tablet can reach. Connect it to your network.',
+    quit: 'Quit',
+    closeNoteWindow: 'Closing a window keeps F1 Telemetry running in the tray, and the race engineer talking. Quit stops it.',
+    closeNoteBrowser: 'Closing this page keeps F1 Telemetry running in its terminal. Quit stops it.',
+    stopped: 'F1 Telemetry stopped. You can close this page.',
+    unavailable: 'These are only on the PC that runs F1 Telemetry.',
   },
 };

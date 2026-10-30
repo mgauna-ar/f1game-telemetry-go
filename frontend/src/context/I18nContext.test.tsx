@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { useI18n } from './I18nContext';
 import { I18nProvider } from './I18nProvider';
 import { getTranslation, en } from '../locales';
@@ -198,5 +198,21 @@ describe('I18nContext and useI18n Hook', () => {
 
     expect(missingInEs).toEqual([]);
     expect(missingInEn).toEqual([]);
+  });
+
+  it('follows the language another window of the app picked', () => {
+    render(
+      <I18nProvider>
+        <TestComponent />
+      </I18nProvider>
+    );
+    expect(screen.getByTestId('current-locale')).toHaveTextContent('en');
+
+    // The engineer window on the same PC saves Spanish; this one is told by the storage event
+    localStorage.setItem('f1_telemetry_language', 'es');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'f1_telemetry_language', newValue: 'es' }));
+    });
+    expect(screen.getByTestId('current-locale')).toHaveTextContent('es');
   });
 });

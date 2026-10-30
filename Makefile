@@ -9,6 +9,8 @@ DATE ?= $(shell date -u +%Y-%m-%d)
 LDFLAGS=-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 # Windows release builds are GUI apps: no console window, the app lives in the notification area
 WINDOWS_LDFLAGS=-H=windowsgui
+# and build the app's own window in Wails' release mode (no DevTools)
+WINDOWS_TAGS=production
 
 ## help: Show this help message
 help:
@@ -31,7 +33,7 @@ build-embedded: build-frontend
 build-all: build-frontend
 	@mkdir -p $(BUILD_DIR)
 	@go run ./scripts/build_windows_resources.go
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS) $(WINDOWS_LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags $(WINDOWS_TAGS) -ldflags="$(LDFLAGS) $(WINDOWS_LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
 	@go run ./scripts/build_windows_resources.go -clean
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_arm64 ./cmd/server
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_amd64 ./cmd/server

@@ -14,12 +14,14 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/desktop"
 )
 
-// DesktopApp is the app on the PC it runs on (desktop.App): its small window's settings, starting
-// at sign-in, updating itself, and quitting.
+// DesktopApp is the app on the PC it runs on (desktop.App): its window's settings and its own
+// windows, starting at sign-in, links opened outside, updating itself, and quitting.
 type DesktopApp interface {
 	State(ctx context.Context) (desktop.DesktopState, error)
 	Update(ctx context.Context, u desktop.DesktopUpdate) (desktop.DesktopState, error)
 	OpenDashboard() error
+	ShowWindow(name, path string) error
+	OpenExternal(link string) error
 	InstallUpdate(ctx context.Context) (string, error)
 	Restart()
 	Quit()
@@ -30,15 +32,17 @@ func (s *Server) SetDesktopApp(app DesktopApp) {
 	s.desktopApp = app
 }
 
-// setupDesktopRoutes adds /api/desktop, for the app window (the /desktop page). Only the PC the
-// app runs on may use it: a phone or tablet on the network can't quit or update the app or change
-// how it starts.
+// setupDesktopRoutes adds /api/desktop, for the app's window and the dashboard on the PC it runs
+// on. Only that PC may use it: a phone or tablet on the network can't quit or update the app,
+// change how it starts, or open its windows or links on the PC.
 func (s *Server) setupDesktopRoutes(r chi.Router) {
 	r.Group(func(r chi.Router) {
 		r.Use(loopbackOnly, s.requireDesktopApp)
 		r.Get("/desktop", s.handleGetDesktop)
 		r.Put("/desktop", s.handlePutDesktop)
 		r.Post("/desktop/open-dashboard", s.handleDesktopOpenDashboard)
+		r.Post("/desktop/window", s.handleDesktopWindow)
+		r.Post("/desktop/open", s.handleDesktopOpenLink)
 		r.Post("/desktop/update", s.handleDesktopInstallUpdate)
 		r.Post("/desktop/quit", s.handleDesktopQuit)
 	})
@@ -101,6 +105,48 @@ func (s *Server) handleDesktopOpenDashboard(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
+}
+
+// handleDesktopWindow brings one of the app's own windows up (Windows). It answers before the window
+// is up.
+func (s *Server) handleDesktopWindow(w http.ResponseWriter, r *http.Request) {
+	var req desktop.WindowRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, fmt.Sprintf("invalid window payload: %v", err), http.StatusBadRequest)
+		return
+	}
+	err := s.desktopApp.ShowWindow(req.Window, req.Path)
+	switch {
+	case errors.Is(err, desktop.ErrUnknownWindow), errors.Is(err, desktop.ErrWindowPath):
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
+	case errors.Is(err, desktop.ErrNoWindow):
+		writeJSONError(w, err.Error(), http.StatusConflict)
+	case err != nil:
+		slog.Error("Could not show the window", "window", req.Window, "error", err)
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+	default:
+		writeJSON(w, http.StatusAccepted, StatusResponse{Status: StatusSuccess})
+	}
+}
+
+// handleDesktopOpenLink opens a web page from outside the dashboard in the default browser: the
+// app's own window shows only the dashboard.
+func (s *Server) handleDesktopOpenLink(w http.ResponseWriter, r *http.Request) {
+	var req desktop.ExternalLinkRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, fmt.Sprintf("invalid link payload: %v", err), http.StatusBadRequest)
+		return
+	}
+	err := s.desktopApp.OpenExternal(req.URL)
+	switch {
+	case errors.Is(err, desktop.ErrExternalURL):
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
+	case err != nil:
+		slog.Warn("Could not open a link in the browser", "error", err)
+		writeJSONError(w, "could not open the browser", http.StatusInternalServerError)
+	default:
+		writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
+	}
 }
 
 // handleDesktopInstallUpdate puts the newest release in place of this executable, answers, then

@@ -103,6 +103,7 @@ describe('routes', () => {
       { page: 'progress' },
       { page: 'settings', section: 'ai' },
       { page: 'settings', section: 'device' },
+      { page: 'settings', section: 'app' },
       { page: 'progress', track: 'Abu Dhabi' },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 2, lapB: 20, zoom: [100, 900] },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 1, lapB: 11 },

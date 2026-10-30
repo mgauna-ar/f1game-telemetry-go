@@ -1,8 +1,6 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Calendar, GitCompare, Radio, Settings, Sparkles, TrendingUp } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
-import { RaceEngineerProvider } from './context/RaceEngineerProvider';
-import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
@@ -11,18 +9,20 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/ToastContainer';
 import { SettingsSync } from './components/common/SettingsSync';
 import { LiveSessionToast } from './components/common/LiveSessionToast';
-import { ToastContext } from './context/ToastContext';
-import { api } from './utils/apiClient';
+import { AppProviders } from './AppProviders';
 import { storage } from './utils/storage';
+import { useAppUpdateStore } from './store/useAppUpdateStore';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
 import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useNavHeightVar } from './hooks/useNavHeightVar';
+import { useNativeWindowLinks } from './hooks/useNativeWindowLinks';
+import { useDeviceSettingsSync } from './hooks/useDeviceSettingsSync';
 import { usePerformanceModeAttribute } from './hooks/usePerformanceMode';
 import { PHONE_MEDIA } from './styles/breakpoints';
 import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
-import type { UpdateCheckResponse, SystemVersion } from './types/system';
+import type { SystemVersion } from './types/system';
 import { Link } from './router/Link';
 import { navigate, useRoute, useUrl } from './router/router';
 import { buildPath, settingsPath, storeLastPage, storedLiveMode, type Page } from './router/routes';
@@ -85,6 +85,8 @@ function AppContent() {
   const lastSettingsUrl = useRef(settingsPath());
   const topNavRef = useRef<HTMLElement>(null);
   useNavHeightVar(topNavRef);
+  useNativeWindowLinks();
+  useDeviceSettingsSync();
   if (activePage === 'settings') lastSettingsUrl.current = canonicalUrl;
   const tabHref = (page: Page) => {
     switch (page) {
@@ -109,37 +111,20 @@ function AppContent() {
   const isLiveFeedActive = liveStatus === LIVE_STATUS.LIVE;
 
   // Update checking & version state
-  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
-  const [systemVersion, setSystemVersion] = useState<SystemVersion | null>(null);
+  const updateInfo = useAppUpdateStore((s) => s.release);
+  const systemVersion = useAppUpdateStore((s) => s.version);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(() => {
     return storage.get<string | null>(DISMISSED_UPDATE_KEY, null);
   });
 
-  const checkUpdates = useCallback(async () => {
-    try {
-      const [updateRes, versionRes] = await Promise.allSettled([
-        api.get<UpdateCheckResponse>('/api/system/check-updates'),
-        api.get<SystemVersion>('/api/system/version'),
-      ]);
-      if (updateRes.status === 'fulfilled') {
-        setUpdateInfo(updateRes.value);
-      }
-      if (versionRes.status === 'fulfilled') {
-        setSystemVersion(versionRes.value);
-      }
-    } catch {
-      // Ignore update check failures when offline
-    }
-  }, []);
-
   useEffect(() => {
-    checkUpdates();
+    void useAppUpdateStore.getState().load();
     const radioSettings = useRadioSettingsStore.getState();
     radioSettings.loadConfigFromBackend();
     radioSettings.loadVoiceFromBackend();
     useTelemetryEndpointStore.getState().loadEndpoint();
-  }, [checkUpdates]);
+  }, []);
 
   const handleDismissVersion = (version: string) => {
     setDismissedVersion(version);
@@ -294,15 +279,9 @@ function AppContent() {
 
 function App() {
   return (
-    <I18nProvider>
-      <RaceEngineerProvider>
-        <ErrorBoundary level="root">
-          <ToastContext.Provider value={true}>
-            <AppContent />
-          </ToastContext.Provider>
-        </ErrorBoundary>
-      </RaceEngineerProvider>
-    </I18nProvider>
+    <AppProviders>
+      <AppContent />
+    </AppProviders>
   );
 }
 

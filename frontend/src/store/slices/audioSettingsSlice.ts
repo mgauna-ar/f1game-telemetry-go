@@ -174,6 +174,16 @@ export function getInitialAudioSettings(): Omit<
   return {
     // Voice settings start at their defaults until loadVoiceFromBackend brings the saved ones.
     ...getDefaultVoiceSettings(),
+    ...getDeviceAudioSettings(),
+  };
+}
+
+/** The radio settings this device keeps for itself (RADIO_STORAGE_KEYS): its speakers' sound and the switch. */
+export function getDeviceAudioSettings(): Pick<
+  AudioSettingsSlice,
+  'isRadioEnabled' | 'beepsEnabled' | 'filterEnabled' | 'staticFxEnabled' | 'volume'
+> {
+  return {
     isRadioEnabled: storage.getBoolean(RADIO_STORAGE_KEYS.ALERTS_ENABLED, true),
     beepsEnabled: storage.getBoolean(RADIO_STORAGE_KEYS.BEEPS_ENABLED, true),
     filterEnabled: storage.getBoolean(RADIO_STORAGE_KEYS.FILTER_ENABLED, true),

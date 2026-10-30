@@ -64,9 +64,17 @@ docs(readme): update configuration section
 - Add comments for exported types and functions
 - Use meaningful variable and function names
 
+## Windows Build
+
+- On Windows the app is a [Wails v3](https://github.com/wailsapp/wails) window over the app's own server (`internal/desktop/shell_windows.go`): no Wails bindings, the dashboard talks to the server as in a browser. It cross-compiles from macOS or Linux with `CGO_ENABLED=0`.
+- Release builds use `-tags production` (Wails' release mode, without developer tools) and `-ldflags -H=windowsgui` (no console); `make build-all` does both. `go run ./cmd/server` on Windows keeps the developer tools.
+
 ## Releases
 
-- Releases are published automatically via GitHub Actions when pushing a SemVer git tag (`vX.Y.Z`) and can be found under [GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases).
+- Pushing a SemVer git tag (`vX.Y.Z`, or `vX.Y.Z-beta.N` for a pre-release) publishes a release from GitHub Actions (`.github/workflows/release.yml`): Linux builds the three archives, windows-2022 builds the Windows installer around the zip's exe (`build/windows/installer.nsi`, with NSIS), and the release gets them all with `checksums.txt`. Releases are under [GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases).
+- Notes written for a version in `docs/releases/vX.Y.Z.md` (its betas use them too) come first in its release, before the generated list of changes. The app shows them in its release notes.
+- Keep the archive names (`f1telemetry_<tag>_<os>_<arch>.zip` or `.tar.gz`) and `checksums.txt`: **Update now** in earlier versions looks for them.
+- To try the installer without a release, run **CI/CD Pipeline** by hand with **installer** ticked. To build it on Windows yourself, with [NSIS](https://nsis.sourceforge.io/) installed: build the exe (`make build-all`), copy `internal/commands/webview2/MicrosoftEdgeWebview2Setup.exe` from the Wails module (`go list -m -f '{{.Dir}}' github.com/wailsapp/wails/v3`) to `build/windows/`, and run `makensis /DEXE=<full path of the exe> /DOUTFILE=<full path of the setup> build\windows\installer.nsi`.
 
 ## Questions?
 

@@ -30,11 +30,11 @@ func (m *memStore) SetSetting(_ context.Context, key, value string) error {
 
 func TestAppShowWindowAtStart(t *testing.T) {
 	ctx := context.Background()
-	app := NewApp(AppConfig{Store: &memStore{data: map[string]string{}}, Tray: true})
+	app := NewApp(AppConfig{Store: &memStore{data: map[string]string{}}, NativeWindow: true})
 
 	state, err := app.State(ctx)
-	if err != nil || !state.ShowWindowAtStart || !state.Tray {
-		t.Fatalf("State() = %+v, %v; want the window shown at start, in the tray", state, err)
+	if err != nil || !state.ShowWindowAtStart || !state.NativeWindow {
+		t.Fatalf("State() = %+v, %v; want the window shown at start, the app's own", state, err)
 	}
 
 	off := false
