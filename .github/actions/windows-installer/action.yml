@@ -1,0 +1,49 @@
+name: Windows installer
+description: >
+  Builds F1 Telemetry's installer (build/windows/installer.nsi) around a Windows exe. Needs NSIS,
+  which windows-2022 has and windows-latest (2025) doesn't.
+
+inputs:
+  exe:
+    description: The f1telemetry.exe to install
+    required: true
+  version:
+    description: The version it shows, such as v2.0.0-beta.1 or dev-13359af (a v in front is dropped)
+    required: true
+  output:
+    description: Where to write the installer, in the workspace
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: go.mod
+
+    # Microsoft's WebView2 bootstrapper comes with the Wails module the app's window is built on
+    - name: Get the WebView2 bootstrapper
+      shell: pwsh
+      run: |
+        go mod download github.com/wailsapp/wails/v3
+        $wails = go list -m -f '{{.Dir}}' github.com/wailsapp/wails/v3
+        Copy-Item (Join-Path $wails 'internal\commands\webview2\MicrosoftEdgeWebview2Setup.exe') build\windows\
+
+    - name: Build the installer
+      shell: pwsh
+      env:
+        EXE: ${{ inputs.exe }}
+        VERSION: ${{ inputs.version }}
+        OUTPUT: ${{ inputs.output }}
+      run: |
+        $version = $env:VERSION -replace '^v', ''
+        # Windows wants numbers: 2.0.0 for 2.0.0-beta.1, and 0.0.0 for a dev build
+        $number = if ($version -match '^(\d+\.\d+\.\d+)') { $Matches[1] } else { '0.0.0' }
+        # makensis works in the script's folder, so the paths are made whole
+        $exe = (Resolve-Path $env:EXE).Path
+        $out = Join-Path $PWD $env:OUTPUT
+        makensis -VERSION
+        makensis "/DEXE=$exe" "/DVERSION=$version" "/DVERSION_NUMBER=$number" "/DOUTFILE=$out" build\windows\installer.nsi
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Get-Item $out | Format-Table Name, Length

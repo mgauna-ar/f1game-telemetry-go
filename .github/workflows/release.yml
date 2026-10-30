@@ -14,10 +14,14 @@ on:
 permissions:
   contents: write
 
+# The archives are built on Linux, the Windows installer from the zip's exe on Windows, and the
+# release gets them all with their checksums.
 jobs:
   build-release:
-    name: Build and Publish Release Assets
+    name: Build Release Archives
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -112,19 +116,91 @@ jobs:
             rm -rf "${BUILD_TMP}"
           done
 
+      - name: Keep the archives
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-archives
+          path: dist_release/
+          retention-days: 7
+
+  installer:
+    name: Windows Installer
+    needs: build-release
+    # NSIS comes with windows-2022; windows-latest (2025) doesn't have it
+    runs-on: windows-2022
+    env:
+      TAG: ${{ needs.build-release.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Get the archives
+        uses: actions/download-artifact@v7
+        with:
+          name: release-archives
+          path: dist_release
+
+      # The installer installs the zip's own exe
+      - name: Take the exe out of the zip
+        shell: pwsh
+        run: Expand-Archive "dist_release/f1telemetry_${env:TAG}_windows_amd64.zip" -DestinationPath app
+
+      - name: Build the installer
+        uses: ./.github/actions/windows-installer
+        with:
+          exe: app/f1telemetry.exe
+          version: ${{ env.TAG }}
+          output: f1telemetry_${{ env.TAG }}_windows_amd64_setup.exe
+
+      - name: Keep the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-installer
+          path: f1telemetry_${{ env.TAG }}_windows_amd64_setup.exe
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build-release, installer]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.build-release.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Get the archives and the installer
+        uses: actions/download-artifact@v7
+        with:
+          pattern: release-*
+          path: dist_release
+          merge-multiple: true
+
       - name: Generate SHA-256 Checksums
         run: |
           cd dist_release
           sha256sum * > checksums.txt
           cat checksums.txt
-          cd ..
+
+      # The notes written for a version (docs/releases/v2.0.0.md, also for its betas) come first,
+      # then the list of changes
+      - name: Find the release notes
+        id: notes
+        run: |
+          for notes in "docs/releases/${TAG}.md" "docs/releases/${TAG%%-*}.md"; do
+            if [ -f "$notes" ]; then
+              echo "path=$notes" >> "$GITHUB_OUTPUT"
+              break
+            fi
+          done
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
           files: dist_release/*
+          body_path: ${{ steps.notes.outputs.path }}
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.tag, '-') || contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'rc') || contains(steps.version.outputs.tag, 'alpha') }}
+          prerelease: ${{ contains(env.TAG, '-') || contains(env.TAG, 'beta') || contains(env.TAG, 'rc') || contains(env.TAG, 'alpha') }}

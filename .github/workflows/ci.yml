@@ -7,6 +7,11 @@ on:
     branches: [ "main" ]
   # Run it by hand from the Actions tab to get downloadable builds of any branch
   workflow_dispatch:
+    inputs:
+      installer:
+        description: 'Also build the Windows installer, as a release would (nothing is published)'
+        type: boolean
+        default: false
 
 jobs:
   backend:
@@ -147,4 +152,40 @@ jobs:
         with:
           name: f1telemetry-linux-amd64
           path: bin/f1telemetry_linux_amd64
+          retention-days: 14
+
+  installer:
+    name: Windows Installer
+    # Started by hand with installer ticked: the release's packaging, on the image it uses
+    if: github.event_name == 'workflow_dispatch' && inputs.installer
+    needs: artifacts
+    runs-on: windows-2022
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Get the Windows build
+        uses: actions/download-artifact@v7
+        with:
+          name: f1telemetry-windows-amd64
+          path: app
+
+      # The version the build reports (dev-<commit>)
+      - name: Name the version
+        id: version
+        shell: bash
+        run: echo "version=dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build the installer
+        uses: ./.github/actions/windows-installer
+        with:
+          exe: app/f1telemetry_windows_amd64.exe
+          version: ${{ steps.version.outputs.version }}
+          output: f1telemetry_windows_amd64_setup.exe
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-windows-amd64-setup
+          path: f1telemetry_windows_amd64_setup.exe
           retention-days: 14
