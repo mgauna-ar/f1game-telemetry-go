@@ -83,7 +83,7 @@ func TestTextFor(t *testing.T) {
 
 func TestTextHasEveryString(t *testing.T) {
 	for name, tx := range map[string]text{"english": englishText, "spanish": spanishText} {
-		fields := []string{tx.Open, tx.LiveView, tx.RaceControl, tx.RaceControlTitle, tx.UpdateAvailable, tx.StartWithWindows,
+		fields := []string{tx.Open, tx.LiveView, tx.Engineer, tx.EngineerTitle, tx.UpdateAvailable, tx.StartWithWindows,
 			tx.DevBuildHint, tx.OpenDataFolder, tx.OpenLogFile, tx.Quit, tx.Live, tx.Paused, tx.Waiting, tx.StartFailed}
 		for i, f := range fields {
 			if f == "" {

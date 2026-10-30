@@ -10,15 +10,15 @@ import (
 
 // The app's own windows on Windows, by the names POST /api/desktop/window takes.
 const (
-	// WindowMain is the dashboard. Closing it keeps the app running in the notification area, and
-	// it's where the radio speaks on this PC.
+	// WindowMain is the dashboard. Closing it keeps the app running in the notification area.
 	WindowMain = "main"
-	// WindowRaceControl is Race Control on its own, for a second monitor. It never speaks.
-	WindowRaceControl = "race-control"
+	// WindowEngineer is the race engineer on its own, and where the radio speaks and listens on this
+	// PC. It runs from the start, hidden until it's opened, and closing it hides it again.
+	WindowEngineer = "engineer"
 )
 
 // WindowNames lists every window name; it builds the union for the frontend.
-var WindowNames = []string{WindowMain, WindowRaceControl}
+var WindowNames = []string{WindowMain, WindowEngineer}
 
 // webLinkSchemes are the links OpenExternal opens: web pages, never a scheme that starts another
 // program (file:, ms-settings:, javascript:).

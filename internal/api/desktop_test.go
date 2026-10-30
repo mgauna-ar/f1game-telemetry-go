@@ -216,11 +216,11 @@ func TestDesktopWindow(t *testing.T) {
 			app := &fakeDesktopApp{windowErr: tt.err, quit: make(chan struct{})}
 			server.SetDesktopApp(app)
 
-			rec := desktopRequest(t, server, http.MethodPost, "/api/desktop/window", `{"window":"race-control","path":"/live"}`, loopbackRemoteAddr)
+			rec := desktopRequest(t, server, http.MethodPost, "/api/desktop/window", `{"window":"engineer"}`, loopbackRemoteAddr)
 			if rec.Code != tt.want {
 				t.Errorf("POST /api/desktop/window = %d, want %d", rec.Code, tt.want)
 			}
-			want := []desktop.WindowRequest{{Window: desktop.WindowRaceControl, Path: "/live"}}
+			want := []desktop.WindowRequest{{Window: desktop.WindowEngineer}}
 			if len(app.windows) != 1 || app.windows[0] != want[0] {
 				t.Errorf("asked for %+v, want %+v", app.windows, want)
 			}

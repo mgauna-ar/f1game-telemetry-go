@@ -26,19 +26,18 @@ const (
 	// goes through the service Edge itself uses. Drop it once
 	// https://github.com/MicrosoftEdge/WebView2Feedback/issues/5724 is fixed.
 	speechServiceFeature = "msSpeechRecognitionServiceUseCetoService"
-
-	// A window's size before it was ever moved, and the smallest it gets.
-	defaultWidth, defaultHeight = 1280, 800
-	minWidth, minHeight         = 960, 600
+	// autoplayPolicy lets the engineer speak in a window nobody clicked in yet, such as after Start
+	// with Windows: otherwise the page's sound waits for a click (frontend/src/utils/radioAudio.ts).
+	autoplayPolicy = "--autoplay-policy=no-user-gesture-required"
 
 	// livePath is the page the tray's Live view opens.
 	livePath = "/live"
 	// appSettingsPath is Settings → App, with the version and Update now: the tray's update notice
 	// opens it, and so does the first start after an update.
 	appSettingsPath = "/settings/app"
-	// raceControlPath is the page the Race Control window opens. The window parameter marks the
-	// page as that window's (frontend/src/utils/nativeWindow.ts), which keeps the radio off in it.
-	raceControlPath = "/live/dashboard?window=" + WindowRaceControl
+	// engineerPath is the race engineer's page, the only one the engineer window shows
+	// (frontend/src/components/engineer/EngineerPage.tsx): the radio speaks and listens there.
+	engineerPath = "/engineer"
 
 	// The app's folder under %LOCALAPPDATA% holds the windows' WebView2 data. 1.x's small window
 	// kept a browser profile next to it, which nothing uses now.
@@ -53,6 +52,17 @@ const (
 // while a page loads.
 var pageBackground = application.NewRGB(9, 14, 26)
 
+// windowSize is a window's size before it was ever moved, and the smallest it gets.
+type windowSize struct {
+	width, height, minWidth, minHeight int
+}
+
+// windowSizes: the dashboard's window, and the engineer's narrow one.
+var windowSizes = map[string]windowSize{
+	WindowMain:     {width: 1280, height: 800, minWidth: 960, minHeight: 600},
+	WindowEngineer: {width: 560, height: 760, minWidth: 400, minHeight: 520},
+}
+
 var procAllowSetForegroundWindow = windows.NewLazySystemDLL("user32.dll").NewProc("AllowSetForegroundWindow")
 
 // running is the shell while Run runs, for Quit.
@@ -66,9 +76,9 @@ type shell struct {
 	app  *application.App
 	tray tray
 
-	mu          sync.Mutex
-	main        *application.WebviewWindow
-	raceControl *application.WebviewWindow
+	mu       sync.Mutex
+	main     *application.WebviewWindow
+	engineer *application.WebviewWindow
 }
 
 // Run opens the app's window (unless opts.ShowWindow is off) and its notification-area icon, and
@@ -87,9 +97,10 @@ func Run(opts Options, onExit func()) {
 			onExit()
 		},
 		Windows: application.WindowsOptions{
-			WndClass:            windowClass,
-			WebviewUserDataPath: filepath.Join(localDataDir(), webviewFolder),
-			DisabledFeatures:    []string{speechServiceFeature},
+			WndClass:              windowClass,
+			WebviewUserDataPath:   filepath.Join(localDataDir(), webviewFolder),
+			DisabledFeatures:      []string{speechServiceFeature},
+			AdditionalBrowserArgs: []string{autoplayPolicy},
 			// Closing the windows keeps the app running in the notification area
 			DisableQuitOnLastWindowClosed: true,
 		},
@@ -115,21 +126,21 @@ func Quit() {
 	}
 }
 
-// start opens the main window and lets the App show the windows.
+// start opens the windows and lets the App show them.
 func (s *shell) start() {
 	path := "/"
 	if s.opts.AfterUpdate {
 		path = appSettingsPath
 	}
 	main := s.newWindow(WindowMain, path, s.opts.ShowWindow)
-	// Closing it keeps the app running in the tray, and the radio talking if it's on Live
-	main.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		s.savePlace(WindowMain, main)
-		main.Hide()
-		e.Cancel()
-	})
+	// The engineer runs from the start, hidden unless it was showing when the app quit: the radio
+	// speaks and listens in its window, whatever page the main window shows
+	engineerShown := s.opts.ShowWindow && s.opts.App.windowShown(context.Background(), WindowEngineer)
+	engineer := s.newWindow(WindowEngineer, engineerPath, engineerShown)
+	s.hideOnClose(WindowMain, main)
+	s.hideOnClose(WindowEngineer, engineer)
 	s.mu.Lock()
-	s.main = main
+	s.main, s.engineer = main, engineer
 	s.mu.Unlock()
 
 	s.opts.App.attachShell(s)
@@ -137,16 +148,31 @@ func (s *shell) start() {
 	go removeOldAppWindowProfile()
 }
 
+// hideOnClose makes closing a window hide it: the app keeps running in the tray, and the engineer
+// talking.
+func (s *shell) hideOnClose(name string, w *application.WebviewWindow) {
+	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		// The app is quitting, which closes its windows: where they were is saved by then
+		if s.app.Context().Err() != nil {
+			return
+		}
+		s.savePlace(name, w)
+		w.Hide()
+		e.Cancel()
+	})
+}
+
 // newWindow opens one of the app's windows on a dashboard page, where it was last if that's still
 // on a screen.
 func (s *shell) newWindow(name, path string, show bool) *application.WebviewWindow {
+	size := windowSizes[name]
 	opts := application.WebviewWindowOptions{
 		Name:             name,
 		Title:            s.title(name),
-		Width:            defaultWidth,
-		Height:           defaultHeight,
-		MinWidth:         minWidth,
-		MinHeight:        minHeight,
+		Width:            size.width,
+		Height:           size.height,
+		MinWidth:         size.minWidth,
+		MinHeight:        size.minHeight,
 		Hidden:           !show,
 		BackgroundColour: pageBackground,
 		URL:              s.opts.DashboardURL + path,
@@ -170,21 +196,21 @@ func (s *shell) newWindow(name, path string, show bool) *application.WebviewWind
 }
 
 func (s *shell) title(name string) string {
-	if name == WindowRaceControl {
-		return s.text.RaceControlTitle
+	if name == WindowEngineer {
+		return s.text.EngineerTitle
 	}
 	return appName
 }
 
-// show brings a window up in front, opening the Race Control window if it isn't, and first moves
-// it to path when that isn't "". It returns at once: the windows change on the main thread.
+// show brings a window up in front, first moving the main window to path when that isn't "": the
+// engineer's always shows the engineer. It returns at once: the windows change on the main thread.
 func (s *shell) show(name, path string) {
 	application.InvokeAsync(func() {
 		w := s.window(name)
 		if w == nil {
 			return // the app is still starting
 		}
-		if path != "" {
+		if path != "" && name == WindowMain {
 			w.SetURL(s.opts.DashboardURL + path)
 		}
 		w.Show()
@@ -193,30 +219,14 @@ func (s *shell) show(name, path string) {
 	})
 }
 
-// window is the named window, opening the Race Control window if it isn't. Main thread only.
+// window is the named window, nil while the app starts.
 func (s *shell) window(name string) *application.WebviewWindow {
 	s.mu.Lock()
-	main, raceControl := s.main, s.raceControl
-	s.mu.Unlock()
-	switch {
-	case name == WindowMain:
-		return main
-	case raceControl != nil:
-		return raceControl
+	defer s.mu.Unlock()
+	if name == WindowEngineer {
+		return s.engineer
 	}
-
-	raceControl = s.newWindow(WindowRaceControl, raceControlPath, true)
-	// Closing it closes it: it opens again from the tray or the Live page
-	raceControl.RegisterHook(events.Common.WindowClosing, func(*application.WindowEvent) {
-		s.savePlace(WindowRaceControl, raceControl)
-		s.mu.Lock()
-		s.raceControl = nil
-		s.mu.Unlock()
-	})
-	s.mu.Lock()
-	s.raceControl = raceControl
-	s.mu.Unlock()
-	return raceControl
+	return s.main
 }
 
 // savePlace remembers where a window is. A minimised window's frame is the spot Windows parks it
@@ -236,13 +246,20 @@ func (s *shell) savePlace(name string, w *application.WebviewWindow) {
 	}
 }
 
-// savePlaces remembers where the open windows are, as the app quits.
+// savePlaces remembers where the windows are as the app quits, and whether the engineer's shows,
+// to show it again at the next start.
 func (s *shell) savePlaces() {
 	s.mu.Lock()
-	main, raceControl := s.main, s.raceControl
+	main, engineer := s.main, s.engineer
 	s.mu.Unlock()
 	s.savePlace(WindowMain, main)
-	s.savePlace(WindowRaceControl, raceControl)
+	s.savePlace(WindowEngineer, engineer)
+	if engineer == nil {
+		return
+	}
+	if err := s.opts.App.saveWindowShown(context.Background(), WindowEngineer, engineer.IsVisible()); err != nil {
+		slog.Warn("Could not save whether the window shows", "window", WindowEngineer, "error", err)
+	}
 }
 
 // workAreas are the screens' areas a window can be on, without the taskbar.

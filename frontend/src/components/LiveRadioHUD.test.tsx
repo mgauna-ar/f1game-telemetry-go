@@ -5,6 +5,7 @@ import { LiveRadioHUD } from './LiveRadioHUD';
 import { I18nProvider } from '../context/I18nProvider';
 import { RADIO_PERSONAS } from '../constants/f1';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { api } from '../utils/apiClient';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 
 const mockRadio: UseRadioControllerReturn = {
@@ -182,5 +183,17 @@ describe('LiveRadioHUD Component', () => {
     const speakingWaveform =
       screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
     expect(speakingWaveform).toBeInTheDocument();
+  });
+
+  it('leads to the engineer window on a PC whose engineer speaks there', () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+    renderWithI18n(<LiveRadioHUD radio={{ ...mockRadio, radioHere: false, isRadioEnabled: false }} />);
+
+    expect(screen.getByText('Engineer in its own window')).toBeInTheDocument();
+    // Not the radio-off pill, whose switch can't turn the radio on here
+    expect(screen.queryByText(/turn on/i)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open the engineer window' }));
+    expect(post).toHaveBeenCalledWith('/api/desktop/window', { window: 'engineer', path: undefined });
+    post.mockRestore();
   });
 });

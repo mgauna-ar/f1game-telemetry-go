@@ -84,7 +84,7 @@ export const HeroPersonaBadge: React.FC<HeroPersonaBadgeProps> = ({
           className={radio.isRadioEnabled ? undefined : styles.powerOff}
           label={
             !radio.radioHere
-              ? t('ai_engineer.radio.speaksInAppWindow')
+              ? t('ai_engineer.radio.speaksInEngineerWindow')
               : radio.isRadioEnabled
                 ? t('live.cockpit.turnRadioOff')
                 : t('live.cockpit.turnRadioOn')

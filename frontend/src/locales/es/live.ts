@@ -293,8 +293,16 @@ export const live = {
   viewModeLabel: 'Vista en vivo',
   viewModeCockpit: 'Cockpit de Voz',
   viewModeDriver: 'Piloto',
-  raceControlWindow: 'Control de Carrera en otra ventana',
-  raceControlWindowFailed: 'No se abrió la ventana de Control de Carrera: {error}',
+  engineerWindow: {
+    standbyTitle: 'Ingeniero de carrera',
+    title: 'El ingeniero tiene su propia ventana',
+    body: 'En esta PC el ingeniero de carrera habla y escucha en su propia ventana, así esta queda libre para lo que quieras. Funciona mientras F1 Telemetry está abierta, aunque cierres su ventana.',
+    open: 'Abrir la ventana del ingeniero',
+    openShort: 'Abrir',
+    pill: 'Ingeniero en su propia ventana',
+    openApp: 'Abrir F1 Telemetry',
+    showFailed: 'No se abrió la ventana: {error}',
+  },
   cockpit: {
     title: 'Cockpit del Ingeniero de Pista',
     subtitle: 'Radio de boxes sin distracciones y signos vitales de telemetría',

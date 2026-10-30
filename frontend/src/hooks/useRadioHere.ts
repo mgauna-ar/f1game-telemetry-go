@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useDesktopStore } from '../store/useDesktopStore';
-import { isNativeWindow, isRaceControlWindow } from '../utils/nativeWindow';
+import { isEngineerWindow, isNativeWindow } from '../utils/nativeWindow';
 
 /**
- * Whether the radio may speak and listen in this page. On a PC whose app has its own window
- * (Windows), only its main window does: the Race Control window and a browser tab on that PC stay
- * silent, so nothing talks over the window or answers a push-to-talk press twice. Phones, tablets
+ * Whether the radio may speak and listen in this page. On a PC whose app has its own windows
+ * (Windows), only its engineer window does: the main window and a browser tab on that PC stay
+ * silent, so nothing talks over the engineer or answers a push-to-talk press twice. Phones, tablets
  * and the app on macOS or Linux keep the radio switch of their own.
  */
 export function useRadioHere(): boolean {
@@ -17,5 +17,5 @@ export function useRadioHere(): boolean {
     if (!native) void load();
   }, [native, load]);
 
-  return native ? !isRaceControlWindow() : !appWindowOnThisPC;
+  return native ? isEngineerWindow() : !appWindowOnThisPC;
 }

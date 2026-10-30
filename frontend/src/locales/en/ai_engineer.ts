@@ -217,7 +217,7 @@ export const ai_engineer = {
     speechError: 'Speech recognition error: {code}',
     masterToggle: 'Live Voice Race Engineer',
     masterToggleDesc: 'Enables Push-to-Talk speech recognition and proactive pit wall alerts',
-    speaksInAppWindow: 'On this PC the radio speaks in the F1 Telemetry window.',
+    speaksInEngineerWindow: 'On this PC the engineer speaks in its own window.',
     radioOff: 'RADIO OFF',
     turnOn: 'Turn On Radio',
     turnOff: 'Turn Off Radio',

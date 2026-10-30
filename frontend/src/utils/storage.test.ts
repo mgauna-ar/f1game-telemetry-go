@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { storage } from './storage';
+import { onStoredElsewhere, storage } from './storage';
 
 describe('storage utility', () => {
   beforeEach(() => {
@@ -94,5 +94,22 @@ describe('storage utility', () => {
     expect(storage.has('f1_radio_volume')).toBe(true);
     storage.remove('f1_radio_volume');
     expect(storage.has('f1_radio_volume')).toBe(false);
+  });
+
+  it('tells this page when another window saves one of its keys', () => {
+    const onChange = vi.fn();
+    const stop = onStoredElsewhere(['f1_radio_volume'], onChange);
+    const changed = (key: string | null) => window.dispatchEvent(new StorageEvent('storage', { key }));
+
+    changed('f1_units');
+    expect(onChange).not.toHaveBeenCalled();
+    changed('f1_radio_volume');
+    // Storage cleared in another window: every key changed
+    changed(null);
+    expect(onChange).toHaveBeenCalledTimes(2);
+
+    stop();
+    changed('f1_radio_volume');
+    expect(onChange).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,12 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api } from './apiClient';
-import {
-  isNativeWindow,
-  isRaceControlWindow,
-  markNativeWindow,
-  openLinksOutside,
-  openRaceControlWindow,
-} from './nativeWindow';
+import { isEngineerPath, isEngineerWindow, isNativeWindow, markNativeWindow, openLinksOutside } from './nativeWindow';
 
 type HostWindow = Window & { chrome?: { webview?: unknown } };
 
@@ -46,28 +40,26 @@ describe('nativeWindow', () => {
     expect(isNativeWindow()).toBe(true);
   });
 
-  it('keeps the Race Control window marked through pages opened in it', () => {
+  it('marks the engineer window by its page, and keeps it marked', () => {
     inAppWindow();
-    window.history.replaceState(null, '', '/live/dashboard?window=race-control');
     markNativeWindow();
-    expect(isRaceControlWindow()).toBe(true);
+    expect(isEngineerWindow()).toBe(false);
 
-    // Moved to another live view: the query is gone, the window is still Race Control
+    window.history.replaceState(null, '', '/engineer');
+    markNativeWindow();
+    expect(isEngineerWindow()).toBe(true);
+
+    // Whatever its URL shows later, the window is still the engineer's
     window.history.replaceState(null, '', '/live/cockpit');
     markNativeWindow();
-    expect(isRaceControlWindow()).toBe(true);
+    expect(isEngineerWindow()).toBe(true);
   });
 
-  it('never marks a browser tab as the Race Control window', () => {
-    window.history.replaceState(null, '', '/live/dashboard?window=race-control');
+  it('never marks a browser tab as the engineer window', () => {
+    window.history.replaceState(null, '', '/engineer');
     markNativeWindow();
-    expect(isRaceControlWindow()).toBe(false);
-  });
-
-  it('asks the app for its Race Control window', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
-    await openRaceControlWindow();
-    expect(post).toHaveBeenCalledWith('/api/desktop/window', { window: 'race-control', path: undefined });
+    expect(isEngineerPath(window.location.pathname)).toBe(true);
+    expect(isEngineerWindow()).toBe(false);
   });
 
   describe('openLinksOutside', () => {
@@ -121,6 +113,54 @@ describe('nativeWindow', () => {
       click(a);
       expect(post).not.toHaveBeenCalled();
       undo();
+    });
+
+    describe('in the engineer window', () => {
+      beforeEach(() => {
+        inAppWindow();
+        window.history.replaceState(null, '', '/engineer');
+        markNativeWindow();
+      });
+
+      it('opens a dashboard page in the main window, before a dashboard link moves this one', () => {
+        const post = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+        const undo = openLinksOutside(vi.fn());
+        // As a dashboard Link does: it moves the window to the page unless the click was taken
+        const a = link('/settings/ptt');
+        a.addEventListener('click', (e) => {
+          if (e.defaultPrevented) return;
+          e.preventDefault();
+          window.history.pushState(null, '', '/settings/ptt');
+        });
+
+        expect(click(a)).toBe(true);
+        expect(window.location.pathname).toBe('/engineer');
+        expect(post).toHaveBeenCalledWith('/api/desktop/window', { window: 'main', path: '/settings/ptt' });
+        undo();
+      });
+
+      it('leaves links within its own page, and still opens other sites in the browser', () => {
+        const post = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+        const undo = openLinksOutside(vi.fn());
+
+        // A link within its own page isn't touched (this listener, after it, sees what it did)
+        let prevented: boolean | undefined;
+        document.addEventListener(
+          'click',
+          (e) => {
+            prevented = e.defaultPrevented;
+            e.preventDefault();
+          },
+          { once: true }
+        );
+        click(link('/engineer#transcript'));
+        expect(prevented).toBe(false);
+        expect(post).not.toHaveBeenCalled();
+
+        expect(click(link('https://console.anthropic.com/settings/keys', '_blank'))).toBe(true);
+        expect(post).toHaveBeenCalledWith('/api/desktop/open', { url: 'https://console.anthropic.com/settings/keys' });
+        undo();
+      });
     });
 
     it('says when the browser could not be opened', async () => {

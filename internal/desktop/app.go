@@ -53,8 +53,8 @@ type DesktopState struct {
 	StartWithOS bool `json:"start_with_os"`
 	// StartWithOSAvailable is whether StartWithOS can be changed here (the Windows app).
 	StartWithOSAvailable bool `json:"start_with_os_available"`
-	// NativeWindow is whether the app runs its own window and notification-area icon (Windows):
-	// closing the window keeps it running, and its main window is where the radio speaks on this
+	// NativeWindow is whether the app runs its own windows and notification-area icon (Windows):
+	// closing a window keeps it running, and its engineer window is where the radio speaks on this
 	// PC. Otherwise the app runs in a terminal and its small window is a browser's.
 	NativeWindow bool `json:"native_window"`
 	// CanUpdate is whether the app can install a newer release itself (a release build).
@@ -73,7 +73,8 @@ type DesktopUpdate struct {
 }
 
 // WindowRequest is POST /api/desktop/window: one of the app's own windows to bring up, and the
-// dashboard page to open in it ("" keeps the page it shows).
+// dashboard page to open in the main window ("" keeps the page it shows). The engineer window
+// always shows the race engineer.
 type WindowRequest struct {
 	Window string `json:"window" tstype:"DesktopWindowName"`
 	Path   string `json:"path,omitempty"`
@@ -257,12 +258,35 @@ func (a *App) windowPlace(ctx context.Context, name string, workAreas []rect) (p
 // saveWindowPlace remembers where a window is, so it opens there next time. A maximised window
 // keeps the frame it had before it was maximised (frame nil), to go back to when it's restored.
 func (a *App) saveWindowPlace(ctx context.Context, name string, frame *rect, maximised bool) error {
-	return a.changeDesktop(ctx, func(d *settings.Desktop) {
-		place := d.Windows[name]
+	return a.changeWindow(ctx, name, func(place *settings.WindowBounds) {
 		if frame != nil {
-			place = settings.WindowBounds{X: frame.X, Y: frame.Y, Width: frame.Width, Height: frame.Height}
+			place.X, place.Y, place.Width, place.Height = frame.X, frame.Y, frame.Width, frame.Height
 		}
 		place.Maximised = maximised
+	})
+}
+
+// windowShown reports whether a window was showing when the app last quit.
+func (a *App) windowShown(ctx context.Context, name string) bool {
+	d, err := settings.LoadDesktop(ctx, a.cfg.Store)
+	if err != nil {
+		slog.Warn("Could not read whether the window was showing", "window", name, "error", err)
+		return false
+	}
+	return d.Windows[name].Shown
+}
+
+// saveWindowShown remembers whether a window is showing as the app quits, to show it at the next
+// start.
+func (a *App) saveWindowShown(ctx context.Context, name string, shown bool) error {
+	return a.changeWindow(ctx, name, func(place *settings.WindowBounds) { place.Shown = shown })
+}
+
+// changeWindow changes what's saved of one window.
+func (a *App) changeWindow(ctx context.Context, name string, change func(*settings.WindowBounds)) error {
+	return a.changeDesktop(ctx, func(d *settings.Desktop) {
+		place := d.Windows[name]
+		change(&place)
 		if d.Windows == nil {
 			d.Windows = map[string]settings.WindowBounds{}
 		}

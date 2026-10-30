@@ -15,7 +15,7 @@ export interface DesktopUpdate {
   start_with_os?: boolean;
 }
 
-export type DesktopWindowName = 'main' | 'race-control';
+export type DesktopWindowName = 'main' | 'engineer';
 
 /** Go: desktop.ExternalLinkRequest */
 export interface ExternalLinkRequest {

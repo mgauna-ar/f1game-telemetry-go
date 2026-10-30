@@ -147,3 +147,18 @@ export const storage = {
     }
   },
 };
+
+/**
+ * Calls back when another window or tab of the dashboard on this device saves or removes one of
+ * these keys, or clears them all, so this one can read them again: the app's windows on one PC
+ * share this device's settings, but each keeps its own copy while it runs. Returns a function
+ * that stops it.
+ */
+export function onStoredElsewhere(keys: readonly StorageKey[], onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || keys.includes(event.key)) onChange();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
+}

@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Calendar, GitCompare, Radio, Settings, Sparkles, TrendingUp } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
-import { RaceEngineerProvider } from './context/RaceEngineerProvider';
-import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
@@ -11,7 +9,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/ToastContainer';
 import { SettingsSync } from './components/common/SettingsSync';
 import { LiveSessionToast } from './components/common/LiveSessionToast';
-import { ToastContext } from './context/ToastContext';
+import { AppProviders } from './AppProviders';
 import { storage } from './utils/storage';
 import { useAppUpdateStore } from './store/useAppUpdateStore';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
@@ -20,6 +18,7 @@ import { useLiveStatus } from './hooks/useLiveStatus';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useNavHeightVar } from './hooks/useNavHeightVar';
 import { useNativeWindowLinks } from './hooks/useNativeWindowLinks';
+import { useDeviceSettingsSync } from './hooks/useDeviceSettingsSync';
 import { usePerformanceModeAttribute } from './hooks/usePerformanceMode';
 import { PHONE_MEDIA } from './styles/breakpoints';
 import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
@@ -87,6 +86,7 @@ function AppContent() {
   const topNavRef = useRef<HTMLElement>(null);
   useNavHeightVar(topNavRef);
   useNativeWindowLinks();
+  useDeviceSettingsSync();
   if (activePage === 'settings') lastSettingsUrl.current = canonicalUrl;
   const tabHref = (page: Page) => {
     switch (page) {
@@ -279,15 +279,9 @@ function AppContent() {
 
 function App() {
   return (
-    <I18nProvider>
-      <RaceEngineerProvider>
-        <ErrorBoundary level="root">
-          <ToastContext.Provider value={true}>
-            <AppContent />
-          </ToastContext.Provider>
-        </ErrorBoundary>
-      </RaceEngineerProvider>
-    </I18nProvider>
+    <AppProviders>
+      <AppContent />
+    </AppProviders>
   );
 }
 

@@ -15,13 +15,15 @@ type Desktop struct {
 }
 
 // WindowBounds is where a window was: its frame in Windows' scaled coordinates (DIPs) while it was
-// neither maximised nor minimised, and whether it was maximised.
+// neither maximised nor minimised, whether it was maximised, and whether it was showing when the
+// app quit.
 type WindowBounds struct {
 	X         int  `json:"x"`
 	Y         int  `json:"y"`
 	Width     int  `json:"width"`
 	Height    int  `json:"height"`
 	Maximised bool `json:"maximised"`
+	Shown     bool `json:"shown,omitempty"`
 }
 
 // DefaultDesktop is the setup before anything was saved: a start opens the window.

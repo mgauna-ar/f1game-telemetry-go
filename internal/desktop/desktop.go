@@ -1,5 +1,5 @@
 // Package desktop is the app on the PC it runs on. On Windows that's the app's own window, which
-// shows the dashboard the app serves, a Race Control window for a second monitor, the
+// shows the dashboard the app serves, the race engineer's window, where the radio speaks, the
 // notification-area (tray) icon and its menu, starting with Windows, and error dialogs for a build
 // that has no console. On macOS and Linux the app runs in a terminal and its small window is a
 // browser's (/desktop).
@@ -31,7 +31,8 @@ type Options struct {
 	// App shows the windows for /api/desktop and owns "Start with Windows", shared with the
 	// dashboard's switch.
 	App *App
-	// ShowWindow is whether the window opens at start; otherwise the app starts in the tray.
+	// ShowWindow is whether the window opens at start, and the engineer's too if it was showing when
+	// the app quit; otherwise the app starts in the tray.
 	ShowWindow bool
 	// AfterUpdate is set when the app restarted on a version it just installed: the window opens on
 	// Settings → App, which shows it.

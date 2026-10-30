@@ -26,7 +26,7 @@ describe('useRadioHere', () => {
     vi.restoreAllMocks();
   });
 
-  it('speaks only in the app window on a PC that has one', async () => {
+  it('stays silent in a browser on a PC whose app has windows of its own', async () => {
     const get = vi.spyOn(api, 'get').mockResolvedValue(desktop(true));
     const { result } = renderHook(() => useRadioHere());
     await waitFor(() => expect(result.current).toBe(false));
@@ -47,13 +47,13 @@ describe('useRadioHere', () => {
     expect(result.current).toBe(true);
   });
 
-  it('speaks in the main window and never in the Race Control window', () => {
+  it('speaks in the engineer window and never in the main window', () => {
     const get = vi.spyOn(api, 'get');
     (window as HostWindow).chrome = { webview: {} };
-    expect(renderHook(() => useRadioHere()).result.current).toBe(true);
-
-    window.name = 'race-control';
     expect(renderHook(() => useRadioHere()).result.current).toBe(false);
+
+    window.name = 'engineer';
+    expect(renderHook(() => useRadioHere()).result.current).toBe(true);
     // The windows know which they are: they don't ask the app
     expect(get).not.toHaveBeenCalled();
   });

@@ -76,7 +76,7 @@ export const DeviceSettingsSection: React.FC = () => {
       <SettingSection icon={<Power size={14} />} title={t('settings.device.radio')}>
         <ToggleRow
           label={t('ai_engineer.radio.masterToggle')}
-          description={t(radioHere ? 'settings.device.radioMasterDesc' : 'ai_engineer.radio.speaksInAppWindow')}
+          description={t(radioHere ? 'settings.device.radioMasterDesc' : 'ai_engineer.radio.speaksInEngineerWindow')}
           checked={isRadioEnabled && radioHere}
           onChange={setIsRadioEnabled}
           disabled={!radioHere}

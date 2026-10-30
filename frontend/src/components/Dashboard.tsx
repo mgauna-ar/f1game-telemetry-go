@@ -1,5 +1,4 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import {
   LIVE_VIEW_MODES,
@@ -26,9 +25,8 @@ import { useI18n } from '../context/I18nContext';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { HUB_PANELS, type HubPanel } from '../utils/raceControl';
 import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
-import { useRadioController } from '../hooks/useRadioController';
-import { useProactiveRadioCalls } from '../hooks/useProactiveRadioCalls';
-import { useTrafficCallPrefetch } from '../hooks/useTrafficCallPrefetch';
+import { useLiveRadio } from '../hooks/useLiveRadio';
+import { EngineerWindowNote } from './engineer/EngineerWindowNote';
 import { navigate, useRoute } from '../router/router';
 import { buildPath, storeLiveMode } from '../router/routes';
 import styles from './Dashboard.module.css';
@@ -46,19 +44,14 @@ export const Dashboard: React.FC = () => {
     navigate(buildPath({ page: 'live', mode }), { replace: true });
   }, []);
 
-  useEffect(() => {
-    const disconnect = connectTelemetryWebSocket();
-    return () => {
-      disconnect();
-    };
-  }, []);
-
   const session = useSessionStatusStore((s) => s.session);
   const connected = useSessionStatusStore((s) => s.connected);
   const packetFormat = useSessionStatusStore((s) => s.packetFormat);
 
-  const radio = useRadioController();
+  const radio = useLiveRadio();
   const { t } = useI18n();
+  // On a PC whose engineer has its own window, the voice cockpit is there
+  const cockpit = radio.radioHere ? <VoiceCockpitView radio={radio} /> : <EngineerWindowNote />;
 
   // Race Control: a tower, strip or battle click picks the car and opens its drawer
   const setSelectedCarIndex = useTelemetryDataStore((s) => s.setSelectedCarIndex);
@@ -75,11 +68,6 @@ export const Dashboard: React.FC = () => {
   const layout = useDevicePreferencesStore((s) => s.raceControlLayout);
   const changeLayout = useDevicePreferencesStore((s) => s.setRaceControlLayout);
 
-  // The pit wall's calls, in the persona's words or worded afresh by the AI
-  useProactiveRadioCalls(radio);
-  // Its qualifying traffic warnings, synthesized ahead so they start at once
-  useTrafficCallPrefetch(radio);
-
   if (!connected || !session) {
     return (
       <div className={styles.cockpit}>
@@ -93,7 +81,7 @@ export const Dashboard: React.FC = () => {
           onViewModeChange={handleViewModeChange}
         />
         {viewMode === LIVE_VIEW_MODES.COCKPIT ? (
-          <VoiceCockpitView radio={radio} />
+          cockpit
         ) : (
           <>
             <WaitingForData connected={connected} />
@@ -126,7 +114,7 @@ export const Dashboard: React.FC = () => {
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />
-        <VoiceCockpitView radio={radio} />
+        {cockpit}
       </div>
     );
   }

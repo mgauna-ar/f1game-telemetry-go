@@ -7,9 +7,15 @@ import { desktopClient } from './desktopClient';
  * the app serves. A page tells it's in one by WebView2's `chrome.webview`, which browsers don't have.
  */
 
-/** The query parameter the app opens its Race Control window with (`?window=race-control`). */
-export const WINDOW_PARAM = 'window';
-const RACE_CONTROL_WINDOW: DesktopWindowName = 'race-control';
+/**
+ * The race engineer's page (`Root.tsx` renders it instead of the dashboard): the voice cockpit on
+ * its own, which the engineer window shows. On Windows the radio speaks and listens there.
+ */
+export const ENGINEER_PATH = '/engineer';
+const ENGINEER_WINDOW: DesktopWindowName = 'engineer';
+
+/** Whether this page is the race engineer's rather than the dashboard. */
+export const isEngineerPath = (pathname: string): boolean => pathname === ENGINEER_PATH;
 
 interface WebViewHost {
   chrome?: { webview?: unknown };
@@ -20,28 +26,28 @@ export const isNativeWindow = (): boolean =>
   typeof window !== 'undefined' && (window as WebViewHost).chrome?.webview !== undefined;
 
 /**
- * Notes which of the app's windows this is, when it opens: the Race Control window opens with
- * `?window=race-control`, and its name keeps that through reloads and the pages opened in it.
+ * Notes which of the app's windows this is, when it opens: the engineer window opens on
+ * /engineer, and its name keeps that through reloads.
  */
 export function markNativeWindow(): void {
-  if (new URLSearchParams(window.location.search).get(WINDOW_PARAM) === RACE_CONTROL_WINDOW) {
-    window.name = RACE_CONTROL_WINDOW;
+  if (isEngineerPath(window.location.pathname)) {
+    window.name = ENGINEER_WINDOW;
   }
 }
 
-/** Whether this page is the app's Race Control window, which shows Race Control and never speaks. */
-export const isRaceControlWindow = (): boolean => isNativeWindow() && window.name === RACE_CONTROL_WINDOW;
-
-/** Opens the app's Race Control window, or brings it up, for a second monitor. */
-export const openRaceControlWindow = (): Promise<unknown> => desktopClient.showWindow(RACE_CONTROL_WINDOW);
+/** Whether this page is the app's engineer window, the one place the radio speaks on its PC. */
+export const isEngineerWindow = (): boolean => isNativeWindow() && window.name === ENGINEER_WINDOW;
 
 /**
  * Makes links behave in the app's window as they would in an app: a page from another site (release
  * notes, a provider's keys page, a link in an AI answer) opens in the default browser, and a page of
- * the dashboard meant for a new tab opens in the window itself. Without this, WebView2 would open
- * such links in a bare window of its own. Returns a function that undoes it.
+ * the dashboard meant for a new tab opens in the window itself. The engineer window shows only the
+ * engineer, so there a page of the dashboard opens in the main window, caught before a dashboard
+ * link moves the engineer window to it. Without this, WebView2 would open such links in a bare
+ * window of its own. Returns a function that undoes it.
  */
 export function openLinksOutside(onError: (err: unknown) => void): () => void {
+  const engineer = isEngineerWindow();
   const onClick = (event: MouseEvent) => {
     const middleClick = event.type === 'auxclick' && event.button === 1;
     const leftClick = event.type === 'click' && event.button === 0;
@@ -50,20 +56,28 @@ export function openLinksOutside(onError: (err: unknown) => void): () => void {
     if (!(anchor instanceof HTMLAnchorElement)) return;
 
     const url = new URL(anchor.href, window.location.href);
+    const page = url.pathname + url.search + url.hash;
     if (url.origin === window.location.origin) {
+      if (engineer) {
+        if (url.pathname === window.location.pathname) return;
+        event.preventDefault();
+        desktopClient.showWindow('main', page).catch(onError);
+        return;
+      }
       const newTab = middleClick || anchor.target === '_blank' || event.ctrlKey || event.shiftKey || event.metaKey;
       if (!newTab) return;
       event.preventDefault();
-      navigate(url.pathname + url.search + url.hash);
+      navigate(page);
       return;
     }
     event.preventDefault();
     desktopClient.openLink(url.href).catch(onError);
   };
-  document.addEventListener('click', onClick);
-  document.addEventListener('auxclick', onClick);
+  // In the engineer window it listens first, before a dashboard link handles the click itself
+  document.addEventListener('click', onClick, engineer);
+  document.addEventListener('auxclick', onClick, engineer);
   return () => {
-    document.removeEventListener('click', onClick);
-    document.removeEventListener('auxclick', onClick);
+    document.removeEventListener('click', onClick, engineer);
+    document.removeEventListener('auxclick', onClick, engineer);
   };
 }

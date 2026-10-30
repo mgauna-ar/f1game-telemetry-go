@@ -65,6 +65,19 @@ export const useDevicePreferencesStore = create<DevicePreferencesState>((set) =>
   },
 }));
 
+/** The keys these choices are saved under. */
+export const DEVICE_PREFERENCE_KEYS = [
+  STORAGE_KEY_AI_EXPANDED,
+  STORAGE_KEY_AI_DOCKED,
+  STORAGE_KEY_RACE_CONTROL_LAYOUT,
+  STORAGE_KEY_UNITS,
+] as const;
+
+/** Reads the choices again, after another window of the app changed them. */
+export function reloadDevicePreferences(): void {
+  useDevicePreferencesStore.setState(loadState());
+}
+
 /** Back to the defaults, for tests. */
 export function resetDevicePreferences(): void {
   useDevicePreferencesStore.setState({

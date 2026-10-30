@@ -42,7 +42,7 @@ func (s *shell) addTray() {
 
 	menu.Add(s.text.Open).OnClick(func(*application.Context) { s.show(WindowMain, "") })
 	menu.Add(s.text.LiveView).OnClick(func(*application.Context) { s.show(WindowMain, livePath) })
-	menu.Add(s.text.RaceControl).OnClick(func(*application.Context) { s.show(WindowRaceControl, "") })
+	menu.Add(s.text.Engineer).OnClick(func(*application.Context) { s.show(WindowEngineer, "") })
 	menu.AddSeparator()
 
 	// Shown once a newer release is out; Settings → App says what's new and installs it

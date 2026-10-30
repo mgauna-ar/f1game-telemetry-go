@@ -62,7 +62,7 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({ isOpen, 
               </Badge>
             </span>
             <span className={styles.masterDesc}>
-              {t(radio.radioHere ? 'ai_engineer.radio.masterToggleDesc' : 'ai_engineer.radio.speaksInAppWindow')}
+              {t(radio.radioHere ? 'ai_engineer.radio.masterToggleDesc' : 'ai_engineer.radio.speaksInEngineerWindow')}
             </span>
           </span>
           <Switch

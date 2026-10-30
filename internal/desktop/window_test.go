@@ -46,7 +46,7 @@ func TestOnScreen(t *testing.T) {
 }
 
 func TestIsDashboardPath(t *testing.T) {
-	for _, path := range []string{"", "/", "/live", "/live/dashboard?window=race-control", "/history?quick=podiums"} {
+	for _, path := range []string{"", "/", "/live", "/engineer", "/history?quick=podiums"} {
 		if !isDashboardPath(path) {
 			t.Errorf("isDashboardPath(%q) = false, want true", path)
 		}
@@ -100,10 +100,10 @@ func TestAppShowWindow(t *testing.T) {
 	if err := app.ShowWindow(WindowMain, "/live"); err != nil {
 		t.Fatalf("ShowWindow(main, /live) = %v", err)
 	}
-	if err := app.ShowWindow(WindowRaceControl, ""); err != nil {
-		t.Fatalf("ShowWindow(race-control) = %v", err)
+	if err := app.ShowWindow(WindowEngineer, ""); err != nil {
+		t.Fatalf("ShowWindow(engineer) = %v", err)
 	}
-	if want := []string{"main /live", "race-control "}; !slices.Equal(shell.shown, want) {
+	if want := []string{"main /live", "engineer "}; !slices.Equal(shell.shown, want) {
 		t.Errorf("shown = %q, want %q", shell.shown, want)
 	}
 
@@ -164,12 +164,47 @@ func TestAppWindowPlace(t *testing.T) {
 	}
 
 	// Each window has its own place, and the other desktop settings stay
-	raceControl := rect{X: 0, Y: 0, Width: 1920, Height: 1040}
-	if err := app.saveWindowPlace(ctx, WindowRaceControl, &raceControl, false); err != nil {
+	engineer := rect{X: 0, Y: 0, Width: 560, Height: 760}
+	if err := app.saveWindowPlace(ctx, WindowEngineer, &engineer, false); err != nil {
 		t.Fatal(err)
 	}
 	d, err := settings.LoadDesktop(ctx, app.cfg.Store)
 	if err != nil || !d.ShowWindowAtStart || len(d.Windows) != len(WindowNames) {
 		t.Errorf("saved desktop settings = %+v, %v; want the window shown at start and both windows' places", d, err)
+	}
+}
+
+func TestAppWindowShown(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(AppConfig{Store: &memStore{data: map[string]string{}}})
+	if app.windowShown(ctx, WindowEngineer) {
+		t.Fatal("windowShown() before anything was saved = true, want false")
+	}
+
+	if err := app.saveWindowShown(ctx, WindowEngineer, true); err != nil {
+		t.Fatal(err)
+	}
+	// Moving or maximising it keeps that it shows, and leaves the other window as it was
+	moved := rect{X: 2200, Y: 200, Width: 600, Height: 800}
+	if err := app.saveWindowPlace(ctx, WindowEngineer, &moved, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.saveWindowPlace(ctx, WindowEngineer, nil, true); err != nil {
+		t.Fatal(err)
+	}
+	if !app.windowShown(ctx, WindowEngineer) || app.windowShown(ctx, WindowMain) {
+		t.Errorf("windowShown(engineer, main) = %v, %v; want true, false",
+			app.windowShown(ctx, WindowEngineer), app.windowShown(ctx, WindowMain))
+	}
+	place, frame := app.windowPlace(ctx, WindowEngineer, testWorkAreas)
+	if !frame || boundsRect(place) != moved || !place.Maximised {
+		t.Errorf("windowPlace() = %+v, %v; want %+v, maximised", place, frame, moved)
+	}
+
+	if err := app.saveWindowShown(ctx, WindowEngineer, false); err != nil {
+		t.Fatal(err)
+	}
+	if app.windowShown(ctx, WindowEngineer) {
+		t.Error("windowShown() after it was hidden = true, want false")
 	}
 }

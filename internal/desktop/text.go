@@ -10,8 +10,8 @@ const appName = "F1 Telemetry"
 type text struct {
 	Open             string
 	LiveView         string
-	RaceControl      string
-	RaceControlTitle string // the Race Control window's title
+	Engineer         string
+	EngineerTitle    string // the engineer window's title
 	UpdateAvailable  string // %s: the new version
 	StartWithWindows string
 	DevBuildHint     string
@@ -27,8 +27,8 @@ type text struct {
 var englishText = text{
 	Open:             "Open F1 Telemetry",
 	LiveView:         "Live view",
-	RaceControl:      "Race Control in a new window",
-	RaceControlTitle: "F1 Telemetry · Race Control",
+	Engineer:         "Race engineer",
+	EngineerTitle:    "F1 Telemetry · Race engineer",
 	UpdateAvailable:  "Update available: %s",
 	StartWithWindows: "Start with Windows",
 	DevBuildHint:     "Not available for a build run with go run",
@@ -44,8 +44,8 @@ var englishText = text{
 var spanishText = text{
 	Open:             "Abrir F1 Telemetry",
 	LiveView:         "Vista en vivo",
-	RaceControl:      "Control de Carrera en otra ventana",
-	RaceControlTitle: "F1 Telemetry · Control de Carrera",
+	Engineer:         "Ingeniero de carrera",
+	EngineerTitle:    "F1 Telemetry · Ingeniero de carrera",
 	UpdateAvailable:  "Actualización disponible: %s",
 	StartWithWindows: "Iniciar con Windows",
 	DevBuildHint:     "No disponible al ejecutar con go run",

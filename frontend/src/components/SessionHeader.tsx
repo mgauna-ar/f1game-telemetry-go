@@ -36,6 +36,10 @@ interface SessionHeaderProps {
   packetFormat?: number | null;
   viewMode?: LiveViewMode;
   onViewModeChange?: (mode: LiveViewMode) => void;
+  /** Buttons before the live feed state, such as the engineer window's way to the dashboard. */
+  actions?: React.ReactNode;
+  /** What it's called before a session's data arrives; the Live page's hub by default. */
+  standbyTitle?: string;
 }
 
 export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) => {
@@ -66,7 +70,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
             </div>
             <div>
               <div className={styles.titleRow}>
-                <h1 className={styles.title}>{t('live.liveHub')}</h1>
+                <h1 className={styles.title}>{props.standbyTitle ?? t('live.liveHub')}</h1>
                 <Badge tone={connected ? 'success' : 'warning'} uppercase>
                   {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
                 </Badge>
@@ -79,6 +83,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
 
           <div className={styles.actions}>
             {onViewModeChange && <LiveViewModeSwitch value={viewMode} onChange={onViewModeChange} compact={compactSwitch} />}
+            {props.actions}
 
             {/* Live feed state */}
             <LiveStatusIndicator />
@@ -122,6 +127,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
 
         <div className={styles.actions}>
           {onViewModeChange && <LiveViewModeSwitch value={viewMode} onChange={onViewModeChange} compact={compactSwitch} />}
+          {props.actions}
 
           {/* Live feed state */}
           <LiveStatusIndicator />

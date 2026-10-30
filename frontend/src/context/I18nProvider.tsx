@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { availableLocales, getTranslation, isLocaleLoaded, loadLocale } from '../locales';
 import type { LocaleCode, TranslationKey } from '../locales';
 import { I18nContext } from './I18nContext';
-import { storage } from '../utils/storage';
+import { onStoredElsewhere, storage } from '../utils/storage';
 
 const STORAGE_KEY = 'f1_telemetry_language';
 
@@ -52,6 +52,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       current = false;
     };
   }, [requested]);
+
+  // Another window of the app on this PC picked a language: this one follows
+  useEffect(() => onStoredElsewhere([STORAGE_KEY], () => setRequested(detectDefaultLocale())), []);
 
   const setLocale = useCallback((newLocale: LocaleCode) => {
     setRequested(newLocale);
