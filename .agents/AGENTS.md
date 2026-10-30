@@ -36,7 +36,7 @@ Boundaries, invariants and verification gates.
   - `locales/`: Type-safe `PromptCatalog`, thread-safe registry (`Resolve`, `Get`), `EnglishCatalog`/`SpanishCatalog`, Edge TTS voice mappings (no boolean flags).
   - `input/`: Global PTT (`winmm.dll` DirectInput wheels, `user32.dll` keyboard on Windows; Gamepad API + `Space` fallback).
   - `system/`: Version, GitHub update check (`system.DefaultGitHubRepo`) + self-update (`InstallRelease`; `Restart` sets `F1T_UPDATED`), LAN addresses (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance`, `OpenAppWindow`.
-  - `desktop/`: `App` behind loopback-only `/api/desktop` (settings, HKCU `Run`, update, window, link, quit; Settings → App). Windows: Wails v3 windows on the server (no bindings, `production` tag), tray, Race Control window, `build/windows/` installer; else `/desktop` in a browser. One radio per PC (`useRadioHere`), `openLinksOutside`. `-H=windowsgui`, log by DB. Icons: `go generate`.
+  - `desktop/`: `App` behind loopback-only `/api/desktop` (settings, HKCU `Run`, update, window, link, quit; Settings → App). Windows: Wails v3 windows on the server (no bindings, `production` tag), tray, `build/windows/` installer; else browser `/desktop`. Radio only in engineer window (`/engineer`, `useRadioHere`), `openLinksOutside`. `-H=windowsgui`, log by DB. Icons: `go generate`.
   - `tsgen/`: Stdlib Go-to-TS wire type generator (`cmd/tsgen`).
 
 ### Wire Types & REST Contracts
