@@ -6,6 +6,7 @@ import {
   resetComparatorPreferencesStore,
   useComparatorPreferencesStore,
 } from '../../store/useComparatorPreferencesStore';
+import { useDesktopStore } from '../../store/useDesktopStore';
 import { resetDevicePreferences, useDevicePreferencesStore } from '../../store/useDevicePreferencesStore';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import { usePerformanceModeStore } from '../../store/usePerformanceModeStore';
@@ -20,15 +21,34 @@ const renderAt = (path: string) => {
   );
 };
 
+/** The app's state on the PC that runs it (GET /api/desktop). */
+const onThePC = {
+  show_window_at_start: true,
+  start_with_os: false,
+  start_with_os_available: true,
+  native_window: true,
+  can_update: false,
+};
+
 describe('SettingsPage', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  // A phone or tablet unless a test opens the page on the PC
+  let desktopAnswer: Partial<Response>;
 
   beforeEach(() => {
     localStorage.clear();
     resetComparatorPreferencesStore();
     resetDevicePreferences();
     useRadioSettingsStore.getState().resetStoreToDefaults();
+    useDesktopStore.setState({ state: null, status: 'idle' });
+    desktopAnswer = {
+      ok: false,
+      status: 403,
+      statusText: 'Forbidden',
+      json: async () => ({ error: 'only available on the PC the app runs on' }),
+    };
     fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/desktop') return Promise.resolve(desktopAnswer as Response);
       if (url === '/api/settings/comparator') {
         const body =
           init?.method === 'PUT'
@@ -67,6 +87,26 @@ describe('SettingsPage', () => {
     expect(
       within(screen.getByRole('region', { name: 'This device' })).getByText('This device', { selector: 'span' })
     ).toBeInTheDocument();
+    await waitFor(() => expect(useDesktopStore.getState().status).toBe('unavailable'));
+    expect(within(nav).queryByRole('link', { name: 'App' })).not.toBeInTheDocument();
+  });
+
+  it('lists App on the PC that runs the app', async () => {
+    desktopAnswer = { ok: true, status: 200, json: async () => onThePC };
+    renderAt('/settings/voice');
+    const nav = screen.getByRole('navigation', { name: 'Settings sections' });
+
+    fireEvent.click(await within(nav).findByRole('link', { name: 'App' }));
+    const app = await screen.findByRole('region', { name: 'App' });
+    expect(within(app).getByText('This PC', { selector: 'span' })).toBeInTheDocument();
+    expect(await within(app).findByRole('switch', { name: /Open the window when F1 Telemetry starts/ })).toBeChecked();
+    expect(document.title).toMatch(/^Settings: App/);
+  });
+
+  it('opens App from a link on another device and says why it is empty', async () => {
+    renderAt('/settings/app');
+    expect(await screen.findByText('These are only on the PC that runs F1 Telemetry.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'App' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('saves the comparator rival for every device', async () => {

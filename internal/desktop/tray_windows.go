@@ -45,8 +45,10 @@ func (s *shell) addTray() {
 	menu.Add(s.text.RaceControl).OnClick(func(*application.Context) { s.show(WindowRaceControl, "") })
 	menu.AddSeparator()
 
-	// Shown once a newer release is out; the window says what's new
-	s.tray.update = menu.Add("").SetHidden(true).OnClick(func(*application.Context) { s.show(WindowMain, "") })
+	// Shown once a newer release is out; Settings → App says what's new and installs it
+	s.tray.update = menu.Add("").SetHidden(true).OnClick(func(*application.Context) {
+		s.show(WindowMain, appSettingsPath)
+	})
 	s.tray.autostart = s.addAutostartItem(menu)
 	menu.Add(s.text.OpenDataFolder).OnClick(func(*application.Context) { showInFolder(s.opts.DBPath) })
 	if s.opts.LogPath != "" {

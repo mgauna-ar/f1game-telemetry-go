@@ -36,6 +36,12 @@ export function otherDeviceIps(endpoint: TelemetryEndpoint): string[] {
   return endpoint.lan_ips.filter((ip) => ip !== endpoint.local_ip);
 }
 
+/** The dashboard's address on another host, keeping this page's protocol and port. */
+export function dashboardUrlOn(host: string): string {
+  const { protocol, port } = window.location;
+  return `${protocol}//${host}${port ? `:${port}` : ''}`;
+}
+
 /** The UDP port and addresses the game has to send telemetry to, as the server reports them. */
 export const useTelemetryEndpointStore = create<TelemetryEndpointState>((set) => ({
   endpoint: DEFAULT_TELEMETRY_ENDPOINT,

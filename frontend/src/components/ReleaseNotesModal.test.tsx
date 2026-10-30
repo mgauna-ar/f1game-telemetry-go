@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ReleaseNotesModal } from './ReleaseNotesModal';
 import { I18nProvider } from '../context/I18nProvider';
+import { useDesktopStore } from '../store/useDesktopStore';
+import { api } from '../utils/apiClient';
 import type { UpdateCheckResponse } from '../types/system';
 
 const mockUpdateData: UpdateCheckResponse = {
@@ -185,5 +187,50 @@ describe('ReleaseNotesModal', () => {
     // Only macOS download should be visible
     expect(screen.getByText('macOS (Apple Silicon M1–M4)')).toBeInTheDocument();
     expect(screen.queryByText('Windows (64-bit x64)')).not.toBeInTheDocument();
+  });
+
+  describe('on the PC running a release build', () => {
+    beforeEach(() => {
+      useDesktopStore.setState({
+        state: {
+          show_window_at_start: true,
+          start_with_os: false,
+          start_with_os_available: true,
+          native_window: true,
+          can_update: true,
+        },
+        status: 'ready',
+      });
+    });
+
+    afterEach(() => {
+      useDesktopStore.setState({ state: null, status: 'idle' });
+      vi.restoreAllMocks();
+    });
+
+    it('installs the update instead of listing downloads', async () => {
+      const post = vi.spyOn(api, 'post').mockResolvedValue({ version: 'v1.0.0-beta.2' });
+      render(
+        <I18nProvider>
+          <ReleaseNotesModal isOpen onClose={() => {}} updateData={mockUpdateData} />
+        </I18nProvider>
+      );
+
+      expect(screen.getByRole('heading', { name: 'Install it on this PC' })).toBeInTheDocument();
+      expect(screen.queryByText(/_amd64\.zip|_arm64\.zip/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Update now/ }));
+
+      expect(post).toHaveBeenCalledWith('/api/desktop/update');
+      expect(await screen.findByText('Restarting F1 Telemetry…')).toBeInTheDocument();
+    });
+
+    it('has nothing to install on the newest version', () => {
+      render(
+        <I18nProvider>
+          <ReleaseNotesModal isOpen onClose={() => {}} updateData={{ ...mockUpdateData, update_available: false }} />
+        </I18nProvider>
+      );
+      expect(screen.queryByRole('button', { name: /Update now/ })).not.toBeInTheDocument();
+    });
   });
 });

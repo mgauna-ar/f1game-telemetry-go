@@ -29,9 +29,10 @@ export type SessionDetailTab = (typeof SESSION_DETAIL_TABS)[number];
 
 /**
  * The settings page's sections: the race engineer's voice and persona, its radio calls,
- * push-to-talk, the AI chat, the comparator (all shared by every device), then this device's own.
+ * push-to-talk, the AI chat, the comparator (all shared by every device), then this device's own,
+ * and the app on the PC that runs it (only that PC lists it).
  */
-export const SETTINGS_SECTIONS = ['voice', 'alerts', 'ptt', 'ai', 'comparator', 'device'] as const;
+export const SETTINGS_SECTIONS = ['voice', 'alerts', 'ptt', 'ai', 'comparator', 'device', 'app'] as const;
 export type SettingsPageSection = (typeof SETTINGS_SECTIONS)[number];
 
 export interface CompareParams {

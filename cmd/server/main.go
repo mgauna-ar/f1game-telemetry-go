@@ -329,6 +329,7 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 		CheckUpdates: checkUpdates,
 		App:          desktopApp,
 		ShowWindow:   showWindow,
+		AfterUpdate:  cfg.AfterUpdate,
 	}, shutdown)
 	shutdown()
 	return restartRequested.Load(), nil

@@ -117,6 +117,7 @@ export const common = {
     prereleaseBadge: 'Beta / Pre-release',
     stableBadge: 'Stable Release',
     downloadTitle: 'Download Release Packages',
+    installTitle: 'Install it on this PC',
     windowsPkg: 'Windows (x64 / ARM64)',
     macPkg: 'macOS (Apple Silicon / Intel)',
     linuxPkg: 'Linux (x64 / ARM64)',

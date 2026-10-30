@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Download, ExternalLink, Power } from 'lucide-react';
+import { AppWindow, ExternalLink, Power } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { useLiveStatus } from '../hooks/useLiveStatus';
 import { useSystemStatusStore } from '../store/useSystemStatusStore';
-import { otherDeviceIps, useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
+import { dashboardUrlOn, otherDeviceIps, useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
 import { LIVE_STATUS } from '../constants/f1';
 import type { LiveStatus } from '../constants/f1';
 import { F1TelemetryLogo } from '../components/F1TelemetryLogo';
@@ -17,16 +17,10 @@ import { liveSessionLabel } from '../utils/liveSessionLabel';
 import type { DesktopState, DesktopUpdate } from '../types/desktop';
 import type { SystemVersion, UpdateCheckResponse } from '../types/system';
 import { useFitWindowToContent } from './useFitWindowToContent';
-import { useInstallUpdate } from './useInstallUpdate';
+import { UpdateNotice } from './UpdateNotice';
 import styles from './DesktopWindow.module.css';
 
 const LOGO_SIZE = 44;
-
-/** The dashboard address on another host, keeping this page's protocol and port. */
-const dashboardUrlOn = (host: string): string => {
-  const { protocol, port } = window.location;
-  return `${protocol}//${host}${port ? `:${port}` : ''}`;
-};
 
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
@@ -53,59 +47,12 @@ const StatusLine: React.FC<{ status: LiveStatus; udpPort: number }> = ({ status,
   );
 };
 
-/** A newer release and the button that installs it and restarts the app on it. */
-const UpdateNotice: React.FC<{ release: UpdateCheckResponse }> = ({ release }) => {
-  const { t } = useI18n();
-  const { state, install } = useInstallUpdate();
-  const headingId = useId();
-  const busy = state.phase === 'installing' || state.phase === 'restarting';
-  let progress = t('desktop.update.hint');
-  if (state.phase === 'installing') progress = t('desktop.update.installing', { version: release.latest_version });
-  if (state.phase === 'restarting') progress = t('desktop.update.restarting');
-
-  return (
-    <section className={styles.update} aria-labelledby={headingId}>
-      <div className={styles.updateHeader}>
-        <h2 id={headingId} className={styles.updateTitle}>
-          {t('desktop.update.available', { version: release.latest_version })}
-        </h2>
-        {release.html_url && (
-          <a href={release.html_url} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            {t('desktop.update.whatsNew')}
-            <ExternalLink size={12} aria-hidden="true" />
-          </a>
-        )}
-      </div>
-      {/* Always there, so screen readers hear the progress as it changes */}
-      <p className={styles.hint} aria-live="polite">
-        {progress}
-      </p>
-      <Button variant="secondary" block icon={<Download size={16} />} loading={busy} onClick={() => void install()}>
-        {t('desktop.update.button')}
-      </Button>
-      {state.phase === 'failed' && (
-        <Callout tone="warning" role="alert">
-          {t('desktop.update.failed', { error: state.error })}{' '}
-          {release.html_url && (
-            <a href={release.html_url} target="_blank" rel="noopener noreferrer">
-              {t('desktop.update.releasePage')}
-            </a>
-          )}
-        </Callout>
-      )}
-      {state.phase === 'timedOut' && (
-        <Callout tone="warning" role="alert">
-          {t('desktop.update.timedOut', { version: state.version })}
-        </Callout>
-      )}
-    </section>
-  );
-};
-
 /**
- * The app window: a small page the server opens in a browser window of its own at startup (and
- * from the Windows tray). It shows whether the game is sending telemetry, where to open the
- * dashboard and what to enter in the game, and on the PC running the app its startup options and Quit.
+ * The app window on macOS and Linux: a small page the server opens in a browser window of its own
+ * at startup. It shows whether the game is sending telemetry, where to open the dashboard and what
+ * to enter in the game, and on the PC running the app its startup option, updates and Quit. On
+ * Windows the app has a window of its own: a 1.x small window still open after the update says so
+ * and brings that window up.
  */
 export const DesktopWindow: React.FC = () => {
   const { t } = useI18n();
@@ -145,8 +92,12 @@ export const DesktopWindow: React.FC = () => {
     return () => controller.abort();
   }, []);
 
+  // The PC's own controls: null while loading and on another device
+  const controls = desktop !== null && desktop !== 'unavailable' ? desktop : null;
+  const ownWindow = controls?.native_window === true;
+
   // Only the PC running a release build can update it, so only then ask GitHub for a newer one
-  const canUpdate = desktop !== null && desktop !== 'unavailable' && desktop.can_update;
+  const canUpdate = controls?.can_update === true && !ownWindow;
   useEffect(() => {
     if (!canUpdate) return;
     const controller = new AbortController();
@@ -178,6 +129,18 @@ export const DesktopWindow: React.FC = () => {
     }
   };
 
+  // On Windows the dashboard is the app's own window: bring it up, and this one has nothing left to show
+  const openOwnWindow = async () => {
+    setError(null);
+    try {
+      await desktopClient.openDashboard();
+    } catch (err) {
+      setError(t('desktop.ownWindow.openFailed', { error: errorText(err) }));
+      return;
+    }
+    window.close();
+  };
+
   const quit = async () => {
     setError(null);
     try {
@@ -197,7 +160,7 @@ export const DesktopWindow: React.FC = () => {
   if (stopped) {
     return (
       <main className={styles.window}>
-        <div className={styles.stopped}>
+        <div className={styles.message}>
           <F1TelemetryLogo size={LOGO_SIZE} variant="monochrome" />
           <h1 className={styles.title}>{t('desktop.stoppedTitle')}</h1>
           <p className={styles.note}>{t('desktop.stoppedBody')}</p>
@@ -206,7 +169,25 @@ export const DesktopWindow: React.FC = () => {
     );
   }
 
-  const controls = desktop !== null && desktop !== 'unavailable' ? desktop : null;
+  if (ownWindow) {
+    return (
+      <main ref={windowRef} className={styles.window}>
+        <div className={styles.message}>
+          <F1TelemetryLogo size={LOGO_SIZE} />
+          <h1 className={styles.title}>{t('desktop.ownWindow.title')}</h1>
+          <p className={styles.note}>{t('desktop.ownWindow.body')}</p>
+          <Button variant="primary" icon={<AppWindow size={16} />} onClick={openOwnWindow}>
+            {t('desktop.ownWindow.open')}
+          </Button>
+          {error && (
+            <Callout tone="warning" role="alert">
+              {error}
+            </Callout>
+          )}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main ref={windowRef} className={styles.window}>
@@ -290,29 +271,16 @@ export const DesktopWindow: React.FC = () => {
             />
             <span>
               <span className={styles.optionLabel}>{t('desktop.showAtStart')}</span>
-              <span className={styles.hint}>
-                {t(controls.native_window ? 'desktop.showAtStartHintTray' : 'desktop.showAtStartHintTerminal')}
-              </span>
+              <span className={styles.hint}>{t('desktop.showAtStartHint')}</span>
             </span>
           </label>
-          {controls.start_with_os_available && (
-            <label className={styles.option}>
-              <Switch checked={controls.start_with_os} onChange={(on) => void update({ start_with_os: on })} />
-              <span>
-                <span className={styles.optionLabel}>{t('desktop.startWithWindows')}</span>
-                <span className={styles.hint}>{t('desktop.startWithWindowsHint')}</span>
-              </span>
-            </label>
-          )}
         </section>
       )}
 
       <footer className={styles.footer}>
         {controls ? (
           <>
-            <p className={styles.note}>
-              {t(controls.native_window ? 'desktop.closeNoteTray' : 'desktop.closeNoteTerminal')}
-            </p>
+            <p className={styles.note}>{t('desktop.closeNote')}</p>
             <Button variant="ghost" icon={<Power size={16} />} onClick={quit}>
               {t('desktop.quit')}
             </Button>

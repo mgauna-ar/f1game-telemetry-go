@@ -17,7 +17,7 @@ const desktop = (nativeWindow: boolean): DesktopState => ({
 
 describe('useRadioHere', () => {
   beforeEach(() => {
-    useDesktopStore.setState({ state: null, requested: false });
+    useDesktopStore.setState({ state: null, status: 'idle' });
   });
 
   afterEach(() => {
@@ -43,7 +43,7 @@ describe('useRadioHere', () => {
   it('speaks on a phone or tablet, which the PC-only state refuses', async () => {
     vi.spyOn(api, 'get').mockRejectedValue(new ApiError('only available on the PC the app runs on', 403, 'Forbidden'));
     const { result } = renderHook(() => useRadioHere());
-    await waitFor(() => expect(useDesktopStore.getState().requested).toBe(true));
+    await waitFor(() => expect(useDesktopStore.getState().status).toBe('unavailable'));
     expect(result.current).toBe(true);
   });
 

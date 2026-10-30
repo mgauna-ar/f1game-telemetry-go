@@ -153,51 +153,12 @@
   color: var(--text-muted);
 }
 
-.stopped {
+/* A page with only a message: the app stopped, or it has a window of its own (Windows) */
+.message {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
   margin: auto 0;
   text-align: center;
-}
-
-/* A newer release: its version, what's new, and the button that installs it. Not a composed tile:
-   its edge is the accent, to stand out from the status line */
-.update {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg-inset);
-  border: 1px solid var(--accent-secondary);
-  border-radius: var(--radius-sm);
-}
-
-.update a {
-  color: var(--text-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.updateHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.updateTitle {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-}
-
-.link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex: none;
-  font-size: var(--font-size-sm);
 }

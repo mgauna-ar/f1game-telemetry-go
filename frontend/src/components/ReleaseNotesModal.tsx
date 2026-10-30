@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sparkles, Download, ExternalLink, Package, HardDrive, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
+import { InstallUpdate } from '../desktop/UpdateNotice';
+import { useDesktopStore } from '../store/useDesktopStore';
 import { detectUserOS } from '../utils/system';
 import type { UpdateCheckResponse, ReleaseAsset, SystemVersion } from '../types/system';
 import { Badge } from './ui/Badge';
@@ -26,6 +28,11 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
 }) => {
   const { t } = useI18n();
   const [dontRemind, setDontRemind] = useState(false);
+  // On the PC running a release build the app installs the update itself
+  const canUpdate = useDesktopStore((s) => s.state?.can_update === true);
+  useEffect(() => {
+    void useDesktopStore.getState().load();
+  }, []);
 
   if (!updateData && !systemVersion) {
     return null;
@@ -170,8 +177,19 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       </div>
 
       <ModalBody className={styles.body}>
-        {/* Downloads for the user's own system */}
-        {effectiveData.assets &&
+        {canUpdate && effectiveData.update_available && (
+          <section>
+            <h3 className={styles.sectionTitle}>
+              <Download size={14} aria-hidden="true" />
+              <span>{t('common.updates.installTitle')}</span>
+            </h3>
+            <InstallUpdate release={effectiveData} />
+          </section>
+        )}
+
+        {/* Downloads for the user's own system, where the app can't install the update itself */}
+        {!(canUpdate && effectiveData.update_available) &&
+          effectiveData.assets &&
           effectiveData.assets.length > 0 &&
           (() => {
             const userOS = detectUserOS();

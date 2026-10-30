@@ -33,6 +33,9 @@ const (
 
 	// livePath is the page the tray's Live view opens.
 	livePath = "/live"
+	// appSettingsPath is Settings → App, with the version and Update now: the tray's update notice
+	// opens it, and so does the first start after an update.
+	appSettingsPath = "/settings/app"
 	// raceControlPath is the page the Race Control window opens. The window parameter marks the
 	// page as that window's (frontend/src/utils/nativeWindow.ts), which keeps the radio off in it.
 	raceControlPath = "/live/dashboard?window=" + WindowRaceControl
@@ -114,7 +117,11 @@ func Quit() {
 
 // start opens the main window and lets the App show the windows.
 func (s *shell) start() {
-	main := s.newWindow(WindowMain, "/", s.opts.ShowWindow)
+	path := "/"
+	if s.opts.AfterUpdate {
+		path = appSettingsPath
+	}
+	main := s.newWindow(WindowMain, path, s.opts.ShowWindow)
 	// Closing it keeps the app running in the tray, and the radio talking if it's on Live
 	main.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		s.savePlace(WindowMain, main)

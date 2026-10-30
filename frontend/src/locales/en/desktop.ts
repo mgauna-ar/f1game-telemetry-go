@@ -18,12 +18,8 @@ export const desktop = {
   openDashboard: 'Open dashboard',
   startupHeading: 'Startup',
   showAtStart: 'Show this window at startup',
-  showAtStartHintTray: 'When off, F1 Telemetry starts in the tray.',
-  showAtStartHintTerminal: 'When off, F1 Telemetry starts in its terminal without this window.',
-  startWithWindows: 'Start with Windows',
-  startWithWindowsHint: 'Starts in the tray when you sign in, without this window.',
-  closeNoteTray: 'Closing this window keeps F1 Telemetry running in the tray. Click its icon to bring the window back.',
-  closeNoteTerminal: 'Closing this window keeps F1 Telemetry running in its terminal.',
+  showAtStartHint: 'When off, F1 Telemetry starts in its terminal without this window.',
+  closeNote: 'Closing this window keeps F1 Telemetry running in its terminal.',
   controlsUnavailable: 'Startup options and Quit are only available on the PC running F1 Telemetry.',
   saveFailed: 'Could not change the setting: {error}',
   openFailed: 'Could not open the dashboard: {error}',
@@ -31,6 +27,13 @@ export const desktop = {
   quit: 'Quit F1 Telemetry',
   stoppedTitle: 'F1 Telemetry stopped',
   stoppedBody: 'You can close this window.',
+  // A 1.x small window still open after the update to 2.0 on Windows
+  ownWindow: {
+    title: 'F1 Telemetry has its own window now',
+    body: 'The dashboard, the startup options, updates and Quit are all in it, under Settings → App. You can close this window.',
+    open: 'Open F1 Telemetry',
+    openFailed: "Could not open F1 Telemetry's window: {error}",
+  },
   update: {
     available: 'Version {version} is available',
     whatsNew: "What's new",

@@ -33,4 +33,7 @@ type Options struct {
 	App *App
 	// ShowWindow is whether the window opens at start; otherwise the app starts in the tray.
 	ShowWindow bool
+	// AfterUpdate is set when the app restarted on a version it just installed: the window opens on
+	// Settings → App, which shows it.
+	AfterUpdate bool
 }

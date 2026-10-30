@@ -8,8 +8,10 @@ export const settings = {
   scope: {
     shared: 'Todos los dispositivos',
     device: 'Este dispositivo',
+    pc: 'Esta PC',
     sharedHint: 'Se guarda en el servidor al cambiarla; la usan todos los dispositivos.',
     deviceHint: 'Queda en este navegador; los demás dispositivos tienen la suya.',
+    pcHint: 'La aplicación en la PC donde corre F1 Telemetry. Solo esta PC lo muestra.',
   },
   sections: {
     voice: {
@@ -42,6 +44,11 @@ export const settings = {
       short: 'Este dispositivo',
       description: 'Sonido, idioma, vistas y diseño de esta pantalla. Los demás dispositivos tienen los suyos.',
     },
+    app: {
+      title: 'Aplicación',
+      short: 'Aplicación',
+      description: 'F1 Telemetry en esta PC: su versión y actualizaciones, cómo inicia, la dirección para un teléfono o tablet, y Salir.',
+    },
   },
   device: {
     units: 'Unidades',
@@ -66,5 +73,26 @@ export const settings = {
     performanceGeneral: 'Todas las páginas menos la vista Piloto',
     performanceDriver: 'Vista Piloto',
     performanceDriverDesc: 'Activado por defecto: un teléfono en el simulador se lee de un vistazo.',
+  },
+  app: {
+    version: 'Versión',
+    running: 'F1 Telemetry {version}',
+    upToDate: 'Es la versión más nueva.',
+    devBuild: 'Una versión de desarrollo: no se actualiza sola.',
+    startup: 'Inicio',
+    openWindow: 'Abrir la ventana cuando inicia F1 Telemetry',
+    openWindowDesc: 'Si está apagado, inicia en la bandeja. Hacé clic en su ícono para abrir la ventana.',
+    openAppWindow: 'Abrir la ventana de la aplicación cuando inicia F1 Telemetry',
+    openAppWindowDesc: 'La ventanita con las direcciones y Salir. Si está apagado, F1 Telemetry inicia en su terminal sin ella.',
+    startWithWindows: 'Iniciar con Windows',
+    startWithWindowsDesc: 'Inicia en la bandeja cuando entrás a Windows, sin la ventana.',
+    otherDevice: 'Teléfono o tablet',
+    otherDeviceHint: 'Abrí esta dirección en el navegador de un teléfono o tablet en la misma red que esta PC.',
+    noOtherDevice: 'Esta PC no tiene una dirección a la que llegue un teléfono o tablet. Conectala a tu red.',
+    quit: 'Salir',
+    closeNoteWindow: 'Al cerrar la ventana, F1 Telemetry sigue funcionando en la bandeja, y la radio hablando si la ventana está en En vivo. Salir lo detiene.',
+    closeNoteBrowser: 'Al cerrar esta página, F1 Telemetry sigue funcionando en su terminal. Salir lo detiene.',
+    stopped: 'F1 Telemetry se detuvo. Ya podés cerrar esta página.',
+    unavailable: 'Esto solo está en la PC donde corre F1 Telemetry.',
   },
 };
