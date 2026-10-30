@@ -291,7 +291,7 @@ export const DesktopWindow: React.FC = () => {
             <span>
               <span className={styles.optionLabel}>{t('desktop.showAtStart')}</span>
               <span className={styles.hint}>
-                {t(controls.tray ? 'desktop.showAtStartHintTray' : 'desktop.showAtStartHintTerminal')}
+                {t(controls.native_window ? 'desktop.showAtStartHintTray' : 'desktop.showAtStartHintTerminal')}
               </span>
             </span>
           </label>
@@ -310,7 +310,9 @@ export const DesktopWindow: React.FC = () => {
       <footer className={styles.footer}>
         {controls ? (
           <>
-            <p className={styles.note}>{t(controls.tray ? 'desktop.closeNoteTray' : 'desktop.closeNoteTerminal')}</p>
+            <p className={styles.note}>
+              {t(controls.native_window ? 'desktop.closeNoteTray' : 'desktop.closeNoteTerminal')}
+            </p>
             <Button variant="ghost" icon={<Power size={16} />} onClick={quit}>
               {t('desktop.quit')}
             </Button>

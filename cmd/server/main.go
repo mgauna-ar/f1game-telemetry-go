@@ -158,7 +158,8 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 	lanIP := system.GetLocalIP()
 	lanURL := fmt.Sprintf("http://%s:%s", lanIP, port)
 	dbPath := absolutePath(cfg.DBPath)
-	tray := desktop.Supported() && !cfg.NoTray
+	// On Windows the app has its own window and notification-area icon, unless -no-tray
+	native := desktop.Supported() && !cfg.NoTray
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -167,16 +168,16 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 	// a second copy (before touching the database or the running copy's log file)
 	ln, err := net.Listen("tcp", cfg.HTTPAddr)
 	if err != nil {
-		return false, openRunningInstance(ctx, localURL, port, cfg.OpenBrowser, err)
+		return false, openRunningInstance(ctx, localURL, port, native, cfg.OpenBrowser, err)
 	}
 
-	logPath, closeLog := setupLogging(dbPath, tray || !desktop.HasConsole(), desktop.HasConsole())
+	logPath, closeLog := setupLogging(dbPath, native || !desktop.HasConsole(), desktop.HasConsole())
 	defer closeLog()
 	for _, path := range envFiles {
 		slog.Info("Loaded settings from .env file", "path", path)
 	}
 
-	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, dbPath, tray)
+	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, dbPath, native)
 	slog.Info("Starting F1 Telemetry Analyzer", "version", version, "dashboard", localURL, "network", lanURL,
 		"udpAddr", cfg.UDPAddr, "db", dbPath, "log", logPath, "afterUpdate", cfg.AfterUpdate)
 	if exe != "" {
@@ -211,11 +212,11 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 	}
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 
-	// The app on this PC: its small window, starting at sign-in, updating, and Quit from the window
+	// The app on this PC: its window, starting at sign-in, updating, and Quit from the window
 	quitRequested := make(chan struct{})
 	var quitOnce sync.Once
 	quit := func() {
-		if tray {
+		if native {
 			desktop.Quit()
 			return
 		}
@@ -227,7 +228,7 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 		Store:         repo,
 		DashboardURL:  localURL,
 		AutostartArgs: autostartArgs(flag.CommandLine, dbPath),
-		Tray:          tray,
+		NativeWindow:  native,
 		Quit:          quit,
 		CheckUpdates:  checkUpdates,
 		Restart: func() {
@@ -246,8 +247,9 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 		}
 	}()
 
-	// 6. Open the dashboard in the browser if asked to (port is guaranteed bound)
-	if cfg.OpenBrowser {
+	// 6. Open the dashboard in the browser if asked to (port is guaranteed bound). Windows opens no
+	// browser: the dashboard is the app's own window.
+	if cfg.OpenBrowser && !desktop.Supported() {
 		go func() {
 			if err := system.OpenBrowser(localURL); err != nil {
 				slog.Warn("Could not automatically open browser", "url", localURL, "error", err)
@@ -294,10 +296,10 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 	// 10. Start Packet Processing Loop
 	startPacketProcessing(ctx, listener, sessionManager, engineerEngine, liveBroadcaster, cfg.UDPAddr)
 
-	// 11. Open the app window, unless this is a start at sign-in or it was turned off. After an
-	// update the window that asked for it reloads itself instead.
-	if !cfg.Autostart && !cfg.AfterUpdate {
-		go openWindowAtStart(ctx, desktopApp)
+	// 11. On macOS and Linux, open the small browser window (Windows' own window opens with the tray)
+	showWindow := windowAtStart(ctx, desktopApp, cfg)
+	if showWindow && !desktop.Supported() {
+		go openWindow(desktopApp)
 	}
 
 	// 12. Run until a termination signal or Quit (tray or app window), then shut down gracefully
@@ -306,7 +308,7 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 		shutdownOnce.Do(func() { gracefulShutdown(cancel, inputMgr, sessionManager, srv) })
 	}
 
-	if !tray {
+	if !native {
 		waitForSignal(quitRequested)
 		shutdown()
 		return restartRequested.Load(), nil
@@ -316,26 +318,27 @@ func run(cfg ServerConfig, envFiles []string, exe string) (restart bool, err err
 		waitForSignal(nil)
 		desktop.Quit()
 	}()
-	// The tray runs shutdown before RunTray returns, also when Windows ends the session
-	desktop.RunTray(desktop.Options{
+	// The window and tray run shutdown before Run returns, also when Windows ends the session
+	desktop.Run(desktop.Options{
 		Version:      version,
 		DashboardURL: localURL,
-		LiveURL:      localURL + "/live",
 		UDPPort:      system.ListenPort(cfg.UDPAddr),
 		DBPath:       dbPath,
 		LogPath:      logPath,
 		Feed:         liveBroadcaster.FeedStatus,
 		CheckUpdates: checkUpdates,
 		App:          desktopApp,
+		ShowWindow:   showWindow,
 	}, shutdown)
 	shutdown()
 	return restartRequested.Load(), nil
 }
 
-// openRunningInstance handles a busy HTTP port: when this app is the one answering there, the
-// second launch exits quietly (opening the running copy's dashboard only with -open-browser).
-// Otherwise it explains which port is busy and how to pick another.
-func openRunningInstance(ctx context.Context, localURL, port string, openBrowser bool, bindErr error) error {
+// openRunningInstance handles a busy HTTP port: when this app is the one answering there, a second
+// launch on Windows brings the running copy's window up, and elsewhere exits quietly (opening the
+// running copy's dashboard only with -open-browser). Otherwise it explains which port is busy and
+// how to pick another.
+func openRunningInstance(ctx context.Context, localURL, port string, native, openBrowser bool, bindErr error) error {
 	ver, running := system.FindRunningInstance(ctx, localURL)
 	if !running {
 		return fmt.Errorf("HTTP port %s is not available (%w). Close the program using it, or pick another "+
@@ -343,6 +346,13 @@ func openRunningInstance(ctx context.Context, localURL, port string, openBrowser
 	}
 
 	slog.Info("F1 Telemetry Analyzer is already running", "url", localURL, "version", ver.Version)
+	if native {
+		if err := desktop.ShowRunningWindow(ctx, localURL); err != nil {
+			return fmt.Errorf("F1 Telemetry %s is already running but didn't show its window (%w). Quit it from "+
+				"its icon in the notification area and start it again", ver.Version, err)
+		}
+		return nil
+	}
 	if !openBrowser {
 		return nil
 	}
@@ -352,16 +362,27 @@ func openRunningInstance(ctx context.Context, localURL, port string, openBrowser
 	return nil
 }
 
-// openWindowAtStart opens the app window unless it was turned off in the window itself.
-func openWindowAtStart(ctx context.Context, app *desktop.App) {
+// windowAtStart reports whether a start opens the app's window. After an update it does on
+// Windows, where the window closed with the old copy, while elsewhere the browser window that asked
+// for the update reloads itself. Otherwise it does unless the app started at sign-in or the window
+// was turned off.
+func windowAtStart(ctx context.Context, app *desktop.App, cfg ServerConfig) bool {
+	if cfg.AfterUpdate {
+		return desktop.Supported()
+	}
+	if cfg.Autostart {
+		return false
+	}
 	state, err := app.State(ctx)
 	if err != nil {
 		slog.Warn("Could not read the desktop settings", "error", err)
-		return
+		return false
 	}
-	if !state.ShowWindowAtStart {
-		return
-	}
+	return state.ShowWindowAtStart
+}
+
+// openWindow opens the small browser window (macOS and Linux).
+func openWindow(app *desktop.App) {
 	if err := app.OpenWindow(); err != nil {
 		slog.Warn("Could not open the app window", "error", err)
 	}
@@ -528,7 +549,7 @@ func gracefulShutdown(
 	slog.Info("Shutdown complete. See you on track!")
 }
 
-func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string, tray bool) {
+func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string, native bool) {
 	fmt.Println()
 	fmt.Println("  ========================================================")
 	fmt.Println("  🏎️   F1 TELEMETRY ANALYZER  -  Official Telemetry Hub")
@@ -548,7 +569,7 @@ func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string, tray
 	fmt.Println("      6. UDP Format:            2026 (or 2025)")
 	fmt.Println()
 	fmt.Printf("  📁  Database: %s\n", dbPath)
-	if tray {
+	if native {
 		fmt.Println("  🖥️   Running in the system tray: quit from its menu.")
 	}
 	fmt.Println("  🛑  Press Ctrl+C at any time to stop.")

@@ -293,6 +293,8 @@ export const live = {
   viewModeLabel: 'Live view',
   viewModeCockpit: 'Voice Cockpit',
   viewModeDriver: 'Driver',
+  raceControlWindow: 'Race Control in a new window',
+  raceControlWindowFailed: 'The Race Control window didn’t open: {error}',
   cockpit: {
     title: 'Voice Engineer Cockpit',
     subtitle: 'Distraction-free pit wall radio & vital telemetry HUD',

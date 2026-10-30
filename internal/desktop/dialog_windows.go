@@ -8,7 +8,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Supported reports whether this platform has the tray.
+// Supported reports whether this platform has the app's own window and tray: only Windows.
 func Supported() bool { return true }
 
 // HasConsole reports whether the process can write to a console. The release build is a GUI

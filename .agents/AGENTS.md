@@ -35,8 +35,8 @@ Boundaries, invariants and verification gates.
   - `settings/`: Shared JSON settings (`settings.Sections`: `ai`, `voice`, `ptt`, `engineer`, `comparator`).
   - `locales/`: Type-safe `PromptCatalog`, thread-safe registry (`Resolve`, `Get`), `EnglishCatalog`/`SpanishCatalog`, Edge TTS voice mappings (no boolean flags).
   - `input/`: Global PTT (`winmm.dll` DirectInput wheels, `user32.dll` keyboard on Windows; Gamepad API + `Space` fallback).
-  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`) + self-update (`InstallRelease`; `Restart` sets `F1T_UPDATED`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance` (2nd launch exits quietly).
-  - `desktop/`: `App` behind loopback-only `/api/desktop` (`system.OpenAppWindow`, `LoadDesktop`, HKCU `Run`, `POST /desktop/update` (`InstallUpdate`, `Restart`; `can_update`), Quit). Tray (`fyne.io/systray` only in `_windows.go`; `onExit` = shutdown), en/es by OS, dialogs; stubs elsewhere. Release `-H=windowsgui`, log by DB. Icons: `go generate`.
+  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`) + self-update (`InstallRelease`; `Restart` sets `F1T_UPDATED`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance`, `OpenAppWindow`.
+  - `desktop/`: `App` behind loopback-only `/api/desktop` (`LoadDesktop`, HKCU `Run`, update, window, link, quit). Windows: Wails v3 windows on the local server (no bindings, `production` tag), tray, Race Control window; else `/desktop` in a browser. One radio per PC (`useRadioHere`), `openLinksOutside`. `-H=windowsgui`, log by DB. Icons: `go generate`.
   - `tsgen/`: Stdlib Go-to-TS wire type generator (`cmd/tsgen`).
 
 ### Wire Types & REST Contracts

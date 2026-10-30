@@ -9,6 +9,7 @@ import {
   type RadioSpeechOptions,
 } from '../utils/radioAudio';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { useRadioHere } from './useRadioHere';
 import type { RadioHeardOutcome } from '../types/telemetry';
 import { reportRadioHeard, type SpokenCall } from '../utils/radioHeardReport';
 
@@ -146,8 +147,9 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
 
-  // Settings from Zustand store
-  const isRadioEnabled = useRadioSettingsStore((s) => s.isRadioEnabled);
+  // Settings from Zustand store; off where the app's own window has the radio on this PC
+  const radioHere = useRadioHere();
+  const isRadioEnabled = useRadioSettingsStore((s) => s.isRadioEnabled) && radioHere;
   const persona = useRadioSettingsStore((s) => s.persona);
   const beepsEnabled = useRadioSettingsStore((s) => s.beepsEnabled);
   const filterEnabled = useRadioSettingsStore((s) => s.filterEnabled);

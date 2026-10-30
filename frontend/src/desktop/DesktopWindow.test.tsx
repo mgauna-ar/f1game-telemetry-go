@@ -10,7 +10,7 @@ const windowsTray: DesktopState = {
   show_window_at_start: true,
   start_with_os: false,
   start_with_os_available: true,
-  tray: true,
+  native_window: true,
   can_update: false,
 };
 
@@ -105,7 +105,7 @@ describe('DesktopWindow', () => {
   });
 
   it('leaves out Start with Windows off Windows and says the app stays in its terminal', async () => {
-    mockGets({ ...windowsTray, start_with_os_available: false, tray: false });
+    mockGets({ ...windowsTray, start_with_os_available: false, native_window: false });
     render(<DesktopWindow />);
 
     expect(await screen.findByRole('switch', { name: /Show this window at startup/ })).toBeInTheDocument();

@@ -35,10 +35,19 @@ export interface ToggleRowProps {
   onChange: (checked: boolean) => void;
   /** The small line used inside an alert accordion. */
   compact?: boolean;
+  /** Greyed out: the setting can't change here (the description says why). */
+  disabled?: boolean;
 }
 
 /** A setting turned on or off: its name (and description) and a switch; the whole row is the label. */
-export const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checked, onChange, compact = false }) => (
+export const ToggleRow: React.FC<ToggleRowProps> = ({
+  label,
+  description,
+  checked,
+  onChange,
+  compact = false,
+  disabled,
+}) => (
   <label className={styles.toggleRow} data-compact={compact || undefined}>
     {description ? (
       <span className={styles.toggleText}>
@@ -48,7 +57,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({ label, description, checke
     ) : (
       <span>{label}</span>
     )}
-    <Switch checked={checked} onChange={onChange} />
+    <Switch checked={checked} onChange={onChange} disabled={disabled} />
   </label>
 );
 

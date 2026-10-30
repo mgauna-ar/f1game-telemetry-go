@@ -21,6 +21,10 @@ type fakeDesktopApp struct {
 	dashboards int
 	installErr error
 	installs   int
+	windowErr  error
+	windows    []desktop.WindowRequest
+	linkErr    error
+	links      []string
 	restart    chan struct{}
 	quit       chan struct{}
 }
@@ -39,8 +43,18 @@ func (f *fakeDesktopApp) Update(_ context.Context, u desktop.DesktopUpdate) (des
 }
 
 func (f *fakeDesktopApp) OpenDashboard() error { f.dashboards++; return nil }
-func (f *fakeDesktopApp) Quit()                { close(f.quit) }
-func (f *fakeDesktopApp) Restart()             { close(f.restart) }
+
+func (f *fakeDesktopApp) ShowWindow(name, path string) error {
+	f.windows = append(f.windows, desktop.WindowRequest{Window: name, Path: path})
+	return f.windowErr
+}
+
+func (f *fakeDesktopApp) OpenExternal(link string) error {
+	f.links = append(f.links, link)
+	return f.linkErr
+}
+func (f *fakeDesktopApp) Quit()    { close(f.quit) }
+func (f *fakeDesktopApp) Restart() { close(f.restart) }
 
 func (f *fakeDesktopApp) InstallUpdate(context.Context) (string, error) {
 	f.installs++
@@ -66,7 +80,7 @@ func desktopRequest(t *testing.T, server *Server, method, path, body, remoteAddr
 
 func TestDesktopRoutes(t *testing.T) {
 	server, _ := setupTestServer(t)
-	app := &fakeDesktopApp{state: desktop.DesktopState{ShowWindowAtStart: true, Tray: true}, quit: make(chan struct{})}
+	app := &fakeDesktopApp{state: desktop.DesktopState{ShowWindowAtStart: true, NativeWindow: true}, quit: make(chan struct{})}
 	server.SetDesktopApp(app)
 
 	rec := desktopRequest(t, server, http.MethodGet, "/api/desktop", "", loopbackRemoteAddr)
@@ -106,6 +120,8 @@ func TestDesktopRoutesRejectOtherDevices(t *testing.T) {
 		{http.MethodGet, "/api/desktop"},
 		{http.MethodPut, "/api/desktop"},
 		{http.MethodPost, "/api/desktop/open-dashboard"},
+		{http.MethodPost, "/api/desktop/window"},
+		{http.MethodPost, "/api/desktop/open"},
 		{http.MethodPost, "/api/desktop/quit"},
 		{http.MethodPost, "/api/desktop/update"},
 	} {
@@ -113,7 +129,7 @@ func TestDesktopRoutesRejectOtherDevices(t *testing.T) {
 			t.Errorf("%s %s from the LAN = %d, want 403", tc.method, tc.path, rec.Code)
 		}
 	}
-	if app.dashboards != 0 || len(app.updates) != 0 || app.installs != 0 {
+	if app.dashboards != 0 || len(app.updates) != 0 || app.installs != 0 || len(app.windows) != 0 || len(app.links) != 0 {
 		t.Error("a LAN request reached the desktop app")
 	}
 }
@@ -178,6 +194,60 @@ func TestDesktopInstallUpdateErrors(t *testing.T) {
 			case <-app.restart:
 				t.Error("the app restarted after a failed update")
 			case <-time.After(50 * time.Millisecond):
+			}
+		})
+	}
+}
+
+func TestDesktopWindow(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "shown", want: http.StatusAccepted},
+		{name: "unknown window", err: desktop.ErrUnknownWindow, want: http.StatusBadRequest},
+		{name: "another site", err: desktop.ErrWindowPath, want: http.StatusBadRequest},
+		{name: "no window of its own", err: desktop.ErrNoWindow, want: http.StatusConflict},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, _ := setupTestServer(t)
+			app := &fakeDesktopApp{windowErr: tt.err, quit: make(chan struct{})}
+			server.SetDesktopApp(app)
+
+			rec := desktopRequest(t, server, http.MethodPost, "/api/desktop/window", `{"window":"race-control","path":"/live"}`, loopbackRemoteAddr)
+			if rec.Code != tt.want {
+				t.Errorf("POST /api/desktop/window = %d, want %d", rec.Code, tt.want)
+			}
+			want := []desktop.WindowRequest{{Window: desktop.WindowRaceControl, Path: "/live"}}
+			if len(app.windows) != 1 || app.windows[0] != want[0] {
+				t.Errorf("asked for %+v, want %+v", app.windows, want)
+			}
+		})
+	}
+}
+
+func TestDesktopOpenLink(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "opened", want: http.StatusOK},
+		{name: "not a web page", err: desktop.ErrExternalURL, want: http.StatusBadRequest},
+		{name: "no browser", err: errors.New("exec: rundll32: not found"), want: http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, _ := setupTestServer(t)
+			app := &fakeDesktopApp{linkErr: tt.err, quit: make(chan struct{})}
+			server.SetDesktopApp(app)
+
+			const link = "https://github.com/mgauna-ar/f1game-telemetry-go/releases"
+			rec := desktopRequest(t, server, http.MethodPost, "/api/desktop/open", `{"url":"`+link+`"}`, loopbackRemoteAddr)
+			if rec.Code != tt.want || len(app.links) != 1 || app.links[0] != link {
+				t.Errorf("POST /api/desktop/open = %d with %q, want %d with %q", rec.Code, app.links, tt.want, link)
 			}
 		})
 	}

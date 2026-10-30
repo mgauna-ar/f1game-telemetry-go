@@ -10,6 +10,7 @@ import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 const mockRadio: UseRadioControllerReturn = {
   radioState: 'idle',
   isRadioEnabled: true,
+  radioHere: true,
   setIsRadioEnabled: vi.fn(),
   persona: RADIO_PERSONAS.BONO,
   driverCallsign: '',

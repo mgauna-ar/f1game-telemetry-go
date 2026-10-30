@@ -1,3 +1,5 @@
+//go:build !windows
+
 package system
 
 import (
@@ -9,20 +11,13 @@ import (
 	"strings"
 )
 
-// appWindowProfileDir is the browser profile app windows run in on Windows and Linux, under the
-// user's cache folder.
+// appWindowProfileDir is the browser profile app windows run in on Linux, under the user's cache
+// folder.
 var appWindowProfileDir = filepath.Join("F1 Telemetry", "app-window")
 
-// Browsers that can open a page as an app window (--app), most likely to be installed first.
+// Browsers that can open a page as an app window (--app), most likely to be installed first. On
+// Windows the app has its own window instead (internal/desktop).
 var (
-	// windowsAppBrowsers are relative to %ProgramFiles(x86)%, %ProgramFiles% and %LOCALAPPDATA%.
-	// Edge comes with every Windows 10/11.
-	windowsAppBrowsers = []string{
-		filepath.Join("Microsoft", "Edge", "Application", "msedge.exe"),
-		filepath.Join("Google", "Chrome", "Application", "chrome.exe"),
-	}
-	windowsProgramDirs = []string{"ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"}
-
 	// macApplications is where macOS apps are installed for every user; ~/Applications is checked too.
 	macApplications = "/Applications"
 
@@ -35,12 +30,12 @@ var (
 	}
 )
 
-// OpenAppWindow opens url in a small window of its own: a Chromium-based browser (Edge, Chrome,
+// OpenAppWindow opens url in a small window of its own: a Chromium-based browser (Chrome, Edge,
 // Chromium, Brave) in app mode, which has no tabs or address bar. Without such a browser the page
 // opens in the default browser instead.
 //
-// On Windows and Linux the window runs in a separate profile, so the size applies and it stays apart
-// from the user's browsing. On macOS it opens in the user's own browser and profile: a second
+// On Linux the window runs in a separate profile, so the size applies and it stays apart from the
+// user's browsing. On macOS it opens in the user's own browser and profile: a second
 // instance of the browser would share its bundle id, so macOS would send it the links clicked in
 // other apps and the Dock icon's clicks, signed out of everything, even after the window closes.
 // There the page sizes the window itself (frontend/src/desktop/useFitWindowToContent.ts).
@@ -62,14 +57,6 @@ func OpenAppWindow(url string, width, height int) error {
 // executable, or on macOS its app bundle.
 func appBrowser(goos string, getenv func(string) string, exists func(string) bool, lookPath func(string) (string, error)) string {
 	switch goos {
-	case "windows":
-		for _, browser := range windowsAppBrowsers {
-			for _, dir := range windowsProgramDirs {
-				if base := getenv(dir); base != "" && exists(filepath.Join(base, browser)) {
-					return filepath.Join(base, browser)
-				}
-			}
-		}
 	case "darwin":
 		dirs := []string{macApplications}
 		if home := getenv("HOME"); home != "" {

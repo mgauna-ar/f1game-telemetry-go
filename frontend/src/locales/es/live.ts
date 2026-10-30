@@ -293,6 +293,8 @@ export const live = {
   viewModeLabel: 'Vista en vivo',
   viewModeCockpit: 'Cockpit de Voz',
   viewModeDriver: 'Piloto',
+  raceControlWindow: 'Control de Carrera en otra ventana',
+  raceControlWindowFailed: 'No se abrió la ventana de Control de Carrera: {error}',
   cockpit: {
     title: 'Cockpit del Ingeniero de Pista',
     subtitle: 'Radio de boxes sin distracciones y signos vitales de telemetría',

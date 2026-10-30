@@ -19,6 +19,7 @@ import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useNavHeightVar } from './hooks/useNavHeightVar';
+import { useNativeWindowLinks } from './hooks/useNativeWindowLinks';
 import { usePerformanceModeAttribute } from './hooks/usePerformanceMode';
 import { PHONE_MEDIA } from './styles/breakpoints';
 import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
@@ -85,6 +86,7 @@ function AppContent() {
   const lastSettingsUrl = useRef(settingsPath());
   const topNavRef = useRef<HTMLElement>(null);
   useNavHeightVar(topNavRef);
+  useNativeWindowLinks();
   if (activePage === 'settings') lastSettingsUrl.current = canonicalUrl;
   const tabHref = (page: Page) => {
     switch (page) {

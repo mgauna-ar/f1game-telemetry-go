@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
-	"strings"
 	"syscall"
 	"time"
 
-	"fyne.io/systray"
+	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
 )
@@ -22,171 +21,115 @@ const (
 	// firstUpdateCheckDelay lets startup finish before asking GitHub for a newer release.
 	firstUpdateCheckDelay = 30 * time.Second
 	updateCheckInterval   = 12 * time.Hour
-	// releasePagePrefix is the only kind of link the update notice opens.
-	releasePagePrefix = "https://github.com/"
 )
 
-// RunTray shows the notification-area icon and its menu until Quit (or its own Quit item) is
-// called, or Windows ends the session. onExit runs before RunTray returns; on sign-out or
-// shutdown it runs inside the message loop, before Windows ends the process.
-func RunTray(opts Options, onExit func()) {
-	t := &tray{opts: opts, text: userText()}
-	systray.Run(t.ready, onExit)
-}
-
-// Quit closes the tray, making RunTray return.
-func Quit() {
-	systray.Quit()
-}
-
+// tray is the notification-area icon and the menu items that change.
 type tray struct {
-	opts Options
-	text text
-
-	status     *systray.MenuItem
-	window     *systray.MenuItem
-	dashboard  *systray.MenuItem
-	live       *systray.MenuItem
-	update     *systray.MenuItem
-	autostart  *systray.MenuItem
-	dataFolder *systray.MenuItem
-	logFile    *systray.MenuItem
-	quit       *systray.MenuItem
-
-	view      feedView
-	updateURL string
+	icon      *application.SystemTray
+	status    *application.MenuItem
+	update    *application.MenuItem
+	autostart *application.MenuItem
+	// view is what the status line shows; only the watch goroutine changes it once the app runs.
+	view feedView
 }
 
-// ready builds the menu, then hands clicks, feed status and update notices to one goroutine, so
-// the tray's state needs no locking.
-func (t *tray) ready() {
-	systray.SetIcon(appIcon)
-	systray.SetTooltip(appName)
-	systray.SetOnTapped(func() { go t.showWindow() })
+// addTray builds the notification-area icon and its menu. Clicking the icon opens the window.
+func (s *shell) addTray() {
+	menu := s.app.NewMenu()
+	menu.Add(fmt.Sprintf("%s %s", appName, s.opts.Version)).SetEnabled(false)
+	s.tray.status = menu.Add("").SetEnabled(false)
+	menu.AddSeparator()
 
-	header := systray.AddMenuItem(fmt.Sprintf("%s %s", appName, t.opts.Version), "")
-	header.Disable()
-	t.status = systray.AddMenuItem("", "")
-	t.status.Disable()
-	systray.AddSeparator()
+	menu.Add(s.text.Open).OnClick(func(*application.Context) { s.show(WindowMain, "") })
+	menu.Add(s.text.LiveView).OnClick(func(*application.Context) { s.show(WindowMain, livePath) })
+	menu.Add(s.text.RaceControl).OnClick(func(*application.Context) { s.show(WindowRaceControl, "") })
+	menu.AddSeparator()
 
-	t.window = systray.AddMenuItem(t.text.ShowWindow, "")
-	t.dashboard = systray.AddMenuItem(t.text.OpenDashboard, "")
-	t.live = systray.AddMenuItem(t.text.OpenLive, "")
-	systray.AddSeparator()
-
-	t.update = systray.AddMenuItem("", "")
-	t.update.Hide()
-	t.autostart = t.addAutostartItem()
-	t.dataFolder = systray.AddMenuItem(t.text.OpenDataFolder, "")
-	t.logFile = systray.AddMenuItem(t.text.OpenLogFile, "")
-	if t.opts.LogPath == "" {
-		t.logFile.Hide()
+	// Shown once a newer release is out; the window says what's new
+	s.tray.update = menu.Add("").SetHidden(true).OnClick(func(*application.Context) { s.show(WindowMain, "") })
+	s.tray.autostart = s.addAutostartItem(menu)
+	menu.Add(s.text.OpenDataFolder).OnClick(func(*application.Context) { showInFolder(s.opts.DBPath) })
+	if s.opts.LogPath != "" {
+		menu.Add(s.text.OpenLogFile).OnClick(func(*application.Context) { openFile(s.opts.LogPath) })
 	}
-	systray.AddSeparator()
-	t.quit = systray.AddMenuItem(t.text.Quit, "")
+	menu.AddSeparator()
+	menu.Add(s.text.Quit).OnClick(func(*application.Context) { s.app.Quit() })
 
-	t.refreshFeed()
-	go t.run()
-}
-
-// run handles the menu until Quit.
-func (t *tray) run() {
-	feedTicker := time.NewTicker(feedRefreshInterval)
-	defer feedTicker.Stop()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	updates := t.watchUpdates(ctx)
-
-	for {
-		select {
-		case <-feedTicker.C:
-			t.refreshFeed()
-		case resp := <-updates:
-			t.showUpdate(resp)
-		case <-t.window.ClickedCh:
-			go t.showWindow()
-		case <-t.dashboard.ClickedCh:
-			t.open(t.opts.DashboardURL)
-		case <-t.live.ClickedCh:
-			t.open(t.opts.LiveURL)
-		case <-t.update.ClickedCh:
-			t.open(t.updateURL)
-		case <-t.autostart.ClickedCh:
-			t.toggleAutostart()
-		case enabled := <-t.opts.App.startWithOSChanged:
-			t.setAutostartChecked(enabled)
-		case <-t.dataFolder.ClickedCh:
-			showInFolder(t.opts.DBPath)
-		case <-t.logFile.ClickedCh:
-			t.open(t.opts.LogPath)
-		case <-t.quit.ClickedCh:
-			systray.Quit()
-			return
-		}
-	}
-}
-
-// showWindow opens the app window.
-func (t *tray) showWindow() {
-	if err := t.opts.App.OpenWindow(); err != nil {
-		slog.Warn("Could not open the app window", "error", err)
-	}
+	s.tray.view = describeFeed(s.text, s.opts.Feed(), time.Now(), s.opts.UDPPort)
+	s.tray.status.SetLabel(s.tray.view.Text)
+	s.tray.icon = s.app.SystemTray.New()
+	s.tray.icon.SetIcon(feedIcon(s.tray.view)).SetMenu(menu).OnClick(func() { s.show(WindowMain, "") })
+	s.tray.icon.SetTooltip(tooltip(s.tray.view))
 }
 
 // addAutostartItem adds "Start with Windows", ticked when this user's Run entry starts this
 // executable, and greyed out for a build that can't be started at sign-in.
-func (t *tray) addAutostartItem() *systray.MenuItem {
-	if !t.opts.App.startWithOSAvailable() {
-		item := systray.AddMenuItemCheckbox(t.text.StartWithWindows, t.text.DevBuildHint, false)
-		item.Disable()
-		return item
+func (s *shell) addAutostartItem(menu *application.Menu) *application.MenuItem {
+	app := s.opts.App
+	if !app.startWithOSAvailable() {
+		return menu.AddCheckbox(s.text.StartWithWindows, false).SetEnabled(false).SetTooltip(s.text.DevBuildHint)
 	}
-	return systray.AddMenuItemCheckbox(t.text.StartWithWindows, "", t.opts.App.StartWithOS())
+	return menu.AddCheckbox(s.text.StartWithWindows, app.StartWithOS()).OnClick(func(ctx *application.Context) {
+		enable := ctx.IsChecked()
+		if err := app.SetStartWithOS(enable); err != nil {
+			slog.Warn("Could not change Start with Windows", "enable", enable, "error", err)
+			s.setAutostartChecked(!enable)
+			go showDialog(appName, fmt.Sprintf("%s: %v", s.text.StartWithWindows, err))
+		}
+	})
 }
 
-func (t *tray) toggleAutostart() {
-	enable := !t.autostart.Checked()
-	if err := t.opts.App.SetStartWithOS(enable); err != nil {
-		slog.Warn("Could not change Start with Windows", "enable", enable, "error", err)
-		go showDialog(appName, fmt.Sprintf("%s: %v", t.text.StartWithWindows, err))
-		return
-	}
-	t.setAutostartChecked(enable)
-}
-
-func (t *tray) setAutostartChecked(enabled bool) {
-	if enabled {
-		t.autostart.Check()
-	} else {
-		t.autostart.Uncheck()
+// watch keeps the tray's status line and icon, its update notice and its Start with Windows tick
+// current, until the app quits.
+func (s *shell) watch() {
+	ctx := s.app.Context()
+	feed := time.NewTicker(feedRefreshInterval)
+	defer feed.Stop()
+	updates := s.watchUpdates(ctx)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-feed.C:
+			s.refreshFeed()
+		case resp := <-updates:
+			s.showUpdate(resp)
+		case enabled := <-s.opts.App.startWithOSChanged:
+			s.setAutostartChecked(enabled)
+		}
 	}
 }
 
 // refreshFeed updates the status line, tooltip and icon when the live feed's status changed.
-func (t *tray) refreshFeed() {
-	view := describeFeed(t.text, t.opts.Feed(), time.Now(), t.opts.UDPPort)
-	if view == t.view {
+func (s *shell) refreshFeed() {
+	view := describeFeed(s.text, s.opts.Feed(), time.Now(), s.opts.UDPPort)
+	if view == s.tray.view {
 		return
 	}
-	if view.Live != t.view.Live || t.view.Text == "" {
-		if view.Live {
-			systray.SetIcon(liveIcon)
-		} else {
-			systray.SetIcon(appIcon)
+	iconChanged := view.Live != s.tray.view.Live
+	s.tray.view = view
+	application.InvokeAsync(func() {
+		if iconChanged {
+			s.tray.icon.SetIcon(feedIcon(view))
 		}
+		s.tray.status.SetLabel(view.Text)
+		s.tray.icon.SetTooltip(tooltip(view))
+	})
+}
+
+// feedIcon is the tray icon for the live feed: with a status dot while telemetry arrives.
+func feedIcon(view feedView) []byte {
+	if view.Live {
+		return liveIcon
 	}
-	t.view = view
-	t.status.SetTitle(view.Text)
-	systray.SetTooltip(tooltip(view))
+	return appIcon
 }
 
 // watchUpdates checks for a newer release shortly after startup and then twice a day, sending
 // each one it finds. It sends nothing when update checks are off (dev builds).
-func (t *tray) watchUpdates(ctx context.Context) <-chan *system.UpdateCheckResponse {
+func (s *shell) watchUpdates(ctx context.Context) <-chan *system.UpdateCheckResponse {
 	found := make(chan *system.UpdateCheckResponse)
-	if t.opts.CheckUpdates == nil {
+	if s.opts.CheckUpdates == nil {
 		return found
 	}
 	go func() {
@@ -198,10 +141,10 @@ func (t *tray) watchUpdates(ctx context.Context) <-chan *system.UpdateCheckRespo
 				return
 			case <-timer.C:
 			}
-			resp, err := t.opts.CheckUpdates(ctx)
+			resp, err := s.opts.CheckUpdates(ctx)
 			if err != nil {
 				slog.Warn("Update check failed", "error", err)
-			} else if resp.UpdateAvailable && strings.HasPrefix(resp.HTMLURL, releasePagePrefix) {
+			} else if resp.UpdateAvailable {
 				select {
 				case found <- resp:
 				case <-ctx.Done():
@@ -214,20 +157,20 @@ func (t *tray) watchUpdates(ctx context.Context) <-chan *system.UpdateCheckRespo
 	return found
 }
 
-func (t *tray) showUpdate(resp *system.UpdateCheckResponse) {
-	t.updateURL = resp.HTMLURL
-	t.update.SetTitle(fmt.Sprintf(t.text.UpdateAvailable, resp.LatestVersion))
-	t.update.Show()
+func (s *shell) showUpdate(resp *system.UpdateCheckResponse) {
+	label := fmt.Sprintf(s.text.UpdateAvailable, resp.LatestVersion)
+	application.InvokeAsync(func() { s.tray.update.SetLabel(label).SetHidden(false) })
 }
 
-// open opens a URL or file with its default app, off the tray's goroutine.
-func (t *tray) open(target string) {
-	if target == "" {
-		return
-	}
+func (s *shell) setAutostartChecked(enabled bool) {
+	application.InvokeAsync(func() { s.tray.autostart.SetChecked(enabled) })
+}
+
+// openFile opens a file with its default app, such as the log in a text editor.
+func openFile(path string) {
 	go func() {
-		if err := system.OpenPath(target); err != nil {
-			slog.Warn("Could not open from the tray", "target", target, "error", err)
+		if err := system.OpenPath(path); err != nil {
+			slog.Warn("Could not open from the tray", "path", path, "error", err)
 		}
 	}()
 }

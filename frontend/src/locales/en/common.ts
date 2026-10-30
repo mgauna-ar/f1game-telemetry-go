@@ -16,6 +16,7 @@ export const common = {
   deleting: 'Deleting...',
   deletingSession: 'Deleting Session...',
   retry: 'Retry',
+  openLinkFailed: 'The link didn’t open in your browser: {error}',
   back: 'Back',
   explore: 'Explore',
   exploreSession: 'Explore Session',

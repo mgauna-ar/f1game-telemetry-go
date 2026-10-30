@@ -4,6 +4,7 @@ import { useI18n } from '../../context/I18nContext';
 import { LIVE_VIEW_MODES, RACE_CONTROL_LAYOUTS, type LiveViewMode, type RaceControlLayout } from '../../constants/f1';
 import { storedLiveModeFor, storeLiveModeFor } from '../../router/routes';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
+import { useRadioHere } from '../../hooks/useRadioHere';
 import { usePerformanceModeStore } from '../../store/usePerformanceModeStore';
 import { useDevicePreferencesStore } from '../../store/useDevicePreferencesStore';
 import type { LocaleCode } from '../../locales';
@@ -46,6 +47,7 @@ export const DeviceSettingsSection: React.FC = () => {
   const { t, locale, setLocale, availableLocales } = useI18n();
   const isRadioEnabled = useRadioSettingsStore((s) => s.isRadioEnabled);
   const setIsRadioEnabled = useRadioSettingsStore((s) => s.setIsRadioEnabled);
+  const radioHere = useRadioHere();
   const performance = usePerformanceModeStore((s) => s.enabled);
   const setPerformance = usePerformanceModeStore((s) => s.setEnabled);
   const chatExpanded = useDevicePreferencesStore((s) => s.chatExpanded);
@@ -74,9 +76,10 @@ export const DeviceSettingsSection: React.FC = () => {
       <SettingSection icon={<Power size={14} />} title={t('settings.device.radio')}>
         <ToggleRow
           label={t('ai_engineer.radio.masterToggle')}
-          description={t('settings.device.radioMasterDesc')}
-          checked={isRadioEnabled}
+          description={t(radioHere ? 'settings.device.radioMasterDesc' : 'ai_engineer.radio.speaksInAppWindow')}
+          checked={isRadioEnabled && radioHere}
           onChange={setIsRadioEnabled}
+          disabled={!radioHere}
         />
       </SettingSection>
 

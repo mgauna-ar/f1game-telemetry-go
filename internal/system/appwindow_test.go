@@ -1,3 +1,5 @@
+//go:build !windows
+
 package system
 
 import (
@@ -8,12 +10,7 @@ import (
 )
 
 func TestAppBrowser(t *testing.T) {
-	env := map[string]string{
-		"ProgramFiles(x86)": `C:\Program Files (x86)`,
-		"ProgramFiles":      `C:\Program Files`,
-		"LOCALAPPDATA":      `C:\Users\me\AppData\Local`,
-		"HOME":              "/Users/me",
-	}
+	env := map[string]string{"HOME": "/Users/me"}
 	getenv := func(k string) string { return env[k] }
 	installed := func(paths ...string) func(string) bool {
 		return func(p string) bool { return slices.Contains(paths, p) }
@@ -26,8 +23,6 @@ func TestAppBrowser(t *testing.T) {
 			return "", errors.New("not found")
 		}
 	}
-	edge := filepath.Join(env["ProgramFiles(x86)"], windowsAppBrowsers[0])
-	userChrome := filepath.Join(env["LOCALAPPDATA"], windowsAppBrowsers[1])
 	macChrome := filepath.Join(macApplications, macAppBrowsers[0])
 	macBrave := filepath.Join(env["HOME"], "Applications", macAppBrowsers[3])
 	macChromeExe := filepath.Join(macChrome, "Contents", "MacOS", "Google Chrome")
@@ -40,9 +35,6 @@ func TestAppBrowser(t *testing.T) {
 		lookPath func(string) (string, error)
 		want     string
 	}{
-		{name: "windows prefers Edge", goos: "windows", exists: installed(userChrome, edge), lookPath: onPath(), want: edge},
-		{name: "windows per-user Chrome", goos: "windows", exists: installed(userChrome), lookPath: onPath(), want: userChrome},
-		{name: "windows none", goos: "windows", exists: installed(), lookPath: onPath(), want: ""},
 		{name: "mac Chrome", goos: "darwin", exists: installed(macBraveExe, macChromeExe), lookPath: onPath(), want: macChrome},
 		{name: "mac Brave in home Applications", goos: "darwin", exists: installed(macBraveExe), lookPath: onPath(), want: macBrave},
 		{name: "mac bundle without its program", goos: "darwin", exists: installed(macChrome), lookPath: onPath(), want: ""},
@@ -70,10 +62,10 @@ func TestAppWindowCommand(t *testing.T) {
 		wantArgs []string
 	}{
 		{
-			name:     "windows runs the browser in its own profile",
-			goos:     "windows",
-			browser:  `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
-			wantName: `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
+			name:     "linux runs the browser in its own profile",
+			goos:     "linux",
+			browser:  "/usr/bin/chromium",
+			wantName: "/usr/bin/chromium",
 			wantArgs: []string{
 				"--app=http://localhost:8080/desktop",
 				"--window-size=440,640",
@@ -81,13 +73,6 @@ func TestAppWindowCommand(t *testing.T) {
 				"--no-first-run",
 				"--no-default-browser-check",
 			},
-		},
-		{
-			name:     "linux runs the browser in its own profile",
-			goos:     "linux",
-			browser:  "/usr/bin/chromium",
-			wantName: "/usr/bin/chromium",
-			wantArgs: appWindowArgs(url, 440, 640, profile),
 		},
 		{
 			name:     "mac opens it in the user's own browser and profile",

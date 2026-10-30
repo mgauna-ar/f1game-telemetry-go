@@ -217,6 +217,7 @@ export const ai_engineer = {
     speechError: 'Error de reconocimiento de voz: {code}',
     masterToggle: 'Ingeniero de Voz en Vivo',
     masterToggleDesc: 'Habilita la comunicación por Push-to-Talk y alertas de boxes',
+    speaksInAppWindow: 'En esta PC la radio habla en la ventana de F1 Telemetry.',
     radioOff: 'RADIO APAGADA',
     turnOn: 'Encender Radio',
     turnOff: 'Apagar Radio',

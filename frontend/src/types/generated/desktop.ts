@@ -5,7 +5,7 @@ export interface DesktopState {
   show_window_at_start: boolean;
   start_with_os: boolean;
   start_with_os_available: boolean;
-  tray: boolean;
+  native_window: boolean;
   can_update: boolean;
 }
 
@@ -15,7 +15,20 @@ export interface DesktopUpdate {
   start_with_os?: boolean;
 }
 
+export type DesktopWindowName = 'main' | 'race-control';
+
+/** Go: desktop.ExternalLinkRequest */
+export interface ExternalLinkRequest {
+  url: string;
+}
+
 /** Go: desktop.InstallUpdateResponse */
 export interface InstallUpdateResponse {
   version: string;
+}
+
+/** Go: desktop.WindowRequest */
+export interface WindowRequest {
+  window: DesktopWindowName;
+  path?: string;
 }

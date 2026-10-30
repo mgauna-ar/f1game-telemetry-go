@@ -111,9 +111,13 @@ func registry() *tsgen.Generator {
 		desktop.DesktopState{},
 		desktop.DesktopUpdate{},
 		desktop.InstallUpdateResponse{},
+		desktop.WindowRequest{},
+		desktop.ExternalLinkRequest{},
 		api.PTTTraceRequest{},
 		api.RadioHeardRequest{},
 	)
+	// The app's own windows on Windows (POST /api/desktop/window).
+	g.TypeAlias("desktop", "DesktopWindowName", stringUnion(desktop.WindowNames))
 	// What the dashboard reports about each push-to-talk exchange, for the app log.
 	g.TypeAlias("api", "PTTTraceOutcome", stringUnion(api.PTTTraceOutcomes))
 	g.TypeAlias("api", "PTTSource", stringUnion(api.PTTSources))
