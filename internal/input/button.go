@@ -15,6 +15,12 @@ const (
 	maxFailedPolls = 100
 )
 
+// What ended a press, for the log.
+const (
+	endedReleased   = "released"
+	endedReadFailed = "read_failed"
+)
+
 // buttonState turns polls of the push-to-talk button into presses and releases. A press counts at
 // once. A release counts only after the button reads released for releasePolls polls in a row. A
 // poll that couldn't read the button keeps the last state: with a game in front, the wheel can
@@ -25,15 +31,22 @@ type buttonState struct {
 	released int
 	// failed counts the polls in a row the button couldn't be read.
 	failed int
+	// heldPolls counts the polls since the press; after a release, the polls the press lasted.
+	heldPolls int
+	// endedBy says what ended the last press: endedReleased or endedReadFailed.
+	endedBy string
 }
 
 // poll takes one reading of the button (ok is false when it couldn't be read) and returns
 // stateDown or stateUp when the button went down or was let go, or "" when nothing changed.
 func (s *buttonState) poll(ok, pressed bool) string {
+	if s.down {
+		s.heldPolls++
+	}
 	if !ok {
 		s.failed++
 		if s.down && s.failed >= maxFailedPolls {
-			s.down, s.released = false, 0
+			s.down, s.released, s.endedBy = false, 0, endedReadFailed
 			return stateUp
 		}
 		return ""
@@ -43,7 +56,7 @@ func (s *buttonState) poll(ok, pressed bool) string {
 	if pressed {
 		s.released = 0
 		if !s.down {
-			s.down = true
+			s.down, s.heldPolls = true, 0
 			return stateDown
 		}
 		return ""
@@ -55,6 +68,6 @@ func (s *buttonState) poll(ok, pressed bool) string {
 	if s.released < releasePolls {
 		return ""
 	}
-	s.down, s.released = false, 0
+	s.down, s.released, s.endedBy = false, 0, endedReleased
 	return stateUp
 }

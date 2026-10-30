@@ -208,6 +208,7 @@ export const ai_engineer = {
     buttonNumber: 'Button {number}',
     pttNotSet: 'No push-to-talk button set',
     pttSetUp: 'Set up',
+    openMicHint: 'Listening. Stop talking or press again to send',
     notSupported: 'Speech Recognition is not supported in this browser.',
     notHeard: 'Nothing heard on your last transmission.',
     micBlocked: "The microphone is blocked for this page. Allow it in the browser's site settings.",

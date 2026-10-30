@@ -1,11 +1,18 @@
 import { useState, useRef, useCallback } from 'react';
-import { RADIO_CONVERSATION_LIMITS } from '../constants/f1';
+import { RADIO_CONVERSATION_LIMITS, RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
 import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
 import { useI18n, type I18nContextType } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { AIChatRequest } from '../types/ai';
-import type { ExchangeLine, PTTSource, PTTTraceOutcome, PTTTraceRequest, RadioEmotion } from '../types/telemetry';
+import type {
+  ExchangeLine,
+  PTTOpenMicEnd,
+  PTTSource,
+  PTTTraceOutcome,
+  PTTTraceRequest,
+  RadioEmotion,
+} from '../types/telemetry';
 import type { SpokenCall } from '../utils/radioHeardReport';
 import { resolveRadioLanguage } from '../utils/chatContext';
 import { api } from '../utils/apiClient';
@@ -50,8 +57,13 @@ export interface UseRadioAudioReturn {
   testTriggerAlert: (triggerType: string) => Promise<void>;
   /** The push-to-talk button went down; `source` says where it was heard, for the trace. */
   onPTTPress: (source?: PTTSource) => void;
-  /** The push-to-talk button was let go. */
-  onPTTRelease: (source?: PTTSource) => Promise<void>;
+  /**
+   * The push-to-talk button was let go. `mode` is the push-to-talk mode: only a Hold release from the
+   * app's in-game button can leave the radio open.
+   */
+  onPTTRelease: (source?: PTTSource, mode?: RadioPTTMode) => Promise<void>;
+  /** The radio stayed open after an in-game press that came back up at once; it goes out when the driver stops. */
+  openMic: boolean;
   /** Whether a push-to-talk exchange is under way: the driver talking, or the answer coming. */
   isExchangeActive: () => boolean;
   /** Synthesizes a call's speech ahead, so it starts at once if it is said. */
@@ -71,6 +83,10 @@ interface RadioExchange {
   /** When the answer's first sentence arrived; 0 until then. */
   firstSentenceAt: number;
   standByTimer?: ReturnType<typeof setTimeout>;
+  /** The radio stayed open after the release; the timers end it when the driver stops talking. */
+  openMic: boolean;
+  openMicTimer?: ReturnType<typeof setTimeout>;
+  openMicMaxTimer?: ReturnType<typeof setTimeout>;
   ended: boolean;
   /** What happened, for the app log. */
   trace: PTTTraceRequest;
@@ -137,6 +153,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
   const [radioState, setRadioState] = useState<RadioState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [openMic, setOpenMic] = useState(false);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
 
   // Settings from Zustand store
@@ -152,6 +169,9 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   // Whether radio speech is playing right now
   const speakingRef = useRef(false);
 
+  // An open radio waits for the driver to stop talking: each new word restarts the wait.
+  const onOpenMicWordsRef = useRef<() => void>(() => {});
+
   // 1. Speech Recognition Sub-hook
   const {
     transcript,
@@ -163,7 +183,10 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     getReport,
   } = useSpeechRecognition({
     getLang: () => (effectiveLanguage === 'es' ? 'es-AR' : 'en-GB'),
-    onTranscriptReceived,
+    onTranscriptReceived: (text) => {
+      onTranscriptReceived?.(text);
+      onOpenMicWordsRef.current();
+    },
   });
 
   // 2. TTS Playback Sub-hook
@@ -243,6 +266,16 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     [ttsSpeakMessage]
   );
 
+  // Closes an open radio: stops its timers. The page shows it closed unless a newer press opened it again.
+  const clearOpenMic = useCallback((exchange: RadioExchange) => {
+    if (!exchange.openMic) return;
+    exchange.openMic = false;
+    clearTimeout(exchange.openMicTimer);
+    clearTimeout(exchange.openMicMaxTimer);
+    onOpenMicWordsRef.current = () => {};
+    if (!exchangeRef.current?.openMic) setOpenMic(false);
+  }, []);
+
   // Ends an exchange: logs what happened and lets the pit wall talk again. The calls of an exchange
   // a newer press replaced keep waiting for the new one.
   const endExchange = useCallback(
@@ -250,6 +283,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       if (exchange.ended) return;
       exchange.ended = true;
       clearTimeout(exchange.standByTimer);
+      clearOpenMic(exchange);
       const current = exchangeRef.current === exchange;
       const { trace } = exchange;
       trace.outcome = current ? outcome : 'replaced';
@@ -260,7 +294,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
         playHeldCalls(false);
       }
     },
-    [playHeldCalls]
+    [clearOpenMic, playHeldCalls]
   );
 
   const stopRadio = useCallback(() => {
@@ -302,45 +336,15 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
   const isExchangeActive = useCallback(() => exchangeRef.current !== null, []);
 
-  // Handle Gamepad/PTT Press
-  const onPTTPress = useCallback((source?: PTTSource) => {
-    if (!isRadioEnabledRef.current || exchangeRef.current?.transmitting) return;
-    // A new transmission replaces an answer still being generated or spoken. A traffic call with no
-    // number ("on you now") is still true after it, so it waits for the release; one with a number
-    // would be wrong by then.
-    activeAbortControllerRef.current?.abort();
-    activeAbortControllerRef.current = null;
-    const kept = stopSpeech({ keep: (call) => call.keptOnPtt === true });
-    stopRadioSpeech();
-    setError(null);
-    setRadioState('transmitting');
-    exchangeRef.current = {
-      transmitting: true,
-      pressedAt: Date.now(),
-      releasedAt: 0,
-      firstSentenceAt: 0,
-      ended: false,
-      trace: { ...newTrace(), press_source: source },
-    };
-    for (const call of kept) heldCallsRef.current.push(call);
-
-    if (beepsEnabledRef.current) {
-      playRadioBeep('start');
-    }
-
-    // A recognizer that can't start is reported on release, like one that heard nothing.
-    startListening();
-  }, [startListening, stopSpeech]);
-
-  // Handle Gamepad/PTT Release
-  const onPTTRelease = useCallback(async (source?: PTTSource) => {
-    const exchange = exchangeRef.current;
-    if (!exchange || !exchange.transmitting) return;
+  // Ends the driver's transmission: the end beep, the recognizer's last words, then the answer.
+  // openMicEnd says what ended a transmission the radio kept open.
+  const releaseTransmission = useCallback(async (exchange: RadioExchange, openMicEnd?: PTTOpenMicEnd) => {
+    if (!exchange.transmitting || exchange.ended) return;
     const { trace } = exchange;
-    trace.release_source = source;
     exchange.transmitting = false;
     exchange.releasedAt = Date.now();
-    trace.held_ms = exchange.releasedAt - exchange.pressedAt;
+    if (openMicEnd) trace.open_mic_end = openMicEnd;
+    clearOpenMic(exchange);
     trace.visible_at_release = isPageVisible();
     setRadioState('processing');
 
@@ -372,8 +376,12 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       // The engineer asks to say again, or says the radio isn't working, and the page shows why.
       const problem = speechProblem(errorCode, tRef.current);
       setRadioState((prev) => (prev === 'processing' ? 'idle' : prev));
-      // A short tap that heard nothing was an accident, not a question.
-      if (!problem.radioFault && trace.held_ms < RADIO_CONVERSATION_LIMITS.MIN_PRESS_FOR_SAY_AGAIN_MS) {
+      // A short tap that heard nothing was an accident, not a question; so was an open radio where
+      // the driver said nothing.
+      const accidental = openMicEnd
+        ? !report.speech
+        : trace.held_ms < RADIO_CONVERSATION_LIMITS.MIN_PRESS_FOR_SAY_AGAIN_MS;
+      if (!problem.radioFault && accidental) {
         endExchange(exchange, 'tap');
         return;
       }
@@ -470,6 +478,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     }
   }, [
     beginReplyStream,
+    clearOpenMic,
     endExchange,
     exchangeLine,
     getErrorCode,
@@ -479,6 +488,83 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     stopListening,
     ttsSpeakMessage,
   ]);
+
+  // Handle Gamepad/PTT Press
+  const onPTTPress = useCallback((source?: PTTSource) => {
+    const current = exchangeRef.current;
+    if (current?.transmitting) {
+      // A press while the radio stayed open sends what was said.
+      if (current.openMic) void releaseTransmission(current, 'press');
+      return;
+    }
+    if (!isRadioEnabledRef.current) return;
+    // A new transmission replaces an answer still being generated or spoken. A traffic call with no
+    // number ("on you now") is still true after it, so it waits for the release; one with a number
+    // would be wrong by then.
+    activeAbortControllerRef.current?.abort();
+    activeAbortControllerRef.current = null;
+    const kept = stopSpeech({ keep: (call) => call.keptOnPtt === true });
+    stopRadioSpeech();
+    setError(null);
+    setRadioState('transmitting');
+    exchangeRef.current = {
+      transmitting: true,
+      pressedAt: Date.now(),
+      releasedAt: 0,
+      firstSentenceAt: 0,
+      openMic: false,
+      ended: false,
+      trace: { ...newTrace(), press_source: source },
+    };
+    for (const call of kept) heldCallsRef.current.push(call);
+
+    if (beepsEnabledRef.current) {
+      playRadioBeep('start');
+    }
+
+    // A recognizer that can't start is reported on release, like one that heard nothing.
+    startListening();
+  }, [releaseTransmission, startListening, stopSpeech]);
+
+  // Handle Gamepad/PTT Release
+  const onPTTRelease = useCallback(
+    async (source?: PTTSource, mode?: RadioPTTMode) => {
+      const exchange = exchangeRef.current;
+      if (!exchange || !exchange.transmitting || exchange.openMic) return;
+      const { trace } = exchange;
+      trace.release_source = source;
+      trace.held_ms = Date.now() - exchange.pressedAt;
+      // With the game in front, the app's reading of the wheel can end a press the driver is still
+      // holding, almost at once. Keep the radio open and send when the driver stops talking.
+      if (
+        source === 'global' &&
+        mode === RADIO_PTT_MODES.HOLD &&
+        trace.held_ms < RADIO_CONVERSATION_LIMITS.MIN_PRESS_FOR_SAY_AGAIN_MS
+      ) {
+        exchange.openMic = true;
+        setOpenMic(true);
+        const endOpenMic = (end: PTTOpenMicEnd) => () => void releaseTransmission(exchange, end);
+        const wait = (heard: boolean) => {
+          clearTimeout(exchange.openMicTimer);
+          exchange.openMicTimer = setTimeout(
+            endOpenMic(heard ? 'silence' : 'no_speech'),
+            heard ? RADIO_CONVERSATION_LIMITS.OPEN_MIC_SILENCE_MS : RADIO_CONVERSATION_LIMITS.OPEN_MIC_NO_SPEECH_MS
+          );
+        };
+        onOpenMicWordsRef.current = () => {
+          if (exchangeRef.current === exchange && exchange.transmitting) wait(true);
+        };
+        wait(getFinalTranscript().trim() !== '');
+        exchange.openMicMaxTimer = setTimeout(
+          endOpenMic('max'),
+          RADIO_CONVERSATION_LIMITS.OPEN_MIC_MAX_MS - (Date.now() - exchange.pressedAt)
+        );
+        return;
+      }
+      await releaseTransmission(exchange);
+    },
+    [getFinalTranscript, releaseTransmission]
+  );
 
   return {
     radioState,
@@ -492,6 +578,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     testTriggerAlert,
     onPTTPress,
     onPTTRelease,
+    openMic,
     isExchangeActive,
     prefetchMessage,
   };

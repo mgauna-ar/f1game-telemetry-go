@@ -188,13 +188,19 @@ func (w *WindowsManager) tick() {
 	// A wheel that couldn't be read says nothing about the button, unless the key is held.
 	w.mu.Lock()
 	evt := w.button.poll(joyOK || keyPressed, joyPressed || keyPressed)
+	heldMs, endedBy := w.button.heldPolls*int(w.pollInterval/time.Millisecond), w.button.endedBy
 	w.mu.Unlock()
 	if evt == "" {
 		return
 	}
 	// The whole button mask shows what the wheel reported, e.g. another button lighting up instead.
-	slog.Info("Push-to-talk button", "state", evt, "device", joyMapping.DeviceIndex, "button", joyMapping.ButtonIndex,
-		"buttons", fmt.Sprintf("%#x", buttons), "wheel_read", joyOK, "key", keyMapping.KeyName, "key_down", keyPressed)
+	attrs := []any{"state", evt, "device", joyMapping.DeviceIndex, "button", joyMapping.ButtonIndex,
+		"buttons", fmt.Sprintf("%#x", buttons), "wheel_read", joyOK, "key", keyMapping.KeyName, "key_down", keyPressed}
+	if evt == stateUp {
+		// How long the press lasted, release debounce included, shows a hold the reading cut short.
+		attrs = append(attrs, "held_ms", heldMs, "ended_by", endedBy)
+	}
+	slog.Info("Push-to-talk button", attrs...)
 	w.EmitEvent(evt)
 }
 

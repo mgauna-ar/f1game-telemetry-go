@@ -11,8 +11,8 @@ export type { GamepadMapping, GlobalPTTMapping };
 export interface UseGamepadPTTOptions {
   /** The button went down; `source` says where it was heard. */
   onPTTDown?: (source: PTTSource) => void;
-  /** The button was let go; `source` says where it was heard. */
-  onPTTUp?: (source: PTTSource) => void;
+  /** The button was let go; `source` says where it was heard, `mode` is the push-to-talk mode. */
+  onPTTUp?: (source: PTTSource, mode: RadioPTTMode) => void;
   enabled?: boolean;
 }
 
@@ -76,7 +76,7 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     if (nextState) {
       onPTTDownRef.current?.(source);
     } else {
-      onPTTUpRef.current?.(source);
+      onPTTUpRef.current?.(source, pttModeRef.current);
     }
   }, []);
 

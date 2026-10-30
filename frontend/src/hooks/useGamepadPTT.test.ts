@@ -302,7 +302,7 @@ describe('useGamepadPTT hook', () => {
     expect(onPTTDown).toHaveBeenCalledTimes(1);
     expect(onPTTDown).toHaveBeenCalledWith('global');
     expect(onPTTUp).toHaveBeenCalledTimes(1);
-    expect(onPTTUp).toHaveBeenCalledWith('global');
+    expect(onPTTUp).toHaveBeenCalledWith('global', 'hold');
   });
 
   it('shows a failed save', async () => {

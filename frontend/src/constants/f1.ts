@@ -701,6 +701,16 @@ export const RADIO_CONVERSATION_LIMITS = {
   RECOGNIZER_END_TIMEOUT_MS: 1500,
   /** A shorter press that heard nothing is taken as an accidental tap: the engineer doesn't ask to say again. */
   MIN_PRESS_FOR_SAY_AGAIN_MS: 500,
+  /**
+   * An in-game press the app saw come back up sooner than MIN_PRESS_FOR_SAY_AGAIN_MS keeps the radio
+   * open: the wheel reading can end a press the driver is still holding. It goes out once the driver
+   * stops talking for OPEN_MIC_SILENCE_MS, or presses again.
+   */
+  OPEN_MIC_SILENCE_MS: 1500,
+  /** An open radio where nothing was said closes quietly after this long. */
+  OPEN_MIC_NO_SPEECH_MS: 6000,
+  /** The longest an open radio stays open. */
+  OPEN_MIC_MAX_MS: 20000,
   /** Without the answer's first sentence this long after the release, the engineer says "stand by". */
   STAND_BY_AFTER_MS: 2000,
 } as const;
