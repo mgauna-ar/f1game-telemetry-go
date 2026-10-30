@@ -1,7 +1,8 @@
 name: Windows installer
 description: >
-  Builds F1 Telemetry's installer (build/windows/installer.nsi) around a Windows exe. Needs NSIS,
-  which windows-2022 has and windows-latest (2025) doesn't.
+  Builds F1 Telemetry's installer (build/windows/installer.nsi) around a Windows exe, then installs
+  and uninstalls it on the runner (build/windows/try-installer.ps1). Needs NSIS, which windows-2022
+  has and windows-latest (2025) doesn't.
 
 inputs:
   exe:
@@ -47,3 +48,9 @@ runs:
         makensis "/DEXE=$exe" "/DVERSION=$version" "/DVERSION_NUMBER=$number" "/DOUTFILE=$out" build\windows\installer.nsi
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Get-Item $out | Format-Table Name, Length
+
+    - name: Try the installer
+      shell: pwsh
+      env:
+        OUTPUT: ${{ inputs.output }}
+      run: ./build/windows/try-installer.ps1 -Installer $env:OUTPUT
